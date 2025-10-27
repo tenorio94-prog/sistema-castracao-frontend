@@ -1,5 +1,5 @@
 import AgendamentoCard from "@/components/public/AgendamentoCard";  
-import CardBaseDash from "@/components/CardBaseDash"; 
+import CardBaseDash from "@/components/Dashboard/CardBaseDash"; 
 import { Calendar, CheckCircle, Dog } from "lucide-react";
 
 

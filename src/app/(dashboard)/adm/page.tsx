@@ -1,9 +1,9 @@
 import Home from "@/app/page";
 import Link from 'next/link';
-import CardBaseDash from "@/components/CardBaseDash";
+import CardBaseDash from "@/components/Dashboard/CardBaseDash";
 import { Calendar, Dog, Users, ArrowUp, BuildingIcon, CrossIcon } from "lucide-react";
-import CargaTrabalhoChart from "@/components/CargaTrabalhoGrafico";
-import AgendaDoDia from "@/components/AgendaDoDia";
+import CargaTrabalhoChart from "@/components/Dashboard/CargaTrabalhoGrafico";
+import AgendaDoDia from "@/components/Dashboard/AgendaDoDia";
 
 export default function AdminPage(){
 

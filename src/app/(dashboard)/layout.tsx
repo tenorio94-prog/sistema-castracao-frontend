@@ -1,4 +1,4 @@
-import CardBaseDash from "@/components/CardBaseDash"; 
+import CardBaseDash from "@/components/Dashboard/CardBaseDash"; 
 import AgendamentoCard from "@/components/public/AgendamentoCard";
 
 export default function DashboardLayout({

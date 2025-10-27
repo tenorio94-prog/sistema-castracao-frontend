@@ -1,5 +1,4 @@
-// app/(dashboard)/@sidebar/medico/page.tsx
-import SidebarButton from "@/components/SidebarButton";
+import SidebarButton from "@/components/Buttons/SidebarButton";
 import { 
   Home, 
   Stethoscope, 

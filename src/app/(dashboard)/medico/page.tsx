@@ -1,5 +1,5 @@
 import AgendamentoCard from '@/components/public/AgendamentoCard';  
-import CardBaseDash from '@/components/CardBaseDash';
+import CardBaseDash from '@/components/Dashboard/CardBaseDash';
 import Link from 'next/link';
 import { Calendar, Dog, CrossIcon } from 'lucide-react';
 

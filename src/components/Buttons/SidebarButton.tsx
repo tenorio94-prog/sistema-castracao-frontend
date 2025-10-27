@@ -1,3 +1,5 @@
+//Component: Sidebar Button dos povs adm, atendente e médico//
+
 "use client"; // Marque como "use client" se for usar hooks como usePathname
 
 import Link from 'next/link';
