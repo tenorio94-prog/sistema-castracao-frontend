@@ -1,3 +1,5 @@
+//Componente: Gráfico de Barras para Carga de Trabalho dos Médicos, disponível no Dashboard ADM//
+
 'use client'; 
 
 import { 
@@ -21,8 +23,10 @@ const data = [
 
 export default function CargaTrabalhoChart() {
   return (
-    // Container com o título e subtítulo do Grafico
+
+    // Container Principal
     <div className="bg-white p-6 rounded-lg shadow-sm mt-6">
+      {/* Título e Descrição */}
       <h3 className="text-lg font-semibold text-gray-800">
         Distribuição de Carga de Trabalho
       </h3>
@@ -30,7 +34,7 @@ export default function CargaTrabalhoChart() {
         Consultas e cirurgias por médico este mês
       </p>
 
-      {/* O contâiner do gráfico precisa de uma altura definida */}
+      {/* Container do gráfico precisa de uma altura definida */}
       <div style={{ width: '100%', height: 350 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart

@@ -1,3 +1,5 @@
+//Componente: Card Base dos Dashboards, com resumo de métricas//
+
 import React from 'react';
 
 // Propriedades do Card

@@ -15,7 +15,7 @@ return (
       <p className= "text-green-800">Bem-vindo à seção de administração do painel.</p>
     </div>
 
-{/* Cards de Resumo*/}
+{/* Cards de Resumo (CardBaseDash) */}
     <div className= "flex flex-wrap gap-3 mt-1">
 
       <CardBaseDash
