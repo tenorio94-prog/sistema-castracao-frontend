@@ -23,16 +23,12 @@ export default function Home (){
   <p>Responsavel</p>
   </Link>
 
-  <Link href= "/adm/login">
-  <p>Login - Adm</p>
+  <Link href= "/login">
+  <p>Login</p>
   </Link>
 
-    <Link href= "/adm/cadastro">
-  <p>Cadastro - Adm</p>
-  </Link>
-
-    <Link href= "/login">
-  <p>Login - Responsavel</p>
+    <Link href= "/cadastro">
+  <p>Cadastro</p>
   </Link>
   
 </div>
