@@ -52,7 +52,7 @@ export default function LoginForm() {
                     />
                 </div>
 
-                {/* Campo Senha (Atualizado com SVGs SÓLIDOS) */}
+                {/* Campo Senha (Atualizado com SVGs OUTLINE) */}
                 <div className="flex flex-col text-left">
                     <label htmlFor="senha" className="text-sm font-medium text-[#2f6b2f] mb-1">
                         Senha
@@ -75,19 +75,18 @@ export default function LoginForm() {
                             onClick={() => setShowPassword(!showPassword)} 
                             className="absolute inset-y-0 right-0 flex items-center pr-3
                                        text-[#3a773a] hover:text-[#2e622e]
-                                       focus:outline-none" // Adicionado para remover o anel de foco azul no clique
+                                       focus:outline-none"
                         >
                             {showPassword ? (
-                                // Ícone "Olho Aberto" SÓLIDO (para 'ver senha')
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                                    <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-                                    <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.18l3.75-5.63A1.65 1.65 0 015.908 3h8.184a1.65 1.65 0 011.493.78l3.75 5.63a1.65 1.65 0 010 1.18l-3.75 5.63A1.65 1.65 0 0114.092 17H5.908a1.65 1.65 0 01-1.493-.78L.664 10.59zM10 15a5 5 0 100-10 5 5 0 000 10z" clipRule="evenodd" />
+                                // Ícone "Olho Aberto" OUTLINE (baseado no que você enviou)
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                             ) : (
-                                // Ícone "Olho Cortado" SÓLIDO (para 'ocultar senha')
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                                    <path fillRule="evenodd" d="M3.28 2.47a.75.75 0 00-1.06 1.06l14.25 14.25a.75.75 0 101.06-1.06L3.28 2.47zM8.28 9.22a2.5 2.5 0 003.5 3.5l1.65-1.65a.75.75 0 00-1.06-1.06l-1.65 1.65a.75.75 0 00-1.06-1.06l-1.38-1.38zM10 15a5 5 0 100-10 5 5 0 000 10z" clipRule="evenodd" />
-                                    <path d="M1.664 10.59a1.651 1.651 0 010-1.18l3.75-5.63A1.65 1.65 0 015.908 3h8.184a1.65 1.65 0 011.493.78l.842 1.263a.75.75 0 001.06-1.06L16.63 2.73a3.15 3.15 0 00-2.853-1.48H5.908a3.15 3.15 0 00-2.853 1.48L.304 8.27a3.15 3.15 0 000 2.26l2.75 4.125a.75.75 0 001.06-1.06l-1.803-2.704a1.65 1.65 0 010-1.18l.842-1.263zM12.9 10.59a1.65 1.65 0 01-1.088 1.466l-2.002 2.002a5 5 0 01-5.5-5.5l2.002-2.002A1.65 1.65 0 0112.9 10.59z" />
+                                // Ícone "Olho Cortado" OUTLINE (versão correspondente ao "outline")
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.981 7.757l-.001.001A2.25 2.25 0 001.5 9.75v3c0 1.034.626 1.94 1.501 2.328.112.052.232.109.358.18l3.429 2.062a2.25 2.25 0 002.183.336H16.5a2.25 2.25 0 002.244-2.071l-.138-.035L18.25 9.75v-.75m-8.625.108c1.325 0 2.502.5 3.397 1.342c.813.731 1.383 1.652 1.62 2.627v.001c.088.355.152.71.186 1.068.006.075.021.15.045.223h3.397A2.25 2.25 0 0021 12.75v-3a2.25 2.25 0 00-2.036-2.223A1.873 1.873 0 0116.5 6.75h-4.5V4.5A2.25 2.25 0 009.75 2.25L7.5 4.5V9C4.945 9 2.5 9.079 2.5 9.75v1.5c0 .38.258.714.625.861m6.75-2.613c1.33.204 2.548.874 3.528 1.872a4.5 4.5 0 01-3.957 5.728l-1.353-.298m0-.113A9.006 9.006 0 009 15.75c-1.332 0-2.584-.28-3.71-.806m.015-.028a4.5 4.5 0 01-.197-3.694l.799-.799c.945.046 1.876.177 2.787.398m-1.996.953l.002.002A2.25 2.25 0 0111.25 10.5h-1.5a.75.75 0 00-.75.75c0 .034.004.067.012.1m.789 2.775l-.002.002A2.25 2.25 0 019 13.5h1.5a.75.75 0 00.75-.75c0-.034-.004-.067-.012-.1M16.5 12.75v-.75m-4.5 0h-.008C12.001 12 12 12.034 12 12.067c0 .207.035.409.102.6m-4.5 0A9.006 9.006 0 003 15.75m.75-.083c-.097.166-.192.333-.284.5l-.234.35A.75.75 0 003.543 17H5.25v1.5a.75.75 0 00.75.75h1.5c.381 0 .736.216.902.56l.006.015c.012.029.027.058.044.085A.75.75 0 008.25 20.25h3.75a.75.75 0 00.75-.75V17.25H18a.75.75 0 00.75-.75V15h1.5a.75.75 0 00.75-.75V12.75c0-.662-.435-1.226-1.026-1.428" />
                                 </svg>
                             )}
                         </button>
