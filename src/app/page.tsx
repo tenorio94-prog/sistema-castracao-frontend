@@ -22,6 +22,10 @@ export default function Home (){
     <Link href= "/responsavel">
   <p>Responsavel</p>
   </Link>
+
+  <Link href= "/login">
+  <p>Auth</p>
+  </Link>
   
 </div>
   )

@@ -7,6 +7,8 @@ import AgendaDoDia from "@/components/Dashboard/AgendaDoDia";
 
 export default function AdminPage(){
 
+
+
 return (
   <>
   {/*Cabeçalho*/}
