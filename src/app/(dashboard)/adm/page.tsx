@@ -12,7 +12,7 @@ return (
   {/*Cabeçalho*/}
     <div>
       <h1 className="text-2xl font-bold mb-4 text-green-700">Dashboard ADM</h1>
-      <p className= "text-green-800">Bem-vindo à seção de administração do painel.</p>
+      <p className= "text-green-800">Bem-vindo à seção de administração do painel</p>
     </div>
 
 {/* Cards de Resumo (CardBaseDash) */}

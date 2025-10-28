@@ -1,60 +1,71 @@
 import SidebarButton from "@/components/Buttons/SidebarButton";
-import { LayoutDashboardIcon, CrossIcon, Users, GraduationCapIcon, HeartIcon, DogIcon, BoxIcon, Calendar, SettingsIcon } from "lucide-react";
+import { 
+  LayoutDashboardIcon, 
+  Heart,
+  CrossIcon, 
+  Users, 
+  GraduationCapIcon, 
+  HeartIcon, 
+  DogIcon, 
+  BoxIcon, 
+  Calendar, 
+  SettingsIcon 
+} from "lucide-react";
 
 export default function AdmSidebarButtons() {
   return (
 
 <nav className = "gap-2 flex flex-col">
-<SidebarButton 
-href= "adm"
+<SidebarButton
+href= "/adm"
 icon = {<LayoutDashboardIcon/>}
 label= "Dashboard"
 />
 
 <SidebarButton 
-href= "adm/admMedicos"
+href= "/adm/medicos"
 icon = {<CrossIcon/>}
 label= "Médicos"
 />
 
 <SidebarButton 
-href= "adm/admAtendentes"
+href= "/adm/atendentes"
 icon = {<Users/>}
 label= "Atendentes"
 />
 
 <SidebarButton 
-href= "adm/admEstudantes"
-icon = {<GraduationCapIcon/>}
+href= "/adm/estudantes"
+icon = {<Heart/>}
 label= "Estudantes"
 />
 
 <SidebarButton 
-href= "adm/admResponsaveis"
+href= "/adm/responsaveis"
 icon = {<HeartIcon/>}
 label= "Responsáveis"
 />
 
 <SidebarButton 
-href= "adm/admAnimais"
+href= "/adm/animais"
 icon = {<DogIcon/>}
 label= "Animais"
 />
 
 <SidebarButton 
-href= "adm/admEstoque"
+href= "/adm/estoque"
 icon = {<BoxIcon/>}
 label= "Estoque"
 />
 
 <SidebarButton 
-href= "adm/admAgendamentos"
+href= "/adm/agendamentos"
 icon = {<Calendar/>}
 label= "Agendamentos"
 />
 
 <SidebarButton 
-href= "adm/admUsuarios"
+href= "/adm/usuarios"
 icon = {<SettingsIcon/>}
 label= "Usuários"
 />

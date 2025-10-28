@@ -1,46 +1,44 @@
 "use client"; 
-// Seus imports
+
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
 import CrudHeader from '@/components/CRUD/CrudHeader';
 import React, { useEffect, useState } from 'react';
 import ViewModal from '@/components/modals/ViewModal';
-import CadastroModal from '@/components/modals/CadastroModal'; // Usei 'CadastroModal' como você importou
+import CadastroModal from '@/components/modals/CadastroModal';
 
-// --- (ERRO 1 e 2 CORRIGIDOS) ---
-// Definição dos Tipos (Estavam faltando)
 type Medico = {
   id: string;
   nome: string;
   crmv: string;
   especialidade: string;
+  senha: string; 
 };
 
 type MedicoForm = Omit<Medico, 'id'>;
-const emptyForm: MedicoForm = { nome: '', crmv: '', especialidade: '' };
+const emptyForm: MedicoForm = { nome: '', crmv: '', especialidade: '', senha: ''};
 
-// Função para buscar dados da API (Estava faltando)
+// Função de buscar dados da API
 async function fetchMedicos(): Promise<Medico[]> {
   try {
-    // Descomente quando sua API estiver pronta
     // const response = await fetch('/api/medicos');
     // if (!response.ok) {
     //   throw new Error('Falha ao buscar dados');
     // }
     // return await response.json();
 
-    // Dados simulados por enquanto:
+    // Simulação de dados:
     return [
-      { id: '1', nome: 'Dra. Cecília', crmv: 'CRMV-PE 1546', especialidade: 'Cirurgia Veterinária' },
-      { id: '2', nome: 'Dr. Carlos', crmv: 'CRMV-PE 6532', especialidade: 'Anestesiologia' },
-      { id: '3', nome: 'Dr. Roberto Santos', crmv: 'CRMV-PE 8548', especialidade: 'Clínica Geral' },
+      { id: '1', nome: 'Dra. Cecília', crmv: 'CRMV-PE 1546', especialidade: 'Cirurgia Veterinária', senha: 'senha1' },
+      { id: '2', nome: 'Dr. Carlos', crmv: 'CRMV-PE 6532', especialidade: 'Anestesiologia', senha: 'senha2' },
+      { id: '3', nome: 'Dr. Roberto Santos', crmv: 'CRMV-PE 8548', especialidade: 'Clínica Geral', senha: 'senha3' },
     ];
   } catch (error) {
     console.error(error);
-    return []; // Retorna um array vazio em caso de erro
+    return []; 
   }
 }
 
-// Componente de Input (Estava faltando)
+//Input dos formulários
 const FormInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
   <div>
     <label htmlFor={props.id || props.name} className="block text-sm font-semibold text-gray-600">{props.label}</label>
@@ -54,8 +52,6 @@ const FormInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { label:
 
 
 export default function PaginaMedicos() {
-  // --- (ERRO 3 CORRIGIDO) ---
-  // Todos os states (Estavam faltando)
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -65,19 +61,19 @@ export default function PaginaMedicos() {
   const [editFormData, setEditFormData] = useState<Medico | null>(null);
 
   
-  // Lógica para buscar os dados da API
+  // Lógica de buscar os dados da API
   useEffect(() => {
     fetchMedicos().then(data => setMedicos(data));
   }, []);
 
-  // Definição das Colunas (Estava faltando)
+  // Definição das Colunas
   const columns: ColumnDefinition<Medico>[] = [
     { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
     { header: 'CRMV', cell: (item) => <span>{item.crmv}</span> },
     { header: 'Especialidade', cell: (item) => <span>{item.especialidade}</span> },
   ];
 
-  // Funções de Ação (Estavam faltando)
+  // Funções de Ação 
 
   // Ações do CrudDisplay
   const handleView = (medico: Medico) => {
@@ -109,6 +105,7 @@ export default function PaginaMedicos() {
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault(); 
     // ... (lógica de API POST para 'createFormData')
+    console.log("Criando médico com:", createFormData); // Log para depuração
     const novoMedico = { ...createFormData, id: Math.random().toString() }; 
     setMedicos([...medicos, novoMedico]); 
     setIsCreateModalOpen(false); 
@@ -120,6 +117,7 @@ export default function PaginaMedicos() {
     e.preventDefault();
     if (!editFormData) return; 
     // ... (lógica de API PUT/PATCH para 'editFormData')
+    console.log("Salvando edição:", editFormData); // Log para depuração
     setMedicos(medicos.map(m => m.id === editFormData.id ? editFormData : m));
     setIsEditModalOpen(false);
   };
@@ -135,9 +133,7 @@ export default function PaginaMedicos() {
         onButtonClick={handleOpenCreate} 
       />
       
-      {/* 6. Use o Componente Crud! */}
-      {/* --- (ERRO 4 CORRIGIDO) --- */}
-      {/* Propriedades preenchidas */}
+      {/* Componente Crud */}
       <CrudDisplay<Medico>
         data={medicos}
         columns={columns}
@@ -150,8 +146,6 @@ export default function PaginaMedicos() {
       {/* 7. Renderização dos Modais */}
       
       {/* Modal de Visualização */}
-      {/* --- (ERRO 4 CORRIGIDO) --- */}
-      {/* Props 'isOpen', 'onClose', 'title' e 'children' preenchidas */}
       <ViewModal
         isOpen={isViewModalOpen && !!selectedMedico}
         onClose={() => setIsViewModalOpen(false)}
@@ -173,7 +167,6 @@ export default function PaginaMedicos() {
       </ViewModal>
 
       {/* Modal de Edição (Usando CadastroModal) */}
-      {/* --- (ERRO 4 CORRIGIDO) --- */}
       <CadastroModal
         isOpen={isEditModalOpen && !!editFormData}
         onClose={() => setIsEditModalOpen(false)}
@@ -200,10 +193,18 @@ export default function PaginaMedicos() {
           value={editFormData?.especialidade || ''}
           onChange={(e) => setEditFormData(prev => prev ? { ...prev, especialidade: e.target.value } : null)}
         />
+    
+        <FormInput
+          label="Senha:"
+          name="senha"
+          type="password" // Mascara a digitação
+          placeholder="Deixe em branco para não alterar"
+          value={editFormData?.senha || ''}
+          onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
+        />
       </CadastroModal>
 
       {/* Modal de Cadastro (Usando CadastroModal) */}
-      {/* --- (ERRO 4 CORRIGIDO) --- */}
       <CadastroModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -230,9 +231,14 @@ export default function PaginaMedicos() {
           value={createFormData.especialidade}
           onChange={(e) => setCreateFormData(prev => ({ ...prev, especialidade: e.target.value }))}
         />
+        <FormInput
+          label="Senha:"
+          name="senha"
+          type="password" // Mascara a digitação
+          value={createFormData.senha}
+          onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
+        />
       </CadastroModal>
     </div>
   );
 }
-
-// REMOVA a função 'setMedicos' extra que estava aqui

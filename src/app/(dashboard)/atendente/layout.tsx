@@ -1,12 +1,12 @@
-import CardBaseDash from "@/components/Dashboard/CardBaseDash"; 
-import AgendamentoCard from "@/components/public/AgendamentoCard";
+// Localização: app/atendente/layout.tsx
 
-export default function DashboardLayout({
+// Importa o componente de botões do Atendente
+import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
+
+export default function AtendenteLayout({
   children,
-  sidebar, // Aceita a prop da rota paralela @sidebar
 }: {
   children: React.ReactNode;
-  sidebar: React.ReactNode; // Faz a tipagem da prop
 }) {
 
   return (
@@ -16,8 +16,8 @@ export default function DashboardLayout({
       <aside className="w-64 bg-green-700 p-4">
         <h2 className="text-white text-lg">Meu Painel</h2>
         
-        {/* Onde é renderizado o conteúdo dinâmico do slot */}
-        {sidebar} 
+        {/* Renderiza os botões do Atendente */}
+        <AtendenteSidebarButtons /> 
       
       </aside>
 
