@@ -1,80 +1,129 @@
-import AgendamentoCard from '@/components/public/AgendamentoCard';  
+// app/medico/dashboard/page.tsx
+
+import React from 'react';
 import CardBaseDash from '@/components/Dashboard/CardBaseDash';
-import Link from 'next/link';
-import { Calendar, Dog, CrossIcon } from 'lucide-react';
+import { Stethoscope, CheckCircle, Users, CalendarCheck, Dog } from 'lucide-react';
+import CardAgendamento from '@/components/Dashboard/CardAgendamento';
 
-export default function MedicoPage() {
+// --- Mock Data ---
+const mockAppointments = [
+  {
+    id: 1,
+    time: '09:00',
+    petName: 'Luna',
+    service: 'Cirurgia - Felino',
+    details: 'Castração eletiva - Em preparação pré-operatória',
+    status: 'Castração',
+    statusVariant: 'yellow' as const, 
+  },
+  {
+    id: 2,
+    time: '09:30',
+    petName: 'Thor',
+    service: 'Consulta - Canino',
+    details: 'Vacinação anual e check-up',
+    status: 'Consulta',
+    statusVariant: 'blue' as const,
+  },
+  {
+    id: 3,
+    time: '10:00',
+    petName: 'Simba',
+    service: 'Retorno - Felino',
+    details: 'Revisão pós-operatória',
+    status: 'Retorno',
+    statusVariant: 'gray' as const,
+  },
+];
+// ----------------------------------------------
 
-return (
-  <>
-    {/* Cabeçalho*/}
-    <div className="ml-6">
-      <h1 className="text-2xl font-bold text-green-700">Dashboard do(a) Médico(a)</h1>
-      <p className="text-green-800">Bem vindo(a) ao sistema de gestão hospitalar</p>
-    </div>
-
-    {/* div dos indicadores do dia com uso de flexbox*/}
-    <div className="gap-4 flex-wrap mt-6">
-      <div>
-        <h1 className="font-bold ml-6 text-green-800">Incicadores de Hoje</h1>
-      </div>
-
-{/* Cards de Resumo*/}
-      <div className="flex flex-wrap">
-        <CardBaseDash
-          title="Consultas do Dia"
-          value={12}
-          subtitle="A serem realizadas hoje"
-          icon= {<Calendar/>}
-        />
-
-        <CardBaseDash
-          title="Castrações do Dia"
-          value={12}
-          subtitle="Cirurgias para hoje"
-          icon= {<CrossIcon/>}
-        />
-
-        <CardBaseDash
-          title="Pets Atendidos"
-          value={12}
-          subtitle="Consultas realizadas hoje"
-          icon= {<Dog/>}
-        />
-        
-      </div>
-    </div>
-
-    {/* Seção de Agendamentos do Dia */}
-          <div className= "ml-6"> 
-            <h1 className="mt-10 text-green-800 text-2xl">Atendimentos de Hoje</h1>
-            <p className= "mb-5 mt-2 text-green-700">Sua agenda de consultas, cirurgias e retornos programados</p>
-          </div>
-    
-            <div className="ml-6 flex flex-col gap-3">
-              
-              <AgendamentoCard
-                horario="08:00"
-                nomePet="Rex"
-                tipoServico="Consulta"
-                descricao="Consulta de rotina"
-              />
-
-              <AgendamentoCard
-                horario="09:30"
-                nomePet="Mimi"
-                tipoServico="Castração"
-                descricao="Cirurgia de castração"
-              />
-              
-              <AgendamentoCard
-                horario="11:00"
-                nomePet="Bolt"
-                tipoServico="Retorno"
-                descricao="Retorno pós-operatório"
-              />
-            
-            </div>
-  </>
+/** Botão de Ação Padrão (Reutilizado) */
+const ActionButton = ({ children, className = 'bg-green-700 hover:bg-green-800' }: { children: React.ReactNode, className?: string }) => (
+  <button className={`text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors ${className}`}>
+    {children}
+  </button>
 );
+
+
+export default function MedicoDashboardPage() {
+  return (
+    <>
+      {/* SEÇÃO 1: Cabeçalho */}
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-green-700">Dashboard Médico</h1>
+        <p className="text-gray-600 mt-1">Bem-vindo(a) ao sistema de gestão hospitalar</p> 
+      </header>
+
+      {/* SEÇÃO 2: Indicadores de Hoje */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Seus Indicadores de Hoje</h2>
+        
+        <div className="flex flex-wrap gap-6">
+          <CardBaseDash
+            title="Animais Agendados"
+            value={mockAppointments.length} 
+            subtitle="Aguardando seu atendimento"
+            icon={<Dog size={24} />}
+          />
+          <CardBaseDash
+            title="Cirurgias Agendadas"
+            value={mockAppointments.filter(a => a.service.includes('Cirurgia')).length}
+            subtitle="Cirurgias para hoje"
+            icon={<Stethoscope size={24} />}
+          />
+          <CardBaseDash
+            title="Atendimentos Realizados"
+            value="0" 
+            subtitle="Realizados por você hoje"
+            icon={<CheckCircle size={24} />}
+          />
+          
+        </div>
+      </section>
+
+      {/* SEÇÃO 3: Próximos Atendimentos */}
+      <section>
+        {/* Cabeçalho da Seção */}
+        <div className="flex justify-between items-center mb-5">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-700">Próximos Atendimentos</h2>
+            <p className="text-gray-600 mt-1">Sua fila de pacientes programados</p>
+          </div>
+          
+          {/* * * AQUI ESTÁ A MUDANÇA:
+            * O botão foi substituído para ser idêntico ao "Novo Agendamento".
+          */}
+          <button className="bg-green-600 text-white px-5 py-2 rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors">
+            Novo Agendamento
+          </button>
+          
+        </div>
+
+        {/* Lista de Atendimentos */}
+        <div className="space-y-4">
+          {mockAppointments.map((appt) => (
+            <CardAgendamento
+              key={appt.id}
+              time={appt.time}
+              petName={appt.petName}
+              service={appt.service}
+              details={appt.details}
+              status={appt.status}
+              statusVariant={appt.statusVariant}
+            >
+              {/* Botões do Médico (agora verdes e com novo texto) */}
+              <ActionButton>
+                Ver Prontuário
+              </ActionButton>
+              
+              <ActionButton>
+                Preencher Ficha
+              </ActionButton>
+              
+            </CardAgendamento>
+          ))}
+        </div>
+      </section>
+    </>
+  );
 }
