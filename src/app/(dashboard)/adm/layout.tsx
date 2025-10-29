@@ -1,11 +1,6 @@
-// Localização: app/adm/layout.tsx
-
-// 1. Importa o seu componente de botões da sidebar
-// (Ajuste o caminho se o seu AdmSidebarButtons estiver em outra pasta)
 import AdmSidebarButtons from "@/components/Sidebars/AdmSidebarButtons";
 
-// 2. Este é o layout base (antigo DashboardLayout)
-//    agora dedicado ao ADM e sem a prop 'sidebar'
+
 export default function AdmLayout({
   children,
 }: {

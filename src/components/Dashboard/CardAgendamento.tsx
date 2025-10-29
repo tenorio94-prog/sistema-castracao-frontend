@@ -11,27 +11,31 @@ interface AppointmentCardProps {
   details: string;
   status: string;
   
-  /** Define a cor do badge de status */
-  statusVariant?: 'blue' | 'gray' | 'green' | 'yellow';
+  /** Define a cor do badge de status (atualizado para incluir red/orange) */
+  statusVariant?: 'blue' | 'gray' | 'green' | 'yellow' | 'red' | 'orange';
   /** Slot para os botões de ação (Ver Prontuário, Iniciar Atendimento, etc.) */
   children: React.ReactNode;
 }
 
 /**
  * Retorna a classe de cor correspondente para o badge de status.
- * (As classes de transparência permanecem as mesmas)
+ * (ATUALIZADO PARA O ESTILO DA PÁGINA DE ESTOQUE)
  */
 function getStatusClasses(variant: AppointmentCardProps['statusVariant']) {
   switch (variant) {
     case 'green':
-      return 'text-green-600 border-green-600/20 bg-green-600/5';
+      return 'bg-green-200 text-green-800';
     case 'yellow':
-      return 'text-yellow-600 border-yellow-600/20 bg-yellow-600/5';
+      return 'bg-yellow-200 text-yellow-800';
+    case 'orange': // Para "Retorno pendente"
+      return 'bg-orange-200 text-orange-800';
+    case 'red': // Para "Inapto"
+      return 'bg-red-200 text-red-800';
     case 'gray':
-      return 'text-gray-600 border-gray-600/20 bg-gray-600/5';
+      return 'bg-gray-200 text-gray-800';
     case 'blue':
     default:
-      return 'text-blue-600 border-blue-600/20 bg-blue-600/5';
+      return 'bg-blue-200 text-blue-800';
   }
 }
 
@@ -54,8 +58,8 @@ export default function CardAgendamento({
       {/* Lado Esquerdo: Informações do Pet */}
       <div className="flex items-center gap-4">
         
-        {/* Bloco de Hora */}
-        <div className="bg-green-100 text-green-700 p-3 rounded-md text-center w-20">
+        {/* Bloco de Hora (Neutro) */}
+        <div className="bg-gray-100 text-gray-700 p-3 rounded-md text-center w-20">
           <Clock size={16} className="mx-auto mb-1 opacity-80" />
           <p className="font-bold text-lg leading-none">{time}</p>
         </div>
@@ -71,12 +75,9 @@ export default function CardAgendamento({
       {/* Lado Direito: Status e Ações (Botões) */}
       <div className="flex items-center gap-3">
         
-        {/* * * AQUI ESTÁ A MUDANÇA:
-          * Aumentando o padding (de px-2.5 py-0.5 para px-3 py-1), 
-          * mas mantendo o texto pequeno (text-xs).
-        */}
+        {/* Badge de Status (ATUALIZADO) */}
         <span 
-          className={`border text-xs px-3 py-1 rounded-full font-medium ${statusClasses}`}
+          className={`text-xs px-3 py-1 rounded-full font-semibold ${statusClasses}`} // Removido 'border', adicionado 'font-semibold'
         >
           {status}
         </span>

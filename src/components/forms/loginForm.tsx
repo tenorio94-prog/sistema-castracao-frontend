@@ -1,21 +1,68 @@
-// @/components/forms/loginForm.tsx
-
 "use client"; 
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
-    const [cpf, setCpf] = useState('');
-    const [senha, setSenha] = useState('');
-    // [REMOVIDO] O estado 'showPassword' não é mais necessário
+    // 1. Mudamos de 'cpf' para 'email' e 'senha' para 'password'
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        console.log('Formulário de login submetido com:', { 
-            cpf: cpf, 
-            senha: senha 
-        });
-        // ...lógica de autenticação
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const router = useRouter();
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault(); 
+        setIsLoading(true);     
+        setError(null);         
+
+        // 2. URL da API definida corretamente
+        const API_URL = "https://sistema-castracao-backend.onrender.com/api/auth/login"; 
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST', 
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // 3. Enviando 'email' e 'password' (como a API espera)
+                body: JSON.stringify({ 
+                    email: email, 
+                    password: password 
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Tenta pegar a mensagem de erro da API (se houver)
+                throw new Error(data.message || 'Email ou senha incorretos.');
+            }
+
+            // --- SUCESSO! ---
+            console.log('Login bem-sucedido:', data);
+
+            // Exemplo: Salvar o token de acesso (retornado pela API) no localStorage
+            // para usar em outras requisições autenticadas.
+            if (data.accessToken) {
+                 localStorage.setItem('accessToken', data.accessToken); 
+            }
+             if (data.refreshToken) {
+                 localStorage.setItem('refreshToken', data.refreshToken);
+             }
+
+            // 4. Redirecionar o usuário para a rota /adm
+            router.push('/adm'); 
+
+        } catch (err: any) {
+            console.error('Erro no login:', err);
+            setError(err.message); 
+
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -33,52 +80,62 @@ export default function LoginForm() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
                 
-                {/* Campo CPF */}
+                {/* 5. Campo Email (em vez de CPF) */}
                 <div className="flex flex-col text-left">
-                    <label htmlFor="cpf" className="text-sm font-medium text-[#2f6b2f] mb-1">
-                        CPF
+                    <label htmlFor="email" className="text-sm font-medium text-[#2f6b2f] mb-1">
+                        Email
                     </label>
                     <input 
-                        type="text" 
-                        id="cpf" 
-                        name="cpf"
-                        placeholder="000.000.000-00"
-                        value={cpf}
-                        onChange={(e) => setCpf(e.target.value)}
+                        type="email" // Tipo mudado para 'email'
+                        id="email" 
+                        name="email"
+                        placeholder="seuemail@exemplo.com" // Placeholder atualizado
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)} // Estado atualizado
                         required
                         className="p-3 border border-[#3a773a] rounded-lg outline-none text-[#2e622e]
                                    focus:border-[#2e622e] focus:ring-1 focus:ring-[#2e622e] transition duration-150
                                    placeholder:text-[#3a773a] placeholder:opacity-80"
+                        disabled={isLoading} 
                     />
                 </div>
 
-                {/* Campo Senha (Simplificado, sem toggle) */}
+                {/* 6. Campo Senha (atualizado para 'password') */}
                 <div className="flex flex-col text-left">
-                    <label htmlFor="senha" className="text-sm font-medium text-[#2f6b2f] mb-1">
+                    <label htmlFor="password" className="text-sm font-medium text-[#2f6b2f] mb-1">
                         Senha
                     </label>
                     <input 
-                        type="password" // <-- Definido permanentemente como 'password'
-                        id="senha" 
-                        name="senha"
+                        type="password" 
+                        id="password" // ID atualizado
+                        name="password" // Name atualizado
                         placeholder="Digite sua senha"
-                        value={senha}
-                        onChange={(e) => setSenha(e.target.value)}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)} // Estado atualizado
                         required
                         className="w-full p-3 border border-[#3a773a] rounded-lg outline-none text-[#2e622e]
                                    focus:border-[#2e622e] focus:ring-1 focus:ring-[#2e622e] transition duration-150"
-                        // [REMOVIDO] A classe 'pr-10' e o 'div relative'
+                        disabled={isLoading}
                     />
-                    {/* [REMOVIDO] O botão com o ícone de olho foi retirado */}
+                
                 </div>
+
+                {/* Mensagem de erro */}
+                {error && (
+                    <div className="text-red-600 text-sm text-center -mb-2">
+                        {error}
+                    </div>
+                )}
 
                 {/* Botão de Entrar */}
                 <button 
                     type="submit" 
                     className="mt-4 p-3 bg-[#3a773a] text-white font-semibold 
-                               rounded-lg hover:bg-[#2e622e] transition duration-200"
+                               rounded-lg hover:bg-[#2e622e] transition duration-200
+                               disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={isLoading} 
                 >
-                    Entrar
+                    {isLoading ? 'Entrando...' : 'Entrar'}
                 </button>
             </form>
             

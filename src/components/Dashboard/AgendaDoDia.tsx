@@ -12,7 +12,7 @@ const agendamentos = [
   { id: 2, pet: 'Luna', responsavel: 'Maria', medico: 'Dr. Carlos', status: 'Aguardando', horario: '09:30' },
   { id: 3, pet: 'Thor', responsavel: 'Pedro', medico: 'Dra. Cecília', status: 'Em consulta', horario: '10:00' },
 ];
-// --- FIM DA SIMULAÇÃO ---
+
 
 
 // Subcomponente para o Card de Agendamento (baseado na imagem)

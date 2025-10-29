@@ -1,6 +1,3 @@
-// Localização: app/medico/layout.tsx
-
-// Importa o componente de botões do Médico
 import MedicoSidebarButtons from "@/components/Sidebars/MedicoSidebarButtons";
 
 export default function MedicoLayout({

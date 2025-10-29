@@ -14,14 +14,19 @@ export default function CardBaseDash({ title, value, subtitle, icon }: CardBaseD
     
     return (
         
-        <div className="w-80 h-auto border border-green-600 rounded-lg p-4 m-4 shadow-sm">
+        // ### Estilo do Container Atualizado ###
+        // Removido: m-4, border-green-600
+        // Adicionado: border (para usar a cor padrão 'border-gray-200')
+        <div className="w-80 h-auto border rounded-lg p-4 shadow-sm bg-white">
           
           {/* Seção Superior: Título e Ícone */}
           <div className="flex justify-between items-start mb-2">
             
-            <p className="text-green-800">{title}</p>
+            {/* Título com nova cor */}
+            <p className="text-gray-700 font-medium">{title}</p>
             
-            <div className="w-6 h-6 text-green-700">
+            {/* Ícone com nova cor */}
+            <div className="w-6 h-6 text-gray-500">
               {icon}
             </div>
 
@@ -29,10 +34,11 @@ export default function CardBaseDash({ title, value, subtitle, icon }: CardBaseD
           
           {/* Seção do Meio: Valor */}
           <div className="mb-1">
-            <p className="text-3xl text-green-800">{value}</p>
+            {/* Valor com nova cor e peso */}
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
           </div>
 
-          {/* Seção Inferior: Subtítulo */}
+          {/* Seção Inferior: Subtítulo (já estava neutro) */}
           <div>
             <p className="text-gray-500 text-sm">{subtitle}</p>
           </div>

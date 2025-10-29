@@ -1,6 +1,3 @@
-// Localização: app/atendente/layout.tsx
-
-// Importa o componente de botões do Atendente
 import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
 
 export default function AtendenteLayout({

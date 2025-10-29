@@ -5,6 +5,7 @@ import CrudHeader from '@/components/CRUD/CrudHeader';
 import React, { useEffect, useState } from 'react';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
+import FormInput from '@/components/forms/FormInput'; 
 
 type Medico = {
   id: string;
@@ -17,15 +18,8 @@ type Medico = {
 type MedicoForm = Omit<Medico, 'id'>;
 const emptyForm: MedicoForm = { nome: '', crmv: '', especialidade: '', senha: ''};
 
-// Função de buscar dados da API
 async function fetchMedicos(): Promise<Medico[]> {
   try {
-    // const response = await fetch('/api/medicos');
-    // if (!response.ok) {
-    //   throw new Error('Falha ao buscar dados');
-    // }
-    // return await response.json();
-
     // Simulação de dados:
     return [
       { id: '1', nome: 'Dra. Cecília', crmv: 'CRMV-PE 1546', especialidade: 'Cirurgia Veterinária', senha: 'senha1' },
@@ -38,18 +32,6 @@ async function fetchMedicos(): Promise<Medico[]> {
   }
 }
 
-//Input dos formulários
-const FormInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
-  <div>
-    <label htmlFor={props.id || props.name} className="block text-sm font-semibold text-gray-600">{props.label}</label>
-    <input
-      {...props}
-      id={props.id || props.name}
-      className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
-    />
-  </div>
-);
-
 
 export default function PaginaMedicos() {
   const [medicos, setMedicos] = useState<Medico[]>([]);
@@ -61,12 +43,10 @@ export default function PaginaMedicos() {
   const [editFormData, setEditFormData] = useState<Medico | null>(null);
 
   
-  // Lógica de buscar os dados da API
   useEffect(() => {
     fetchMedicos().then(data => setMedicos(data));
   }, []);
 
-  // Definição das Colunas
   const columns: ColumnDefinition<Medico>[] = [
     { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
     { header: 'CRMV', cell: (item) => <span>{item.crmv}</span> },
@@ -74,8 +54,6 @@ export default function PaginaMedicos() {
   ];
 
   // Funções de Ação 
-
-  // Ações do CrudDisplay
   const handleView = (medico: Medico) => {
     setSelectedMedico(medico);
     setIsViewModalOpen(true);
@@ -90,34 +68,28 @@ export default function PaginaMedicos() {
     if (!window.confirm(`Tem certeza que deseja deletar ${medico.nome}?`)) {
       return;
     }
-    // ... lógica de API DELETE ...
     setMedicos(medicos.filter(m => m.id !== medico.id));
     alert('Médico deletado com sucesso!');
   };
 
-  // Ação para abrir o modal de cadastro
   const handleOpenCreate = () => {
     setCreateFormData(emptyForm); 
     setIsCreateModalOpen(true);
   };
 
-  // Função para "salvar" o NOVO médico
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault(); 
-    // ... (lógica de API POST para 'createFormData')
-    console.log("Criando médico com:", createFormData); // Log para depuração
+    console.log("Criando médico com:", createFormData);
     const novoMedico = { ...createFormData, id: Math.random().toString() }; 
     setMedicos([...medicos, novoMedico]); 
     setIsCreateModalOpen(false); 
     alert('Médico cadastrado!');
   };
 
-  // Função para "salvar" a EDIÇÃO
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData) return; 
-    // ... (lógica de API PUT/PATCH para 'editFormData')
-    console.log("Salvando edição:", editFormData); // Log para depuração
+    console.log("Salvando edição:", editFormData);
     setMedicos(medicos.map(m => m.id === editFormData.id ? editFormData : m));
     setIsEditModalOpen(false);
   };
@@ -126,14 +98,12 @@ export default function PaginaMedicos() {
   return (
     <div className="space-y-4">
       
-      {/* Cabeçalho */}
       <CrudHeader
         title="Gerenciar Médicos"
         buttonText="Cadastrar Médico"
         onButtonClick={handleOpenCreate} 
       />
       
-      {/* Componente Crud */}
       <CrudDisplay<Medico>
         data={medicos}
         columns={columns}
@@ -142,8 +112,6 @@ export default function PaginaMedicos() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-
-      {/* 7. Renderização dos Modais */}
       
       {/* Modal de Visualização */}
       <ViewModal
@@ -151,7 +119,6 @@ export default function PaginaMedicos() {
         onClose={() => setIsViewModalOpen(false)}
         title="Detalhes do Médico"
       >
-        {/* Children: Conteúdo do modal */}
         <div>
           <label className="text-sm font-semibold text-gray-600">Nome:</label>
           <p className="text-gray-800">{selectedMedico?.nome}</p>
@@ -174,7 +141,6 @@ export default function PaginaMedicos() {
         title="Editar Médico"
         saveText="Salvar Alterações"
       >
-        {/* Children: Inputs do formulário */}
         <FormInput
           label="Nome:"
           name="nome"
@@ -193,11 +159,10 @@ export default function PaginaMedicos() {
           value={editFormData?.especialidade || ''}
           onChange={(e) => setEditFormData(prev => prev ? { ...prev, especialidade: e.target.value } : null)}
         />
-    
         <FormInput
           label="Senha:"
           name="senha"
-          type="password" // Mascara a digitação
+          type="password" 
           placeholder="Deixe em branco para não alterar"
           value={editFormData?.senha || ''}
           onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
@@ -212,7 +177,6 @@ export default function PaginaMedicos() {
         title="Cadastrar Novo Médico"
         saveText="Cadastrar"
       >
-        {/* Children: Inputs do formulário */}
         <FormInput
           label="Nome:"
           name="nome"
@@ -234,11 +198,11 @@ export default function PaginaMedicos() {
         <FormInput
           label="Senha:"
           name="senha"
-          type="password" // Mascara a digitação
+          type="password"
           value={createFormData.senha}
           onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
         />
-      </CadastroModal>
+      </CadastroModal> 
     </div>
   );
 }
