@@ -36,7 +36,7 @@ label= "Atendentes"
 
 <SidebarButton 
 href= "/adm/estudantes"
-icon = {<Heart/>}
+icon = {<GraduationCapIcon/>}
 label= "Estudantes"
 />
 
