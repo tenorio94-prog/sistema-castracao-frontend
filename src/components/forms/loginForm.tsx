@@ -1,67 +1,22 @@
 "use client"; 
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useUsuarios';
 
 export default function LoginForm() {
-    // 1. Mudamos de 'cpf' para 'email' e 'senha' para 'password'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const router = useRouter();
+    const { login, isLoading, error } = useAuth();
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault(); 
-        setIsLoading(true);     
-        setError(null);         
-
-        // 2. URL da API definida corretamente
-        const API_URL = "https://sistema-castracao-backend.onrender.com/api/auth/login"; 
-
+        event.preventDefault();
+        
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST', 
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // 3. Enviando 'email' e 'password' (como a API espera)
-                body: JSON.stringify({ 
-                    email: email, 
-                    password: password 
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                // Tenta pegar a mensagem de erro da API (se houver)
-                throw new Error(data.message || 'Email ou senha incorretos.');
-            }
-
-            // --- SUCESSO! ---
-            console.log('Login bem-sucedido:', data);
-
-            // Exemplo: Salvar o token de acesso (retornado pela API) no localStorage
-            // para usar em outras requisições autenticadas.
-            if (data.accessToken) {
-                 localStorage.setItem('accessToken', data.accessToken); 
-            }
-             if (data.refreshToken) {
-                 localStorage.setItem('refreshToken', data.refreshToken);
-             }
-
-            // 4. Redirecionar o usuário para a rota /adm
-            router.push('/adm'); 
-
-        } catch (err: any) {
+            await login({ email, password });
+            // Redirecionamento é feito automaticamente no hook baseado no role
+        } catch (err) {
+            // Erro já é tratado e exibido pelo hook
             console.error('Erro no login:', err);
-            setError(err.message); 
-
-        } finally {
-            setIsLoading(false);
         }
     };
 
