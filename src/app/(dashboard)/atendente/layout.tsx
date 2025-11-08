@@ -1,3 +1,10 @@
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarGroup, 
+  SidebarGroupLabel 
+} from "@/components/ui/sidebar";
 import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
 
 export default function AtendenteLayout({
@@ -7,22 +14,26 @@ export default function AtendenteLayout({
 }) {
 
   return (
-    <div className="flex h-screen">
-      
-      {/* BARRA LATERAL (Sidebar Verde) */}
-      <aside className="w-64 bg-green-700 p-4">
-        <h2 className="text-white text-lg">Meu Painel</h2>
+    <SidebarProvider>
+      <div className="flex h-screen">
         
-        {/* Renderiza os botões do Atendente */}
-        <AtendenteSidebarButtons /> 
-      
-      </aside>
+        <Sidebar>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>
+                Menu Atendente
+              </SidebarGroupLabel>
+              <AtendenteSidebarButtons />
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
 
-      {/* A ÁREA DO CONTEÚDO (Branca) */}
-      <main className="flex-1 bg-white p-8 overflow-y-auto">
-        {children}
-      </main>
+        <main className="flex-1 w-full bg-white p-8 overflow-y-auto">
+          <SidebarTrigger />
+          {children}
+        </main>
 
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }

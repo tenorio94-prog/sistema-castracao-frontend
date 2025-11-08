@@ -1,5 +1,11 @@
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarGroup, 
+  SidebarGroupLabel 
+} from "@/components/ui/sidebar";
 import AdmSidebarButtons from "@/components/Sidebars/AdmSidebarButtons";
-
 
 export default function AdmLayout({
   children,
@@ -8,22 +14,28 @@ export default function AdmLayout({
 }) {
 
   return (
-    <div className="flex h-screen">
-      
-      {/* BARRA LATERAL (Sidebar Verde) */}
-      <aside className="w-64 bg-green-700 p-4">
-        <h2 className="text-white text-lg">Meu Painel</h2>
+    <SidebarProvider>
+      <div className="flex h-screen">
         
-        {/* 3. Renderiza diretamente os botões do ADM */}
-        <AdmSidebarButtons /> 
-      
-      </aside>
+        {/* A cor verde já vem do globals.css */}
+        <Sidebar>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>
+                Menu Admin
+              </SidebarGroupLabel>
+              <AdmSidebarButtons />
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
 
-      {/* A ÁREA DO CONTEÚDO (Branca) */}
-      <main className="flex-1 bg-white p-8 overflow-y-auto">
-        {children}
-      </main>
+        {/* Conteúdo da página (com w-full) */}
+        <main className="flex-1 w-full bg-white p-8 overflow-y-auto">
+          <SidebarTrigger />
+          {children}
+        </main>
 
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
