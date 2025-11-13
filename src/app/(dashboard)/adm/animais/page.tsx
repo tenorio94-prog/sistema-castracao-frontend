@@ -6,8 +6,8 @@ import React, { useEffect, useState } from 'react';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput'; 
-import CardBaseDash from '@/components/Dashboard/CardBaseDash'; // <-- Import do seu Card
-import { Dog, CrossIcon } from "lucide-react"; // <-- ÍCONES ATUALIZADOS (lucide)
+import CardBaseDash from '@/components/Dashboard/CardBaseDash'; 
+import { Dog, CrossIcon } from "lucide-react"; 
 
 // --- Tipos de Responsável (reutilizados) ---
 type ResponsavelSimples = {
@@ -152,7 +152,8 @@ export default function PaginaAnimais() {
 
   // Renderização
   return (
-    <div className="space-y-4">
+  
+    <div className="flex flex-col space-y-4">
       
       <CrudHeader
         title="Animais"
@@ -160,9 +161,6 @@ export default function PaginaAnimais() {
         onButtonClick={handleOpenCreate} 
       />
 
-      {/* ############################################# */}
-      {/* ### ÁREA DOS CARDS ATUALIZADA (com lucide) ### */}
-      {/* ############################################# */}
       <div className= "flex flex-wrap gap-3 mt-1">
         <CardBaseDash
           title="Animais Cadastrados"
@@ -193,7 +191,6 @@ export default function PaginaAnimais() {
         onClose={() => setIsViewModalOpen(false)}
         title="Detalhes do Animal"
       >
-        {/* ... (conteúdo do modal de visualização) ... */}
         <div>
           <label className="text-sm font-semibold text-gray-600">Nome:</label>
           <p className="text-gray-800">{selectedAnimal?.nome}</p>
@@ -232,7 +229,6 @@ export default function PaginaAnimais() {
         title="Editar Animal"
         saveText="Salvar Alterações"
       >
-        {/* ... (conteúdo do modal de edição) ... */}
         <FormInput
           label="Nome:"
           name="nome"
@@ -323,7 +319,6 @@ export default function PaginaAnimais() {
         title="Cadastrar Novo Animal"
         saveText="Cadastrar"
       >
-        {/* ... (conteúdo do modal de cadastro) ... */}
         <FormInput
           label="Nome"
           name="nome"
@@ -384,6 +379,7 @@ export default function PaginaAnimais() {
             className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
           >
             <option value="">Selecione um responsável</option>
+            {/* Aqui estão as linhas que faltavam */}
             {responsaveisDisponiveis.map(resp => (
               <option key={resp.id} value={resp.id}>
                 {resp.nome} {resp.tipo === 'PF' ? '(Pessoa Física)' : '(ONG)'}

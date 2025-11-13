@@ -9,7 +9,7 @@ type Props = {
 
 export default function CrudHeader({ title, buttonText, onButtonClick }: Props) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex w-full justify-between items-center">
       
       {/* 1. Título (Genérico) */}
       <h1 className="text-2xl font-bold text-green-700">{title}</h1>
