@@ -1,75 +1,53 @@
-import SidebarButton from "@/components/Buttons/SidebarButton";
-import { 
-  LayoutDashboardIcon, 
-  Heart,
-  CrossIcon, 
-  Users, 
-  GraduationCapIcon, 
-  HeartIcon, 
-  DogIcon, 
-  BoxIcon, 
-  Calendar, 
-  SettingsIcon 
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import Link from "next/link";
+import {
+  LayoutDashboardIcon,
+  CrossIcon,
+  Users,
+  GraduationCapIcon,
+  HeartIcon,
+  DogIcon,
+  BoxIcon,
+  Calendar,
+  SettingsIcon,
 } from "lucide-react";
+
+const admLinks = [
+  { href: "/adm", icon: <LayoutDashboardIcon />, label: "Dashboard" },
+  { href: "/adm/medicos", icon: <CrossIcon />, label: "Médicos" },
+  { href: "/adm/atendentes", icon: <Users />, label: "Atendentes" },
+  { href: "/adm/estudantes", icon: <GraduationCapIcon />, label: "Estudantes" },
+  { href: "/adm/responsaveis", icon: <HeartIcon />, label: "Responsáveis" },
+  { href: "/adm/animais", icon: <DogIcon />, label: "Animais" },
+  { href: "/adm/estoque", icon: <BoxIcon />, label: "Estoque" },
+  { href: "/adm/agendamentos", icon: <Calendar />, label: "Agendamentos" },
+  { href: "/adm/usuarios", icon: <SettingsIcon />, label: "Usuários" },
+];
 
 export default function AdmSidebarButtons() {
   return (
-
-<nav className = "gap-2 flex flex-col">
-<SidebarButton
-href= "/adm"
-icon = {<LayoutDashboardIcon/>}
-label= "Dashboard"
-/>
-
-<SidebarButton 
-href= "/adm/medicos"
-icon = {<CrossIcon/>}
-label= "Médicos"
-/>
-
-<SidebarButton 
-href= "/adm/atendentes"
-icon = {<Users/>}
-label= "Atendentes"
-/>
-
-<SidebarButton 
-href= "/adm/estudantes"
-icon = {<GraduationCapIcon/>}
-label= "Estudantes"
-/>
-
-<SidebarButton 
-href= "/adm/responsaveis"
-icon = {<HeartIcon/>}
-label= "Responsáveis"
-/>
-
-<SidebarButton 
-href= "/adm/animais"
-icon = {<DogIcon/>}
-label= "Animais"
-/>
-
-<SidebarButton 
-href= "/adm/estoque"
-icon = {<BoxIcon/>}
-label= "Estoque"
-/>
-
-<SidebarButton 
-href= "/adm/agendamentos"
-icon = {<Calendar/>}
-label= "Agendamentos"
-/>
-
-<SidebarButton 
-href= "/adm/usuarios"
-icon = {<SettingsIcon/>}
-label= "Usuários"
-/>
-
-</nav>
+    <SidebarMenu>
+      {admLinks.map((link) => (
+        <SidebarMenuItem key={link.href}>
+          <SidebarMenuButton asChild>
+            
+            {/* MUDANÇA: Classes de cor removidas. 
+                Tamanho da fonte 'text-base' mantido. 
+                (Troque para 'text-lg' se quiser maior) */}
+            <Link
+              href={link.href}
+              className="text-base"
+            >
+              {link.icon}
+              <span>{link.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 }

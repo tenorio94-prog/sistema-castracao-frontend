@@ -1,44 +1,42 @@
-// Localização: components/Sidebars/MedicoSidebarButtons.tsx
-
-import SidebarButton from "@/components/Buttons/SidebarButton";
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import Link from "next/link";
 import { 
   LayoutDashboardIcon, 
   Calendar,
   DogIcon,
-  SheetIcon // Exemplo de ícone para prontuário
-  // Adicione outros ícones necessários da 'lucide-react'
+  SheetIcon
 } from "lucide-react";
+
+const medicoLinks = [
+  { href: "/medico", icon: <LayoutDashboardIcon/>, label: "Dashboard" },
+  { href: "/medico/agenda", icon: <Calendar/>, label: "Minha Agenda" },
+  { href: "/medico/pacientes", icon: <DogIcon/>, label: "Pacientes" },
+  { href: "/medico/prontuarios", icon: <SheetIcon/>, label: "Prontuários" },
+];
 
 export default function MedicoSidebarButtons() {
   return (
-    <nav className = "gap-2 flex flex-col">
-      {/* Exemplo de botões para o Médico */}
-
-      <SidebarButton
-        href= "/medico"
-        icon = {<LayoutDashboardIcon/>}
-        label= "Dashboard"
-      />
-
-      <SidebarButton 
-        href= "/medico/agenda"
-        icon = {<Calendar/>}
-        label= "Minha Agenda"
-      />
-
-      <SidebarButton 
-        href= "/medico/pacientes"
-        icon = {<DogIcon/>}
-        label= "Pacientes"
-      />
-
-      <SidebarButton 
-        href= "/medico/prontuarios"
-        icon = {<SheetIcon/>}
-        label= "Prontuários"
-      />
-
-      {/* Adicione mais botões aqui */}
-    </nav>
+    <SidebarMenu>
+      {medicoLinks.map((link) => (
+        <SidebarMenuItem key={link.href}>
+          <SidebarMenuButton asChild>
+            
+            {/* MUDANÇA: Classes de cor removidas. 
+                Tamanho da fonte 'text-base' mantido. */}
+            <Link
+              href={link.href}
+              className="text-base"
+            >
+              {link.icon}
+              <span>{link.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 }
