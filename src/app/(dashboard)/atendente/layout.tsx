@@ -1,39 +1,40 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { 
+  SidebarProvider, 
+  SidebarTrigger,
   Sidebar, 
   SidebarContent, 
   SidebarGroup, 
-  SidebarGroupLabel 
+  SidebarGroupLabel,
+  SidebarInset 
 } from "@/components/ui/sidebar";
 import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
 
-export default function AtendenteLayout({
+export default function AdmLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
 
   return (
+
     <SidebarProvider>
-      <div className="flex h-screen">
-        
-        <Sidebar>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>
-                Menu Atendente
-              </SidebarGroupLabel>
-              <AtendenteSidebarButtons />
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
+      
+      <Sidebar>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              Menu Atendente
+            </SidebarGroupLabel>
+            <AtendenteSidebarButtons />
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
 
-        <main className="flex-1 w-full bg-white p-8 overflow-y-auto">
-          <SidebarTrigger />
-          {children}
-        </main>
+      <SidebarInset className="bg-white p-8 overflow-y-auto">
+        <SidebarTrigger />
+        {children}
+      </SidebarInset>
 
-      </div>
     </SidebarProvider>
   );
 }
