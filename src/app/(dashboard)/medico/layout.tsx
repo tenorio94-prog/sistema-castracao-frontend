@@ -11,7 +11,6 @@ export default function MedicoLayout({
       
       {/* BARRA LATERAL (Sidebar Verde) */}
       <aside className="w-64 bg-green-700 p-4">
-        <h2 className="text-white text-lg">Meu Painel</h2>
         
         {/* Renderiza os botões do Médico */}
         <MedicoSidebarButtons /> 

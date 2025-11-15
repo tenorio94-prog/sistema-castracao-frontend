@@ -1,44 +1,79 @@
 // Localização: components/Sidebars/MedicoSidebarButtons.tsx
 
 import SidebarButton from "@/components/Buttons/SidebarButton";
-import { 
-  LayoutDashboardIcon, 
+import {
+  HomeIcon,
   Calendar,
-  DogIcon,
-  SheetIcon // Exemplo de ícone para prontuário
-  // Adicione outros ícones necessários da 'lucide-react'
+  SearchIcon,
+  StethoscopeIcon,
+  SyringeIcon,
+  ClipboardListIcon,
+  BeakerIcon,
+  LayoutDashboardIcon
 } from "lucide-react";
 
 export default function MedicoSidebarButtons() {
   return (
-    <nav className = "gap-2 flex flex-col">
-      {/* Exemplo de botões para o Médico */}
+    <nav className="gap-2 flex flex-col">
+      {/* --- Seção Menu Principal --- */}
+      <span className="px-4 pt-2 pb-1 text-xs font-bold uppercase text-white tracking-wider">
+        Menu Principal
+      </span>
 
       <SidebarButton
+        href="#"
+        icon={<HomeIcon />}
+        label="Início"
+      />
+
+        <SidebarButton
         href= "/medico"
         icon = {<LayoutDashboardIcon/>}
         label= "Dashboard"
       />
 
-      <SidebarButton 
-        href= "/medico/agenda"
-        icon = {<Calendar/>}
-        label= "Minha Agenda"
+
+
+      <SidebarButton
+        href="/medico/atendimentos"
+        icon={<Calendar />}
+        label="Atendimentos"
       />
 
-      <SidebarButton 
-        href= "/medico/pacientes"
-        icon = {<DogIcon/>}
-        label= "Pacientes"
+      <SidebarButton
+        href="/medico/prontuarios"
+        icon={<SearchIcon />}
+        label="Buscar Prontuários"
       />
 
-      <SidebarButton 
-        href= "/medico/prontuarios"
-        icon = {<SheetIcon/>}
-        label= "Prontuários"
+      {/* --- Seção Fichas e Registros --- */}
+      <span className="px-4 pt-4 pb-1 text-xs font-bold uppercase text-white tracking-wider">
+        Fichas e Registros
+      </span>
+
+      <SidebarButton
+        href="/medico/fichas-clinicas"
+        icon={<StethoscopeIcon />}
+        label="Fichas Clínicas"
       />
 
-      {/* Adicione mais botões aqui */}
+      <SidebarButton
+        href="/medico/fichas-cirurgicas"
+        icon={<SyringeIcon />}
+        label="Fichas Cirúrgicas"
+      />
+
+      <SidebarButton
+        href="/medico/fichas-anestesicas"
+        icon={<ClipboardListIcon />}
+        label="Fichas Anestésicas"
+      />
+
+      <SidebarButton
+        href="/medico/exames"
+        icon={<BeakerIcon />}
+        label="Exames"
+      />
     </nav>
   );
 }

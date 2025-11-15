@@ -16,6 +16,10 @@ export default function ProntuarioPage() {
         <ChevronLeft className="mr-1" size={20} /> Voltar
       </button>
 
+      {/* 🔹 Título Principal */}
+      <h1 className="text-3xl font-bold text-green-800">Prontuários Médicos</h1>
+      <p className="text-gray-600 mb-6">Histórico clínico e dados do paciente</p>
+
       {/* Card do paciente */}
       <div className="border border-green-500 rounded-xl p-4 mb-4 bg-white shadow-sm">
         <div className="flex justify-between items-center mb-2">
