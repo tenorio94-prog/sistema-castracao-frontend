@@ -21,7 +21,7 @@ export default function MedicoSidebarButtons() {
       </span>
 
       <SidebarButton
-        href="#"
+        href="/medico/inicio"
         icon={<HomeIcon />}
         label="Início"
       />

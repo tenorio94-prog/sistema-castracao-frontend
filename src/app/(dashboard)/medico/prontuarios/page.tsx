@@ -1,103 +1,118 @@
 "use client";
 
-import { ChevronLeft, Stethoscope, Scissors, Syringe, FileText } from "lucide-react";
+import { Search, User, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import React from "react";
 
-export default function ProntuarioPage() {
+export default function BuscarProntuarioPage() {
   const router = useRouter();
 
+  // Lista de exemplo (adicione seus dados reais)
+  const animals = [
+    {
+      nome: "Alana",
+      responsavel: "Maria Oliveira",
+      idade: "2 anos",
+      peso: "3.5kg",
+      especie: "Feline • Raça",
+    },
+    {
+      nome: "Armagedon",
+      responsavel: "Maria Oliveira",
+      idade: "2 anos",
+      peso: "3.5kg",
+      especie: "Feline • Raça",
+    },
+    {
+      nome: "Aligator",
+      responsavel: "Maria Oliveira",
+      idade: "2 anos",
+      peso: "3.5kg",
+      especie: "Feline • Raça",
+    },
+  ];
+
   return (
-    <div className="flex flex-col w-full p-6">
-      {/* Botão de voltar */}
+    <>
+      {/* Botão Voltar */}
       <button
         onClick={() => router.back()}
-        className="flex items-center text-green-800 mb-4 hover:text-green-900 transition-colors"
+        className="flex items-center text-green-700 hover:underline mb-6 font-medium"
       >
-        <ChevronLeft className="mr-1" size={20} /> Voltar
+        <ChevronLeft className="mr-1 w-4 h-4" />
+        Voltar
       </button>
 
-      {/* 🔹 Título Principal */}
-      <h1 className="text-3xl font-bold text-green-800">Prontuários Médicos</h1>
-      <p className="text-gray-600 mb-6">Histórico clínico e dados do paciente</p>
+      {/* Título */}
+      <h1 className="text-3xl font-bold text-green-700">Buscar Prontuário</h1>
+      <p className="text-gray-600 mt-1 mb-8">
+        Encontre e acesse o histórico completo dos animais
+      </p>
 
-      {/* Card do paciente */}
-      <div className="border border-green-500 rounded-xl p-4 mb-4 bg-white shadow-sm">
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-3">
-            <div className="bg-gray-200 rounded-full w-12 h-12 flex items-center justify-center text-gray-500">
-              <span className="text-xl font-semibold">A</span>
-            </div>
-            <div>
-              <h2 className="font-semibold text-lg text-gray-800">Ana</h2>
-              <p className="text-sm text-gray-500">Felino - Raça - 2 anos - 3,4kg</p>
-            </div>
+      {/* Caixa de busca */}
+      <div className="border border-green-300 rounded-lg p-5 mb-10">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Buscar Animal
+        </label>
+
+        <div className="flex gap-3">
+          <div className="flex items-center border border-gray-300 rounded-md px-3 w-full bg-gray-100">
+            <Search className="w-4 h-4 text-gray-500 mr-2" />
+            <input
+              type="text"
+              placeholder="Digite o nome do animal ou do tutor para buscar"
+              className="bg-transparent w-full py-2.5 outline-none"
+            />
           </div>
-          <span className="border border-green-600 text-green-600 px-3 py-1 rounded-full text-sm">
-            Validada
-          </span>
-        </div>
 
-        <div className="bg-green-50 rounded-lg p-3 mt-2">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-gray-700">
-            <div>
-              <p className="font-semibold">Responsável</p>
-              <p>Maria Oliveira</p>
+          <button className="flex items-center bg-green-700 text-white px-6 rounded-md hover:bg-green-800 transition">
+            <Search className="w-4 h-4 mr-2" /> Buscar
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de animais */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {animals.map((animal, index) => (
+          <div
+            key={index}
+            className="border border-gray-300 rounded-lg p-5 flex flex-col"
+          >
+            {/* Avatar */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="text-gray-500 w-7 h-7" />
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-gray-700">{animal.nome}</h2>
+                <p className="text-sm text-gray-500">{animal.especie}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold">Endereço</p>
-              <p>Rua das Flores, 123 - Recife</p>
+
+            {/* Informações */}
+            <div className="mt-4 text-sm text-gray-600 space-y-1">
+              <p>
+                <strong>Responsável:</strong> {animal.responsavel}
+              </p>
+              <p>
+                <strong>Idade:</strong> {animal.idade}
+              </p>
+              <p>
+                <strong>Peso:</strong> {animal.peso}
+              </p>
             </div>
-            <div>
-              <p className="font-semibold">Telefone</p>
-              <p>(81) 98765-4321</p>
-            </div>
+
+            {/* Botão Ver Prontuário */}
+            <button
+              className="bg-green-700 text-white px-4 py-2 rounded-md mt-4 self-start hover:bg-green-800 transition"
+              onClick={() => alert(`Abrir prontuário de ${animal.nome}`)}
+            >
+              Ver Prontuário
+            </button>
           </div>
-        </div>
+        ))}
       </div>
-
-      {/* Menu de navegação */}
-      <div className="flex gap-2 mb-4">
-        <button className="flex-1 flex items-center justify-center gap-2 border border-green-500 bg-green-100 text-green-800 font-medium rounded-lg py-2">
-          <Stethoscope size={18} /> Clínicas
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 border border-green-500 text-green-800 rounded-lg py-2 hover:bg-green-50">
-          <Scissors size={18} /> Cirúrgicas
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 border border-green-500 text-green-800 rounded-lg py-2 hover:bg-green-50">
-          <Syringe size={18} /> Anestésicas
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 border border-green-500 text-green-800 rounded-lg py-2 hover:bg-green-50">
-          <FileText size={18} /> Exames
-        </button>
-      </div>
-
-      {/* Ficha Clínica */}
-      <div className="border border-green-500 rounded-xl p-4 bg-white shadow-sm">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="font-bold text-green-800 text-lg">
-            Ficha Clínica <span className="text-gray-700">#ec-1</span>
-          </h3>
-          <span className="text-sm text-gray-500">27/09/2025</span>
-        </div>
-
-        <div className="mt-3">
-          <p className="font-semibold text-gray-700">Queixa Principal</p>
-          <p className="text-gray-600 text-sm mb-3">
-            Consulta pré-cirúrgica para castração
-          </p>
-
-          <p className="font-semibold text-gray-700">Diagnóstico</p>
-          <p className="text-gray-600 text-sm">
-            Animal hígido, apto para procedimento cirúrgico
-          </p>
-        </div>
-
-        <div className="mt-3 flex justify-end">
-          <span className="border border-yellow-500 text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full text-sm font-medium">
-            Aguardando Validação
-          </span>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
