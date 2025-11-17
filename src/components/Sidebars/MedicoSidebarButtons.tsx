@@ -1,13 +1,11 @@
-// ARQUIVO: src/components/Sidebars/MedicoSidebarButtons.tsx
-
 import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,         // Componente de grupo
-  SidebarGroupLabel,    // Título do grupo
+  SidebarGroup,         
+  SidebarGroupLabel,    
 } from "@/components/ui/sidebar";
-// import Link from "next/link"; // REMOVIDO para correção
+// import Link from "next/link"; 
 import { 
   HomeIcon, 
   Calendar,
@@ -20,19 +18,25 @@ import {
 } from "lucide-react";
 
 // --- Seção 1: Menu Principal ---
+// Alinhado com a hierarquia da imagem: Início é o primeiro botão após o Dashboard
 const menuPrincipalLinks = [
-  { href: "/medico", icon: <LayoutDashboardIcon/>, label: "Dashboard" },
-  { href: "/medico/inicio", icon: <HomeIcon/>, label: "Início" },
+  // Assumimos que /medico é a rota da Dashboard
+  { href: "/medico", icon: <LayoutDashboardIcon/>, label: "Dashboard" }, 
+  
+  // Mapeamos para a pasta 'atendimentos' (sua pasta de destino)
   { href: "/medico/atendimentos", icon: <Calendar/>, label: "Atendimentos" }, 
+  
+  // Mapeamos para a pasta 'prontuarios'
   { href: "/medico/prontuarios", icon: <SearchIcon/>, label: "Buscar Prontuários" },
 ];
 
 // --- Seção 2: Fichas e Registros ---
+// Alinhado com as pastas do seu sistema:
 const fichasLinks = [
   { href: "/medico/fichas-clinicas", icon: <StethoscopeIcon/>, label: "Fichas Clínicas" },
   { href: "/medico/fichas-cirurgicas", icon: <SyringeIcon/>, label: "Fichas Cirúrgicas" },
   { href: "/medico/fichas-anestesicas", icon: <ClipboardListIcon/>, label: "Fichas Anestésicas" },
-  { href: "/medico/exames", icon: <BeakerIcon/>, label: "Exames" },
+  { href: "/medico/exames", icon: <BeakerIcon/>, label: "Exames" }, // Assumimos que a pasta 'exames' existe
 ];
 
 /**
@@ -49,9 +53,9 @@ export default function MedicoSidebarButtons() {
           {menuPrincipalLinks.map((link) => (
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton asChild>
-                <a // <-- CORREÇÃO: Usando <a>
+                <a 
                   href={link.href}
-                  className="text-base" // Mantém o tamanho da fonte padrão
+                  className="text-base" 
                 >
                   {link.icon}
                   <span>{link.label}</span>
@@ -69,9 +73,9 @@ export default function MedicoSidebarButtons() {
           {fichasLinks.map((link) => (
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton asChild>
-                <a // <-- CORREÇÃO: Usando <a>
+                <a 
                   href={link.href}
-                  className="text-base" // Mantém o tamanho da fonte padrão
+                  className="text-base" 
                 >
                   {link.icon}
                   <span>{link.label}</span>
