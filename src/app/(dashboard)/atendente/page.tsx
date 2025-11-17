@@ -49,7 +49,7 @@ export default function AtendenteDashboardPage() {
     <>
       {/* SEÇÃO 1: Cabeçalho */}
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-green-700">Dashboard Atendente</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Dashboard Atendente</h1>
         <p className="text-gray-600 mt-1">Bem-vindo(a) ao sistema de gestão hospitalar</p>
       </header>
 

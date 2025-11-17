@@ -157,7 +157,7 @@ export default function PaginaEstoque() {
       {/* Cabeçalho */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-green-700">Gestão de Estoque</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Gestão de Estoque</h1>
           <p className="text-gray-600">Controle de insumos e materiais</p>
         </div>
         <button
