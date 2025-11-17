@@ -5,9 +5,37 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 /**
+ * Interface para as props do StatCard
+ */
+interface StatCardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+}
+
+/**
+ * Interface para os dados de agendamento
+ */
+interface Appointment {
+  id: number;
+  time: string;
+  patientName: string;
+  details: string;
+  procedure: string;
+  status: string;
+}
+
+/**
+ * Interface para as props do AppointmentItem
+ */
+interface AppointmentItemProps {
+  appt: Appointment;
+}
+
+/**
  * Componente para o Card de Estatística no topo do dashboard.
  */
-const StatCard = ({ title, value, subtitle }) => (
+const StatCard = ({ title, value, subtitle }: StatCardProps) => (
   <div className="bg-green-600 text-white p-4 rounded-lg shadow">
     <p className="text-sm font-light">{title}</p>
     <p className="text-3xl font-bold my-1">{value}</p>
@@ -18,7 +46,7 @@ const StatCard = ({ title, value, subtitle }) => (
 /**
  * Componente para cada item na lista de agendamentos.
  */
-const AppointmentItem = ({ appt }) => (
+const AppointmentItem = ({ appt }: AppointmentItemProps) => (
   <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center shadow-sm space-y-4 md:space-y-0 md:space-x-4">
     {/* Horário */}
     <div className="bg-gray-100 text-gray-900 font-bold p-3 rounded-md text-center w-full md:w-24">
@@ -26,14 +54,14 @@ const AppointmentItem = ({ appt }) => (
     </div>
 
     {/* Informações do Atendimento */}
-    <div className="flex-grow">
+    <div className="grow">
       <p className="font-bold text-lg text-gray-900">{appt.patientName}</p>
       <p className="text-sm text-gray-600">{appt.details}</p>
       <p className="text-sm text-gray-500">{appt.procedure}</p>
     </div>
 
     {/* Ações */}
-    <div className="flex items-center space-x-3 w-full md:w-auto justify-end flex-shrink-0">
+    <div className="flex items-center space-x-3 w-full md:w-auto justify-end shrink-0">
       <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">
         {appt.status}
       </span>

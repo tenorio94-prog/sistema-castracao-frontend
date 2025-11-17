@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/sidebar";
 import MedicoSidebarButtons from "@/components/Sidebars/MedicoSidebarButtons";
 
-export default function AdmLayout({
+export default function MedicoLayout({
   children,
 }: {
   children: React.ReactNode;

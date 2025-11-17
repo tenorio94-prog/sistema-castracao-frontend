@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/sidebar";
 import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
 
-export default function AdmLayout({
+export default function AtendenteLayout({
   children,
 }: {
   children: React.ReactNode;

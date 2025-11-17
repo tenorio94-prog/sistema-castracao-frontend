@@ -48,7 +48,7 @@ export default function PetCard({ pet }: PetCardProps) {
           {species}
         </span>
       </div>
-      <div className="flex-grow mb-4 space-y-1.5 text-sm text-gray-600">
+      <div className="grow mb-4 space-y-1.5 text-sm text-gray-600">
         <DetailItem label="Raça" value={breed} />
         <DetailItem label="Sexo" value={gender} />
         <DetailItem label="Peso" value={weight} />

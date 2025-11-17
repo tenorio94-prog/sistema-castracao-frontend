@@ -1,412 +1,311 @@
-"use client"; 
+﻿"use client";
 
-import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
-import CrudHeader from '@/components/CRUD/CrudHeader';
 import React, { useEffect, useState } from 'react';
+import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
-import FormInput from '@/components/forms/FormInput'; 
+import FormInput from '@/components/forms/FormInput';
+import { PetOwnerService, PetOwner, CreatePetOwnerData, UpdatePetOwnerData } from '@/services/petowner.service';
 
-// 1. Definição de Tipos (com 'senha' e 'telefone' para ambos)
+const TYPE_MAP = {
+  'INDIVIDUAL': 'Pessoa Física',
+  'NGO': 'ONG',
+} as const;
+
+const TYPE_REVERSE_MAP = {
+  'Pessoa Física': 'INDIVIDUAL',
+  'ONG': 'NGO',
+} as const;
+
+type TipoResponsavel = 'Pessoa Física' | 'ONG';
+
 type Responsavel = {
   id: string;
-  tipo: 'PF' | 'ONG';
   nome: string;
+  tipo: TipoResponsavel;
   cpf?: string;
   nis?: string;
   cnpj?: string;
-  telefone?: string; // <-- Agora usado por PF e ONG
-  animais: string[]; 
-  senha: string;     // <-- Adicionado
+  telefone?: string;
+  email?: string;
+  endereco?: string;
 };
 
-// Formulário agora inclui 'senha'
-type ResponsavelForm = Omit<Responsavel, 'id' | 'animais'>;
+type ResponsavelForm = {
+  nome: string;
+  tipo: TipoResponsavel;
+  cpf: string;
+  nis: string;
+  cnpj: string;
+  telefone: string;
+  email: string;
+  endereco: string;
+  senha: string;
+};
 
-const emptyForm: ResponsavelForm = { 
-  tipo: 'PF', 
-  nome: '', 
-  cpf: '', 
+const TipoBadge: React.FC<{ tipo: TipoResponsavel }> = ({ tipo }) => {
+  const getClasses = () => {
+    return tipo === 'Pessoa Física'
+      ? 'bg-blue-200 text-blue-800 border border-blue-300'
+      : 'bg-purple-200 text-purple-800 border border-purple-300';
+  };
+
+  return <span className={`px-3 py-1 rounded-full font-semibold text-xs ${getClasses()}`}>{tipo}</span>;
+};
+
+const emptyForm: ResponsavelForm = {
+  nome: '',
+  tipo: 'Pessoa Física',
+  cpf: '',
   nis: '',
   cnpj: '',
   telefone: '',
-  senha: '' // <-- Adicionado
+  email: '',
+  endereco: '',
+  senha: '',
 };
 
-
-// 2. Lógica de API (Fetch com dados ajustados)
-async function fetchResponsaveis(): Promise<Responsavel[]> {
-  try {
-    // Simulação de dados com telefone para PF e senhas
-    return [
-      { id: '1', tipo: 'PF', nome: 'João Silva', cpf: '123.456.789-00', nis: '123.456.789-00', telefone: '(81) 98888-7777', animais: ['Rex'], senha: 'senha1' },
-      { id: '2', tipo: 'ONG', nome: 'ONG Amigos dos Animais', cnpj: '12.345.678/0001-00', telefone: '(81) 3333-4444', animais: ['Max', 'Bolinha', 'Frajola'], senha: 'senha2' },
-      { id: '3', tipo: 'ONG', nome: 'Instituto Patinhas', cnpj: '12.345.678/0001-02', telefone: '(81) 5555-6666', animais: ['Luna', 'Thor'], senha: 'senha3' },
-    ];
-  } catch (error) {
-    console.error(error);
-    return []; 
-  }
-}
-
-// -- COMPONENTE DE RADIO CUSTOMIZADO --
-type TipoResponsavelProps = {
-  tipo: 'PF' | 'ONG';
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  disabled?: boolean;
-}
-
-const TipoResponsavelRadio: React.FC<TipoResponsavelProps> = ({ tipo, onChange, disabled = false }) => (
-  <div className="space-y-2">
-    <label className="block text-sm font-semibold text-gray-600">Tipo de Responsável</label>
-    <div className="flex gap-6">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name="tipoResponsavel"
-          value="PF"
-          checked={tipo === 'PF'}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-4 h-4 text-green-600 focus:ring-green-500"
-        />
-        Pessoa Física
-      </label>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name="tipoResponsavel"
-          value="ONG"
-          checked={tipo === 'ONG'}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-4 h-4 text-green-600 focus:ring-green-500"
-        />
-        ONG
-      </label>
-    </div>
-  </div>
-);
-
-
-// 3. Componente da Página
-export default function PaginaResponsaveis() {
-  // 4. Estados
+export default function PaginaGestaoResponsaveis() {
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
+  const [editFormData, setEditFormData] = useState<ResponsavelForm | null>(null);
   const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
-  const [editFormData, setEditFormData] = useState<Responsavel | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  
+  const loadResponsaveis = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await PetOwnerService.getAll();
+      const data = Array.isArray(response) ? response : response.data;
+      const responsaveisFormatados: Responsavel[] = data.map((petOwner: PetOwner) => ({
+        id: petOwner.id,
+        nome: petOwner.name,
+        tipo: TYPE_MAP[petOwner.type] || 'Pessoa Física',
+        cpf: petOwner.cpf || '',
+        nis: petOwner.nis || '',
+        cnpj: petOwner.cnpj || '',
+        telefone: petOwner.phone || '',
+        email: petOwner.email || '',
+        endereco: petOwner.address || '',
+      }));
+      setResponsaveis(responsaveisFormatados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar responsáveis');
+      console.error('Erro:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchResponsaveis().then(data => setResponsaveis(data));
+    loadResponsaveis();
   }, []);
 
-  // Definição das Colunas
   const columns: ColumnDefinition<Responsavel>[] = [
-    { 
-      header: 'Tipo', 
-      cell: (item) => (
-        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-          item.tipo === 'PF' 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-blue-100 text-blue-800' 
-        }`}>
-          {item.tipo}
-        </span>
-      ) 
-    },
-    { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
-    { 
-      header: 'CPF ou CNPJ', 
-      cell: (item) => <span>{item.cpf || item.cnpj}</span> 
-    },
-    { 
-      header: 'Telefone', 
-      cell: (item) => <span>{item.telefone || 'N/A'}</span> // <-- Agora funciona para PF também
-    },
-    { 
-      header: 'Animais', 
-      cell: (item) => <span>{item.animais.join(', ')}</span> 
-    },
+    { header: 'Nome', cell: (item) => <span className="font-medium text-gray-900">{item.nome}</span> },
+    { header: 'Tipo', cell: (item) => <TipoBadge tipo={item.tipo} /> },
+    { header: 'Documento', cell: (item) => <span className="text-gray-700">{item.tipo === 'Pessoa Física' ? item.cpf || 'N/A' : item.cnpj || 'N/A'}</span> },
+    { header: 'Telefone', cell: (item) => <span>{item.telefone || 'N/A'}</span> },
+    { header: 'Email', cell: (item) => <span>{item.email || 'N/A'}</span> },
   ];
 
-  // 5. Handlers
   const handleView = (responsavel: Responsavel) => {
     setSelectedResponsavel(responsavel);
     setIsViewModalOpen(true);
   };
 
   const handleEdit = (responsavel: Responsavel) => {
-    // Preparamos o 'editFormData' para ter um valor de 'senha' vazio, 
-    // para que o placeholder "Deixe em branco..." funcione
-    setEditFormData({...responsavel, senha: ''});
+    setEditFormData({
+      nome: responsavel.nome,
+      tipo: responsavel.tipo,
+      cpf: responsavel.cpf || '',
+      nis: responsavel.nis || '',
+      cnpj: responsavel.cnpj || '',
+      telefone: responsavel.telefone || '',
+      email: responsavel.email || '',
+      endereco: responsavel.endereco || '',
+      senha: '',
+    });
+    setSelectedResponsavel(responsavel);
     setIsEditModalOpen(true);
   };
 
   const handleDelete = async (responsavel: Responsavel) => {
-    if (!window.confirm(`Tem certeza que deseja deletar ${responsavel.nome}?`)) {
-      return;
+    if (!window.confirm(`Tem certeza que deseja deletar o responsável ${responsavel.nome}?`)) return;
+    try {
+      setLoading(true);
+      await PetOwnerService.delete(responsavel.id);
+      await loadResponsaveis();
+      alert('Responsável deletado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao deletar responsável: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-    setResponsaveis(responsaveis.filter(m => m.id !== responsavel.id));
-    alert('Responsável deletado(a) com sucesso!');
-  };
-
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm); 
-    setIsCreateModalOpen(true);
-  };
-
-  const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    console.log("Criando responsável com:", createFormData); 
-
-    const novoResponsavel: Responsavel = { 
-      ...createFormData, 
-      id: Math.random().toString(),
-      animais: [] 
-    }; 
-    setResponsaveis([...responsaveis, novoResponsavel]); 
-    setIsCreateModalOpen(false); 
-    alert('Responsável cadastrado(a)!');
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFormData) return; 
-    
-    // Lógica para não alterar a senha se o campo estiver em branco
-    // Precisaríamos buscar o responsável original para saber a senha antiga
-    // Por enquanto, a simulação apenas salva o que está no formulário.
-    // Se a senha estiver vazia, ela será salva como vazia na simulação.
-    
-    console.log("Salvando edição:", editFormData);
-    setResponsaveis(responsaveis.map(m => m.id === editFormData.id ? editFormData : m));
-    setIsEditModalOpen(false);
+    if (!editFormData || !selectedResponsavel) return;
+    try {
+      setLoading(true);
+      const updateData: UpdatePetOwnerData = {
+        name: editFormData.nome,
+        type: TYPE_REVERSE_MAP[editFormData.tipo] as any,
+        phone: editFormData.telefone,
+        email: editFormData.email,
+        address: editFormData.endereco,
+      };
+      if (editFormData.tipo === 'Pessoa Física') {
+        updateData.cpf = editFormData.cpf;
+        updateData.nis = editFormData.nis;
+      } else {
+        updateData.cnpj = editFormData.cnpj;
+      }
+      if (editFormData.senha && editFormData.senha.trim() !== '') {
+        updateData.password = editFormData.senha;
+      }
+      await PetOwnerService.update(selectedResponsavel.id, updateData);
+      await loadResponsaveis();
+      setIsEditModalOpen(false);
+      setSelectedResponsavel(null);
+      alert('Responsável atualizado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao atualizar responsável: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleCreateSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const createData: CreatePetOwnerData = {
+        name: createFormData.nome,
+        type: TYPE_REVERSE_MAP[createFormData.tipo] as any,
+        phone: createFormData.telefone,
+        email: createFormData.email,
+        address: createFormData.endereco,
+        password: createFormData.senha,
+      };
+      if (createFormData.tipo === 'Pessoa Física') {
+        if (!createFormData.cpf) {
+          alert('CPF é obrigatório para Pessoa Física');
+          return;
+        }
+        createData.cpf = createFormData.cpf;
+        createData.nis = createFormData.nis;
+      } else {
+        if (!createFormData.cnpj) {
+          alert('CNPJ é obrigatório para ONG');
+          return;
+        }
+        createData.cnpj = createFormData.cnpj;
+      }
+      await PetOwnerService.create(createData);
+      await loadResponsaveis();
+      setIsCreateModalOpen(false);
+      setCreateFormData(emptyForm);
+      alert('Responsável criado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao criar responsável: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // 6. JSX (Renderização)
   return (
     <div className="space-y-4">
-      
-      <CrudHeader
-        title="Responsáveis"
-        buttonText="Novo Responsável"
-        onButtonClick={handleOpenCreate} 
-      />
-      
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-green-700">Gestão de Responsáveis</h1>
+          <p className="text-gray-600">{loading ? 'Carregando...' : `${responsaveis.length} responsável(is) cadastrado(s)`}</p>
+        </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors"
+          disabled={loading}
+        >
+          + Novo Responsável
+        </button>
+      </div>
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
       <CrudDisplay<Responsavel>
         data={responsaveis}
         columns={columns}
-        searchPlaceholder="Buscar por nome, CPF ou CNPJ..."
+        searchPlaceholder="Buscar por nome, documento ou email..."
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-
-      {/* Modal de Visualização (com Telefone para PF) */}
       <ViewModal
         isOpen={isViewModalOpen && !!selectedResponsavel}
         onClose={() => setIsViewModalOpen(false)}
         title="Detalhes do Responsável"
       >
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Tipo:</label>
-          <p className="text-gray-800">{selectedResponsavel?.tipo === 'PF' ? 'Pessoa Física' : 'ONG'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Nome:</label>
-          <p className="text-gray-800">{selectedResponsavel?.nome}</p>
-        </div>
-        
-        {selectedResponsavel?.tipo === 'PF' && (
+        <div><label className="text-sm font-semibold text-gray-600">Nome:</label><p className="text-gray-800">{selectedResponsavel?.nome}</p></div>
+        <div><label className="text-sm font-semibold text-gray-600">Tipo:</label><p className="text-gray-800">{selectedResponsavel?.tipo}</p></div>
+        {selectedResponsavel?.tipo === 'Pessoa Física' ? (
           <>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">CPF:</label>
-              <p className="text-gray-800">{selectedResponsavel?.cpf}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">Telefone:</label> {/* <-- Adicionado */}
-              <p className="text-gray-800">{selectedResponsavel?.telefone || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">NIS:</label>
-              <p className="text-gray-800">{selectedResponsavel?.nis || 'N/A'}</p>
-            </div>
+            <div><label className="text-sm font-semibold text-gray-600">CPF:</label><p className="text-gray-800">{selectedResponsavel?.cpf || 'N/A'}</p></div>
+            <div><label className="text-sm font-semibold text-gray-600">NIS:</label><p className="text-gray-800">{selectedResponsavel?.nis || 'N/A'}</p></div>
           </>
+        ) : (
+          <div><label className="text-sm font-semibold text-gray-600">CNPJ:</label><p className="text-gray-800">{selectedResponsavel?.cnpj || 'N/A'}</p></div>
         )}
-        
-        {selectedResponsavel?.tipo === 'ONG' && (
-          <>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">CNPJ:</label>
-              <p className="text-gray-800">{selectedResponsavel?.cnpj}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">Telefone:</label>
-              <p className="text-gray-800">{selectedResponsavel?.telefone}</p>
-            </div>
-          </>
-        )}
-        
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Animais:</label>
-          <p className="text-gray-800">{selectedResponsavel?.animais.join(', ') || 'Nenhum animal associado'}</p>
-        </div>
+        <div><label className="text-sm font-semibold text-gray-600">Telefone:</label><p className="text-gray-800">{selectedResponsavel?.telefone || 'N/A'}</p></div>
+        <div><label className="text-sm font-semibold text-gray-600">Email:</label><p className="text-gray-800">{selectedResponsavel?.email || 'N/A'}</p></div>
+        <div><label className="text-sm font-semibold text-gray-600">Endereço:</label><p className="text-gray-800">{selectedResponsavel?.endereco || 'N/A'}</p></div>
       </ViewModal>
-
-      {/* Modal de Edição (com Senha e Telefone/NIS ajustados) */}
-      <CadastroModal
-        isOpen={isEditModalOpen && !!editFormData}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleEditSave}
-        title="Editar Responsável"
-        saveText="Salvar Alterações"
-      >
-        <TipoResponsavelRadio
-          tipo={editFormData?.tipo || 'PF'}
-          onChange={() => {}} 
-          disabled={true}
-        />
-        
-        <FormInput
-          label="Nome Completo:"
-          name="nome"
-          value={editFormData?.nome || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, nome: e.target.value } : null)}
-        />
-        
-        {editFormData?.tipo === 'PF' && (
+      <CadastroModal isOpen={isEditModalOpen && !!editFormData} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Responsável" saveText="Salvar Alterações">
+        <FormInput label="Nome:" name="nome" value={editFormData?.nome || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, nome: e.target.value } : null))} required />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Tipo:</label>
+          <select value={editFormData?.tipo || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, tipo: e.target.value as TipoResponsavel } : null))} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600" required>
+            <option value="Pessoa Física">Pessoa Física</option>
+            <option value="ONG">ONG</option>
+          </select>
+        </div>
+        {editFormData?.tipo === 'Pessoa Física' ? (
           <>
-            <FormInput
-              label="CPF:"
-              name="cpf"
-              value={editFormData?.cpf || ''}
-              disabled 
-            />
-            <FormInput
-              label="Telefone:" // <-- Adicionado
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={editFormData?.telefone || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, telefone: e.target.value } : null)}
-            />
-            <FormInput
-              label="Número do NIS" // <-- Ajustado (sem *)
-              name="nis"
-              placeholder="Insira o NIS do responsável"
-              value={editFormData?.nis || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, nis: e.target.value } : null)}
-            />
+            <FormInput label="CPF:" name="cpf" value={editFormData?.cpf || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, cpf: e.target.value } : null))} />
+            <FormInput label="NIS:" name="nis" value={editFormData?.nis || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, nis: e.target.value } : null))} />
           </>
+        ) : (
+          <FormInput label="CNPJ:" name="cnpj" value={editFormData?.cnpj || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, cnpj: e.target.value } : null))} />
         )}
-        
-        {editFormData?.tipo === 'ONG' && (
-          <>
-            <FormInput
-              label="CNPJ:"
-              name="cnpj"
-              value={editFormData?.cnpj || ''}
-              disabled 
-            />
-            <FormInput
-              label="Telefone:"
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={editFormData?.telefone || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, telefone: e.target.value } : null)}
-            />
-          </>
-        )}
-
-        <FormInput
-          label="Senha:" // <-- Adicionado
-          name="senha"
-          type="password"
-          placeholder="Deixe em branco para não alterar"
-          value={editFormData?.senha || ''} 
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
-        />
+        <FormInput label="Telefone:" name="telefone" value={editFormData?.telefone || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, telefone: e.target.value } : null))} />
+        <FormInput label="Email:" name="email" type="email" value={editFormData?.email || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, email: e.target.value } : null))} />
+        <FormInput label="Endereço:" name="endereco" value={editFormData?.endereco || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, endereco: e.target.value } : null))} />
+        <FormInput label="Nova Senha:" name="senha" type="password" placeholder="Deixe em branco para não alterar" value={editFormData?.senha || ''} onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, senha: e.target.value } : null))} />
       </CadastroModal>
-
-      {/* Modal de Cadastro (com Senha e Telefone/NIS ajustados) */}
-      <CadastroModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateSave}
-        title="Cadastrar Novo Responsável"
-        saveText="Cadastrar"
-      >
-        <TipoResponsavelRadio
-          tipo={createFormData.tipo}
-          onChange={(e) => setCreateFormData(prev => ({ ...emptyForm, tipo: e.target.value as 'PF' | 'ONG', nome: prev.nome }))}
-        />
-        
-        <FormInput
-          label="Nome Completo"
-          name="nome"
-          placeholder="Insira o nome completo do responsável"
-          value={createFormData.nome}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, nome: e.target.value }))}
-        />
-        
-        {createFormData.tipo === 'PF' && (
+      <CadastroModal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); setCreateFormData(emptyForm); }} onSubmit={handleCreateSave} title="Novo Responsável" saveText="Cadastrar">
+        <FormInput label="Nome:" name="nome" value={createFormData.nome} onChange={(e) => setCreateFormData({ ...createFormData, nome: e.target.value })} required />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Tipo:</label>
+          <select value={createFormData.tipo} onChange={(e) => setCreateFormData({ ...createFormData, tipo: e.target.value as TipoResponsavel })} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600" required>
+            <option value="Pessoa Física">Pessoa Física</option>
+            <option value="ONG">ONG</option>
+          </select>
+        </div>
+        {createFormData.tipo === 'Pessoa Física' ? (
           <>
-            <FormInput
-              label="CPF"
-              name="cpf"
-              placeholder="Insira o CPF do responsável"
-              value={createFormData.cpf || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, cpf: e.target.value }))}
-            />
-             <FormInput
-              label="Telefone" // <-- Adicionado
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={createFormData.telefone || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, telefone: e.target.value }))}
-            />
-            <FormInput
-              label="Número do NIS" // <-- Ajustado (sem *)
-              name="nis"
-              placeholder="Insira o NIS do responsável"
-              value={createFormData.nis || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, nis: e.target.value }))}
-            />
+            <FormInput label="CPF: *" name="cpf" value={createFormData.cpf} onChange={(e) => setCreateFormData({ ...createFormData, cpf: e.target.value })} required />
+            <FormInput label="NIS:" name="nis" value={createFormData.nis} onChange={(e) => setCreateFormData({ ...createFormData, nis: e.target.value })} />
           </>
+        ) : (
+          <FormInput label="CNPJ: *" name="cnpj" value={createFormData.cnpj} onChange={(e) => setCreateFormData({ ...createFormData, cnpj: e.target.value })} required />
         )}
-
-        {createFormData.tipo === 'ONG' && (
-          <>
-            <FormInput
-              label="CNPJ"
-              name="cnpj"
-              placeholder="Insira o CNPJ do responsável"
-              value={createFormData.cnpj || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, cnpj: e.target.value }))}
-            />
-            <FormInput
-              label="Telefone"
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={createFormData.telefone || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, telefone: e.target.value }))}
-            />
-          </>
-        )}
-
-        <FormInput
-          label="Senha" // <-- Adicionado
-          name="senha"
-          type="password"
-          placeholder="Senha de acesso"
-          value={createFormData.senha}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
-        />
+        <FormInput label="Telefone:" name="telefone" value={createFormData.telefone} onChange={(e) => setCreateFormData({ ...createFormData, telefone: e.target.value })} />
+        <FormInput label="Email:" name="email" type="email" value={createFormData.email} onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })} />
+        <FormInput label="Endereço:" name="endereco" value={createFormData.endereco} onChange={(e) => setCreateFormData({ ...createFormData, endereco: e.target.value })} />
+        <FormInput label="Senha:" name="senha" type="password" value={createFormData.senha} onChange={(e) => setCreateFormData({ ...createFormData, senha: e.target.value })} required />
       </CadastroModal>
     </div>
   );

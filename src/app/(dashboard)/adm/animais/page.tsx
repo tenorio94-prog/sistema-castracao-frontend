@@ -1,191 +1,305 @@
-"use client"; 
+"use client";
 
-import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
-import CrudHeader from '@/components/CRUD/CrudHeader';
 import React, { useEffect, useState } from 'react';
+import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
-import FormInput from '@/components/forms/FormInput'; 
-import CardBaseDash from '@/components/Dashboard/CardBaseDash'; 
-import { Dog, CrossIcon } from "lucide-react"; 
+import FormInput from '@/components/forms/FormInput';
+import { AnimalService, Animal, CreateAnimalData, UpdateAnimalData } from '@/services/animal.service';
+import { PetOwnerService, PetOwner } from '@/services/petowner.service';
 
-// --- Tipos de Responsável (reutilizados) ---
-type ResponsavelSimples = {
-    id: string;
-    nome: string;
-    tipo: 'PF' | 'ONG';
+// 1. Mapeamento de Status
+const STATUS_MAP = {
+  'COMPLETED': 'Finalizado',
+  'PENDING_SCREENING': 'Triagem pendente',
+  'PENDING_RETURN': 'Retorno pendente',
+  'UNFIT': 'Inapto',
+} as const;
+
+const STATUS_REVERSE_MAP = {
+  'Finalizado': 'COMPLETED',
+  'Triagem pendente': 'PENDING_SCREENING',
+  'Retorno pendente': 'PENDING_RETURN',
+  'Inapto': 'UNFIT',
+} as const;
+
+const SEX_MAP = {
+  'MALE': 'Macho',
+  'FEMALE': 'Fêmea',
+} as const;
+
+const SEX_REVERSE_MAP = {
+  'Macho': 'MALE',
+  'Fêmea': 'FEMALE',
+} as const;
+
+type StatusAnimal = 'Finalizado' | 'Triagem pendente' | 'Retorno pendente' | 'Inapto';
+type SexoAnimal = 'Macho' | 'Fêmea';
+
+type AnimalUI = {
+  id: string;
+  nome: string;
+  especie: string;
+  raca?: string;
+  idade?: number;
+  peso?: number;
+  sexo?: SexoAnimal;
+  status?: StatusAnimal;
+  responsavelId: string;
+  responsavelNome?: string;
 };
 
-// --- Tipos para Animal ---
-type Animal = {
-  id: string;
+type AnimalForm = {
   nome: string;
   especie: string;
   raca: string;
   idade: string;
-  sexo: string;
-  status: 'Finalizado' | 'Triagem pendente' | 'Retorno pendente' | 'Inapto';
-  responsavelId: string; 
-  responsavelNome: string; 
+  peso: string;
+  sexo: SexoAnimal;
+  responsavelId: string;
 };
 
-type AnimalForm = Omit<Animal, 'id' | 'responsavelNome' | 'status'>;
-const emptyForm: AnimalForm = { 
-  nome: '', 
-  especie: '', 
-  raca: '', 
-  idade: '', 
-  sexo: '', 
-  responsavelId: ''
+// 2. Componente de Badge de Status
+const StatusBadge: React.FC<{ status?: StatusAnimal }> = ({ status }) => {
+  const getClasses = () => {
+    switch (status) {
+      case 'Finalizado':
+        return 'bg-green-200 text-green-800';
+      case 'Triagem pendente':
+        return 'bg-yellow-200 text-yellow-800 border border-yellow-300';
+      case 'Retorno pendente':
+        return 'bg-blue-200 text-blue-800 border border-blue-300';
+      case 'Inapto':
+        return 'bg-red-200 text-red-800 border border-red-300';
+      default:
+        return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  return (
+    <span className={`px-3 py-1 rounded-full font-semibold text-xs ${getClasses()}`}>
+      {status || 'N/A'}
+    </span>
+  );
 };
 
-// --- Funções de Fetch (Simuladas) ---
+const emptyForm: AnimalForm = {
+  nome: '',
+  especie: '',
+  raca: '',
+  idade: '',
+  peso: '',
+  sexo: 'Macho',
+  responsavelId: '',
+};
 
-async function fetchResponsaveisSimples(): Promise<ResponsavelSimples[]> {
-    return [
-        { id: 'resp1', nome: 'João Silva (PF)', tipo: 'PF' },
-        { id: 'resp2', nome: 'ONG Amigos dos Animais', tipo: 'ONG' },
-        { id: 'resp3', nome: 'Instituto Patinhas', tipo: 'ONG' },
-        { id: 'resp4', nome: 'Maria Souza (PF)', tipo: 'PF' },
-    ];
-}
-
-async function fetchAnimais(): Promise<Animal[]> {
-  return [
-    { id: '1', nome: 'Rex', especie: 'Cão', raca: 'Labrador', idade: '5 anos', sexo: 'Macho', status: 'Finalizado', responsavelId: 'resp1', responsavelNome: 'João Silva' },
-    { id: '2', nome: 'Frajola', especie: 'Gato', raca: 'Siamês', idade: '2 anos', sexo: 'Fêmea', status: 'Triagem pendente', responsavelId: 'resp2', responsavelNome: 'ONG Amigos dos Animais' },
-    { id: '3', nome: 'Bolinha', especie: 'Cão', raca: 'Poodle', idade: '8 meses', sexo: 'Fêmea', status: 'Retorno pendente', responsavelId: 'resp1', responsavelNome: 'João Silva' },
-    { id: '4', nome: 'Luna', especie: 'Gato', raca: 'Persa', idade: '4 anos', sexo: 'Fêmea', status: 'Inapto', responsavelId: 'resp3', responsavelNome: 'Instituto Patinhas' },
-    { id: '5', nome: 'Thor', especie: 'Cão', raca: 'Golden Retriever', idade: '3 anos', sexo: 'Macho', status: 'Finalizado', responsavelId: 'resp4', responsavelNome: 'Maria Souza' },
-  ];
-}
-
-
-// --- Componente da Página ---
-export default function PaginaAnimais() {
-  const [animais, setAnimais] = useState<Animal[]>([]);
-  const [responsaveisDisponiveis, setResponsaveisDisponiveis] = useState<ResponsavelSimples[]>([]);
+// 3. Componente da Página
+export default function PaginaGestaoAnimais() {
+  // 4. Estados
+  const [animais, setAnimais] = useState<AnimalUI[]>([]);
+  const [responsaveis, setResponsaveis] = useState<PetOwner[]>([]);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+  const [selectedAnimal, setSelectedAnimal] = useState<AnimalUI | null>(null);
+  const [editFormData, setEditFormData] = useState<AnimalForm | null>(null);
   const [createFormData, setCreateFormData] = useState<AnimalForm>(emptyForm);
-  const [editFormData, setEditFormData] = useState<Animal | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  
+  // 5. Carregar dados da API
+  const loadAnimais = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await AnimalService.getAll();
+
+      // Converter dados da API para formato da UI
+      const data = Array.isArray(response) ? response : response.data;
+      const animaisFormatados: AnimalUI[] = data.map((animal: Animal) => ({
+        id: animal.id,
+        nome: animal.name,
+        especie: animal.species,
+        raca: animal.breed,
+        idade: animal.age,
+        peso: animal.weight,
+        sexo: animal.sex ? SEX_MAP[animal.sex] : undefined,
+        status: animal.status ? STATUS_MAP[animal.status] : undefined,
+        responsavelId: animal.petOwnerId,
+        responsavelNome: animal.petOwner?.name,
+      }));
+
+      setAnimais(animaisFormatados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar animais');
+      console.error('Erro ao carregar animais:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadResponsaveis = async () => {
+    try {
+      const response = await PetOwnerService.getAll();
+      const data = Array.isArray(response) ? response : response.data;
+      setResponsaveis(data);
+    } catch (err: any) {
+      console.error('Erro ao carregar responsáveis:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchAnimais().then(data => setAnimais(data));
-    fetchResponsaveisSimples().then(data => setResponsaveisDisponiveis(data));
+    loadAnimais();
+    loadResponsaveis();
   }, []);
 
-  // Definição das Colunas
-  const columns: ColumnDefinition<Animal>[] = [
-    { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
-    { header: 'Espécie', cell: (item) => <span>{item.especie}</span> },
-    { header: 'Raça', cell: (item) => <span>{item.raca}</span> },
-    { header: 'Responsável', cell: (item) => <span>{item.responsavelNome}</span> },
-    { 
-        header: 'Status', 
-        cell: (item) => (
-            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                item.status === 'Finalizado' ? 'bg-green-100 text-green-800' :
-                item.status === 'Triagem pendente' ? 'bg-yellow-100 text-yellow-800' :
-                item.status === 'Retorno pendente' ? 'bg-orange-100 text-orange-800' :
-                'bg-red-100 text-red-800' 
-            }`}>
-                {item.status}
-            </span>
-        ) 
-    },
+  // 6. Definição das Colunas
+  const columns: ColumnDefinition<AnimalUI>[] = [
+    { header: 'Nome', cell: (item) => <span className="font-medium text-gray-900">{item.nome}</span> },
+    { header: 'Espécie', cell: (item) => <span className="text-gray-700">{item.especie}</span> },
+    { header: 'Raça', cell: (item) => <span>{item.raca || 'N/A'}</span> },
+    { header: 'Sexo', cell: (item) => <span>{item.sexo || 'N/A'}</span> },
+    { header: 'Responsável', cell: (item) => <span>{item.responsavelNome || 'N/A'}</span> },
+    { header: 'Status', cell: (item) => <StatusBadge status={item.status} /> },
   ];
 
-  // Handlers (sem alterações)
-  const handleView = (animal: Animal) => {
+  // 7. Handlers
+  const handleView = (animal: AnimalUI) => {
     setSelectedAnimal(animal);
     setIsViewModalOpen(true);
   };
 
-  const handleEdit = (animal: Animal) => {
-    setEditFormData(animal);
+  const handleEdit = (animal: AnimalUI) => {
+    setEditFormData({
+      nome: animal.nome,
+      especie: animal.especie,
+      raca: animal.raca || '',
+      idade: animal.idade?.toString() || '',
+      peso: animal.peso?.toString() || '',
+      sexo: animal.sexo || 'Macho',
+      responsavelId: animal.responsavelId,
+    });
+    setSelectedAnimal(animal);
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = async (animal: Animal) => {
-    if (!window.confirm(`Tem certeza que deseja deletar ${animal.nome}?`)) {
+  const handleDelete = async (animal: AnimalUI) => {
+    if (!window.confirm(`Tem certeza que deseja deletar o animal ${animal.nome}?`)) {
       return;
     }
-    setAnimais(animais.filter(a => a.id !== animal.id));
-    alert('Animal deletado(a) com sucesso!');
-  };
 
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm); 
-    setIsCreateModalOpen(true);
-  };
-
-  const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    const responsavelSelecionado = responsaveisDisponiveis.find(r => r.id === createFormData.responsavelId);
-    const novoAnimal: Animal = { 
-      ...createFormData, 
-      id: Math.random().toString(),
-      status: 'Finalizado', 
-      responsavelNome: responsavelSelecionado ? responsavelSelecionado.nome : 'Desconhecido' 
-    }; 
-    setAnimais([...animais, novoAnimal]); 
-    setIsCreateModalOpen(false); 
-    alert('Animal cadastrado(a)!');
+    try {
+      setLoading(true);
+      await AnimalService.delete(animal.id);
+      await loadAnimais();
+      alert('Animal deletado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao deletar animal: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFormData) return; 
-    const responsavelSelecionado = responsaveisDisponiveis.find(r => r.id === editFormData.responsavelId);
-    const animalAtualizado: Animal = {
-      ...editFormData,
-      responsavelNome: responsavelSelecionado ? responsavelSelecionado.nome : 'Desconhecido'
-    };
-    setAnimais(animais.map(a => a.id === animalAtualizado.id ? animalAtualizado : a));
-    setIsEditModalOpen(false);
+    if (!editFormData || !selectedAnimal) return;
+
+    try {
+      setLoading(true);
+
+      const updateData: UpdateAnimalData = {
+        name: editFormData.nome,
+        species: editFormData.especie,
+        breed: editFormData.raca || undefined,
+        age: editFormData.idade ? parseInt(editFormData.idade) : undefined,
+        weight: editFormData.peso ? parseFloat(editFormData.peso) : undefined,
+        sex: SEX_REVERSE_MAP[editFormData.sexo] as any,
+        petOwnerId: editFormData.responsavelId,
+      };
+
+      await AnimalService.update(selectedAnimal.id, updateData);
+      await loadAnimais();
+      setIsEditModalOpen(false);
+      setSelectedAnimal(null);
+      alert('Animal atualizado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao atualizar animal: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleCreateSave = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // Renderização
+    try {
+      setLoading(true);
+
+      if (!createFormData.nome || !createFormData.especie || !createFormData.responsavelId) {
+        alert('Nome, espécie e responsável são obrigatórios');
+        return;
+      }
+
+      const createData: CreateAnimalData = {
+        name: createFormData.nome,
+        species: createFormData.especie,
+        breed: createFormData.raca || undefined,
+        age: createFormData.idade ? parseInt(createFormData.idade) : undefined,
+        weight: createFormData.peso ? parseFloat(createFormData.peso) : undefined,
+        sex: SEX_REVERSE_MAP[createFormData.sexo] as any,
+        petOwnerId: createFormData.responsavelId,
+      };
+
+      await AnimalService.create(createData);
+      await loadAnimais();
+      setIsCreateModalOpen(false);
+      setCreateFormData(emptyForm);
+      alert('Animal criado com sucesso!');
+    } catch (err: any) {
+      alert(`Erro ao criar animal: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 8. JSX (Renderização)
   return (
-  
-    <div className="flex flex-col space-y-4">
-      
-      <CrudHeader
-        title="Animais"
-        buttonText="Novo Animal"
-        onButtonClick={handleOpenCreate} 
-      />
-
-      <div className= "flex flex-wrap gap-3 mt-1">
-        <CardBaseDash
-          title="Animais Cadastrados"
-          value={animais.length} // <-- Valor dinâmico
-          subtitle="Total desde o início"
-          icon={<Dog/>}
-        />
-        <CardBaseDash
-          title="Animais Castrados"
-          value={2} // <-- Valor estático (simulação)
-          subtitle="Total desde o início"
-          icon={<CrossIcon/>}
-        />
+    <div className="space-y-4">
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-green-700">Gestão de Animais</h1>
+          <p className="text-gray-600">
+            {loading ? 'Carregando...' : `${animais.length} animal(is) cadastrado(s)`}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors"
+          disabled={loading}
+        >
+          + Novo Animal
+        </button>
       </div>
-      
-      <CrudDisplay<Animal>
+
+      {/* Mensagem de erro */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* Tabela */}
+      <CrudDisplay<AnimalUI>
         data={animais}
         columns={columns}
-        searchPlaceholder="Buscar por nome ou responsável..."
+        searchPlaceholder="Buscar por nome, espécie ou responsável..."
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
 
-      {/* Modal de Visualização (sem alterações) */}
+      {/* Modal de Visualização */}
       <ViewModal
         isOpen={isViewModalOpen && !!selectedAnimal}
         onClose={() => setIsViewModalOpen(false)}
@@ -201,27 +315,31 @@ export default function PaginaAnimais() {
         </div>
         <div>
           <label className="text-sm font-semibold text-gray-600">Raça:</label>
-          <p className="text-gray-800">{selectedAnimal?.raca}</p>
+          <p className="text-gray-800">{selectedAnimal?.raca || 'N/A'}</p>
         </div>
         <div>
           <label className="text-sm font-semibold text-gray-600">Idade:</label>
-          <p className="text-gray-800">{selectedAnimal?.idade}</p>
+          <p className="text-gray-800">{selectedAnimal?.idade ? `${selectedAnimal.idade} anos` : 'N/A'}</p>
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-600">Peso:</label>
+          <p className="text-gray-800">{selectedAnimal?.peso ? `${selectedAnimal.peso} kg` : 'N/A'}</p>
         </div>
         <div>
           <label className="text-sm font-semibold text-gray-600">Sexo:</label>
-          <p className="text-gray-800">{selectedAnimal?.sexo}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Responsável:</label>
-          <p className="text-gray-800">{selectedAnimal?.responsavelNome}</p>
+          <p className="text-gray-800">{selectedAnimal?.sexo || 'N/A'}</p>
         </div>
         <div>
           <label className="text-sm font-semibold text-gray-600">Status:</label>
-          <p className="text-gray-800">{selectedAnimal?.status}</p>
+          <p className="text-gray-800">{selectedAnimal?.status || 'N/A'}</p>
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-600">Responsável:</label>
+          <p className="text-gray-800">{selectedAnimal?.responsavelNome || 'N/A'}</p>
         </div>
       </ViewModal>
 
-      {/* Modal de Edição (sem alterações) */}
+      {/* Modal de Edição */}
       <CadastroModal
         isOpen={isEditModalOpen && !!editFormData}
         onClose={() => setIsEditModalOpen(false)}
@@ -230,159 +348,142 @@ export default function PaginaAnimais() {
         saveText="Salvar Alterações"
       >
         <FormInput
-          label="Nome:"
+          label="Nome: *"
           name="nome"
           value={editFormData?.nome || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, nome: e.target.value } : null)}
+          onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, nome: e.target.value } : null))}
+          required
         />
-        <div className="mb-4">
-          <label htmlFor="edit-especie" className="block text-sm font-semibold text-gray-600">Espécie</label>
-          <select
-            id="edit-especie"
-            name="especie"
-            value={editFormData?.especie || ''}
-            onChange={(e) => setEditFormData(prev => prev ? { ...prev, especie: e.target.value } : null)}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
-          >
-            <option value="">Selecione a espécie</option>
-            <option value="Cão">Cão</option>
-            <option value="Gato">Gato</option>
-            <option value="Outro">Outro</option>
-          </select>
-        </div>
+        <FormInput
+          label="Espécie: *"
+          name="especie"
+          value={editFormData?.especie || ''}
+          onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, especie: e.target.value } : null))}
+          required
+        />
         <FormInput
           label="Raça:"
           name="raca"
           value={editFormData?.raca || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, raca: e.target.value } : null)}
+          onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, raca: e.target.value } : null))}
         />
         <FormInput
-          label="Idade:"
+          label="Idade (anos):"
           name="idade"
-          placeholder="Ex: 3 anos"
+          type="number"
           value={editFormData?.idade || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, idade: e.target.value } : null)}
+          onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, idade: e.target.value } : null))}
         />
-        <div className="mb-4">
-          <label htmlFor="edit-sexo" className="block text-sm font-semibold text-gray-600">Sexo</label>
+        <FormInput
+          label="Peso (kg):"
+          name="peso"
+          type="number"
+          step="0.1"
+          value={editFormData?.peso || ''}
+          onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, peso: e.target.value } : null))}
+        />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Sexo:</label>
           <select
-            id="edit-sexo"
-            name="sexo"
             value={editFormData?.sexo || ''}
-            onChange={(e) => setEditFormData(prev => prev ? { ...prev, sexo: e.target.value } : null)}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
+            onChange={(e) =>
+              setEditFormData((prev) => (prev ? { ...prev, sexo: e.target.value as SexoAnimal } : null))
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
           >
-            <option value="">Selecione o sexo</option>
             <option value="Macho">Macho</option>
             <option value="Fêmea">Fêmea</option>
           </select>
         </div>
-        <div className="mb-4">
-          <label htmlFor="edit-responsavel" className="block text-sm font-semibold text-gray-600">Responsável</label>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Responsável: *</label>
           <select
-            id="edit-responsavel"
-            name="responsavelId"
             value={editFormData?.responsavelId || ''}
-            onChange={(e) => setEditFormData(prev => prev ? { ...prev, responsavelId: e.target.value } : null)}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
+            onChange={(e) => setEditFormData((prev) => (prev ? { ...prev, responsavelId: e.target.value } : null))}
+            className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+            required
           >
             <option value="">Selecione um responsável</option>
-            {responsaveisDisponiveis.map(resp => (
+            {responsaveis.map((resp) => (
               <option key={resp.id} value={resp.id}>
-                {resp.nome} {resp.tipo === 'PF' ? '(Pessoa Física)' : '(ONG)'}
+                {resp.name} ({resp.type === 'INDIVIDUAL' ? 'PF' : 'ONG'})
               </option>
             ))}
           </select>
         </div>
-        <div className="mb-4">
-          <label htmlFor="edit-status" className="block text-sm font-semibold text-gray-600">Status</label>
-          <select
-            id="edit-status"
-            name="status"
-            value={editFormData?.status || 'Finalizado'}
-            onChange={(e) => setEditFormData(prev => prev ? { ...prev, status: e.target.value as Animal['status'] } : null)}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
-          >
-            <option value="Finalizado">Finalizado</option>
-            <option value="Triagem pendente">Triagem pendente</option>
-            <option value="Retorno pendente">Retorno pendente</option>
-            <option value="Inapto">Inapto</option>
-          </select>
-        </div>
       </CadastroModal>
 
-      {/* Modal de Cadastro (sem alterações) */}
+      {/* Modal de Criação */}
       <CadastroModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setCreateFormData(emptyForm);
+        }}
         onSubmit={handleCreateSave}
-        title="Cadastrar Novo Animal"
+        title="Novo Animal"
         saveText="Cadastrar"
       >
         <FormInput
-          label="Nome"
+          label="Nome: *"
           name="nome"
-          placeholder="Insira o nome do animal"
           value={createFormData.nome}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, nome: e.target.value }))}
+          onChange={(e) => setCreateFormData({ ...createFormData, nome: e.target.value })}
+          required
         />
-        <div className="mb-4">
-          <label htmlFor="create-especie" className="block text-sm font-semibold text-gray-600">Espécie</label>
-          <select
-            id="create-especie"
-            name="especie"
-            value={createFormData.especie}
-            onChange={(e) => setCreateFormData(prev => ({ ...prev, especie: e.target.value }))}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
-          >
-            <option value="">Selecione a espécie</option>
-            <option value="Cão">Cão</option>
-            <option value="Gato">Gato</option>
-            <option value="Outro">Outro</option>
-          </select>
-        </div>
         <FormInput
-          label="Raça"
+          label="Espécie: *"
+          name="especie"
+          placeholder="Ex: Cachorro, Gato"
+          value={createFormData.especie}
+          onChange={(e) => setCreateFormData({ ...createFormData, especie: e.target.value })}
+          required
+        />
+        <FormInput
+          label="Raça:"
           name="raca"
-          placeholder="Insira a raça do animal"
+          placeholder="Ex: Vira-lata, Siamês"
           value={createFormData.raca}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, raca: e.target.value }))}
+          onChange={(e) => setCreateFormData({ ...createFormData, raca: e.target.value })}
         />
         <FormInput
-          label="Idade"
+          label="Idade (anos):"
           name="idade"
-          placeholder="Ex: 3 anos"
+          type="number"
           value={createFormData.idade}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, idade: e.target.value }))}
+          onChange={(e) => setCreateFormData({ ...createFormData, idade: e.target.value })}
         />
-        <div className="mb-4">
-          <label htmlFor="create-sexo" className="block text-sm font-semibold text-gray-600">Sexo</label>
+        <FormInput
+          label="Peso (kg):"
+          name="peso"
+          type="number"
+          step="0.1"
+          value={createFormData.peso}
+          onChange={(e) => setCreateFormData({ ...createFormData, peso: e.target.value })}
+        />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Sexo:</label>
           <select
-            id="create-sexo"
-            name="sexo"
             value={createFormData.sexo}
-            onChange={(e) => setCreateFormData(prev => ({ ...prev, sexo: e.target.value }))}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
+            onChange={(e) => setCreateFormData({ ...createFormData, sexo: e.target.value as SexoAnimal })}
+            className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
           >
-            <option value="">Selecione o sexo</option>
             <option value="Macho">Macho</option>
             <option value="Fêmea">Fêmea</option>
           </select>
         </div>
-        <div className="mb-4">
-          <label htmlFor="create-responsavel" className="block text-sm font-semibold text-gray-600">Responsável</label>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-600">Responsável: *</label>
           <select
-            id="create-responsavel"
-            name="responsavelId"
             value={createFormData.responsavelId}
-            onChange={(e) => setCreateFormData(prev => ({ ...prev, responsavelId: e.target.value }))}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-lg text-gray-500"
+            onChange={(e) => setCreateFormData({ ...createFormData, responsavelId: e.target.value })}
+            className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+            required
           >
             <option value="">Selecione um responsável</option>
-            {/* Aqui estão as linhas que faltavam */}
-            {responsaveisDisponiveis.map(resp => (
+            {responsaveis.map((resp) => (
               <option key={resp.id} value={resp.id}>
-                {resp.nome} {resp.tipo === 'PF' ? '(Pessoa Física)' : '(ONG)'}
+                {resp.name} ({resp.type === 'INDIVIDUAL' ? 'PF' : 'ONG'})
               </option>
             ))}
           </select>

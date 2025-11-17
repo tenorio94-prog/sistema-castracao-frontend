@@ -48,7 +48,7 @@ export default function ResponsavelCard({ responsavel, onVerDetalhes }: Responsa
         </div>
       </div>
       
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <button 
           type="button"
           onClick={() => onVerDetalhes(responsavel)} 

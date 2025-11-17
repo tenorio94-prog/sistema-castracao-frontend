@@ -35,7 +35,7 @@ export default function AtendimentosPage() {
         
         {/* Lado Esquerdo: Informações do Animal */}
         <div className="flex gap-4 items-start">
-          <div className="flex-shrink-0 bg-gray-200 rounded-full w-12 h-12 flex items-center justify-center">
+          <div className="shrink-0 bg-gray-200 rounded-full w-12 h-12 flex items-center justify-center">
             <User className="w-6 h-6 text-gray-500" />
           </div>
           <div>
