@@ -1,10 +1,14 @@
-// app/atendente/agendamentos/page.tsx
+// app/(dashboard)/adm/agendamentos/page.tsx
 "use client"; 
 
 import React, { useState, useEffect } from 'react';
 
-// Importando os componentes
-import PageHeader from '@/components/AtendenteComponents/PageHeader';
+// --- ATUALIZAÇÃO: Importando o CrudHeader ---
+import CrudHeader from '@/components/CRUD/CrudHeader'; 
+// (PageHeader não é mais necessário aqui)
+// ---------------------------------------------
+
+// Importando os componentes (Atendente/Modals)
 import AgendamentoCard, { Agendamento, Pet, Responsavel } from '@/components/AtendenteComponents/AgendamentoCard';
 import AgendamentoFilter from '@/components/AtendenteComponents/FiltroAgendamento';
 import CadastroModal from '@/components/modals/CadastroModal'; 
@@ -56,7 +60,7 @@ const emptyForm: AgendamentoForm = {
 };
 // -------------------------------------------------------------
 
-export default function PaginaAgendamentos() {
+export default function PaginaAgendamentosAdm() {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
   
@@ -93,25 +97,54 @@ export default function PaginaAgendamentos() {
   }, [busca, statusFiltro, masterAgendamentos]); 
 
   // (Handlers de Cadastro - sem alteração)
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { /* ... */ };
-  const handleCloseCadastro = () => { /* ... */ };
-  const handleCreateSave = async (e: React.FormEvent) => { /* ... */ };
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  const handleCloseCadastro = () => {
+    setIsModalCadastroOpen(false);
+    setFormData(emptyForm);
+  };
+  const handleCreateSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.animalId || !formData.tipoAtendimento || !formData.data || !formData.horario) {
+      alert('Por favor, preencha todos os campos obrigatórios (*).');
+      return;
+    }
+    const petCompleto = listaDePetsMocados.find(p => p.id === parseInt(formData.animalId));
+    const respCompleto = listaDeResponsaveisMocados.find(r => r.nome === petCompleto?.ownerName);
+    if (!petCompleto || !respCompleto) {
+      alert("Erro ao encontrar dados do animal/responsável.");
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const novoAgendamento: Agendamento = {
+      id: Math.random(),
+      petName: petCompleto.name,
+      status: 'Pendente' as const,
+      responsavel: respCompleto, 
+      data: formData.data,
+      hora: formData.horario, 
+      tipo: formData.tipoAtendimento,
+      pet: petCompleto,
+      observacoes: formData.observacoes,
+    };
+    setMasterAgendamentos(prev => [novoAgendamento, ...prev]); 
+    handleCloseCadastro(); 
+    alert('Agendamento realizado com sucesso!');
+  };
   
-  // --- Handlers para o Modal de Detalhes (ATUALIZADO) ---
-  
+  // (Handlers de Detalhes - sem alteração)
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setSelectedAgendamento(agendamento); 
     setIsModalDetalhesOpen(true); 
   };
-  
   const handleCloseDetalhes = () => {
     setIsModalDetalhesOpen(false);
     setSelectedAgendamento(null);
   };
-
   const handleCheckIn = () => {
     if (!selectedAgendamento) return;
-    
     setMasterAgendamentos(prev => 
       prev.map(ag => 
         ag.id === selectedAgendamento.id ? { ...ag, status: 'Concluído' } : ag
@@ -120,9 +153,6 @@ export default function PaginaAgendamentos() {
     alert('Check-in realizado com sucesso!');
     handleCloseDetalhes(); 
   };
-
-  // --- handleEdit REMOVIDO ---
-  
   const handleCancelAgendamento = () => {
     if (window.confirm("Tem certeza que deseja cancelar este agendamento?")) {
       alert("Agendamento cancelado (simulação).");
@@ -135,19 +165,23 @@ export default function PaginaAgendamentos() {
   return (
     <div className="flex flex-col gap-8 relative">
       
-      {/* (PageHeader, AgendamentoFilter, Lista - sem alteração) */}
-      <PageHeader 
-        title="Agendamentos"
-        description="Gerencie os agendamentos do hospital"
-        buttonLabel="Novo Agendamento"
+      {/* --- ATUALIZAÇÃO: Usando o CrudHeader --- */}
+      <CrudHeader 
+        title="Gerenciar Agendamentos"
+        buttonText="Novo Agendamento"
         onButtonClick={() => setIsModalCadastroOpen(true)}
       />
+      {/* ----------------------------------------- */}
+
+      {/* 2. Seção de Filtros (Reutilizado) */}
       <AgendamentoFilter
         busca={busca}
         onBuscaChange={setBusca}
         statusFiltro={statusFiltro}
         onStatusChange={setStatusFiltro}
       />
+
+      {/* 3. Renderização da lista (Reutilizado) */}
       <div className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold text-gray-800">Lista de Agendamentos</h2>
         <p className="text-sm text-gray-600">
@@ -173,7 +207,7 @@ export default function PaginaAgendamentos() {
         )}
       </div>
 
-      {/* (Modal de Cadastro - sem alteração) */}
+      {/* 4. Modal de Cadastro (Reutilizado) */}
       <CadastroModal
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}
@@ -181,7 +215,7 @@ export default function PaginaAgendamentos() {
         title="Novo Agendamento"
         saveText="Criar Agendamento"
       >
-        {/* (Campos do formulário) */}
+        {/* (Campos do formulário - Reutilizados) */}
         <div>
           <label htmlFor="animalId" className="block text-sm font-medium text-gray-700 mb-1">
             Animal*
@@ -260,13 +294,13 @@ export default function PaginaAgendamentos() {
         </div>
       </CadastroModal>
       
-      {/* --- Modal de Detalhes (ATUALIZADO) --- */}
+      {/* 5. Modal de Detalhes (Reutilizado) */}
       <ModalDetalhesAgendamento
         isOpen={isModalDetalhesOpen}
         onClose={handleCloseDetalhes}
         agendamento={selectedAgendamento}
         onCheckIn={handleCheckIn}
-        // Prop 'onEdit' removida
+        // onEdit={...} // (Pode ser adicionado aqui para ADMs)
         onCancelAgendamento={handleCancelAgendamento}
       />
     </div>

@@ -1,101 +1,171 @@
+// app/atendente/responsaveis/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
-// Usando caminhos relativos para corrigir erros de build
-import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import ResponsavelCard from '@/components/AtendenteComponents/ResponsavelCard';
+import React, { useState, useEffect } from 'react';
+import { User, Phone, Mail, MapPin, Dog } from 'lucide-react'; 
 
-// --- DADOS MOCADOS ---
-// TODO: Integração Backend: Substituir pelos dados vindos da API
-const mockResponsaveis = [
-  { id: 1, nome: 'Ana Silva', cpf: '123.456.789-00', telefone: '(81) 98765-4321', email: 'ana.silva@gmail.com', endereco: 'Rua das Flores, 123 - Recife/PE', pets: ['Rex', 'Mel'] },
-  { id: 2, nome: 'Bruno Costa', cpf: '987.654.321-00', telefone: '(81) 91234-5678', email: 'bruno.costa@gmail.com', endereco: 'Avenida Boa Viagem, 456 - Recife/PE', pets: ['Thor'] },
-  { id: 3, nome: 'Carla Dias', cpf: '111.222.333-44', telefone: '(81) 95555-4444', email: 'carla.dias@gmail.com', endereco: 'Rua do Sol, 789 - Olinda/PE', pets: ['Mia'] },
+import PageHeader from '@/components/AtendenteComponents/PageHeader';
+// --- ATUALIZAÇÃO: Importando o TIPO junto com o componente ---
+import ResponsavelCard, { Responsavel } from '@/components/AtendenteComponents/ResponsavelCard';
+// -----------------------------------------------------------
+import PageSearchBar from '@/components/AtendenteComponents/BarraDeBusca';
+import DetalhesModal from '@/components/modals/DetalhesModal'; 
+import CadastroModal from '@/components/modals/CadastroModal';
+import FormInput from '@/components/forms/FormInput'; 
+import TipoResponsavelRadio from '@/components/forms/TipoResponsavelRadio';
+
+// --- ATUALIZAÇÃO: O tipo 'Responsavel' foi removido daqui ---
+
+// 2. Tipo 'ResponsavelForm' (agora usa o 'Responsavel' importado)
+type ResponsavelForm = Omit<Responsavel, 'id' | 'animais'>;
+
+// 3. Estado inicial do formulário (alinhado)
+const emptyForm: ResponsavelForm = { 
+  tipo: 'PF', 
+  nome: '', 
+  cpf: '', 
+  nis: '',
+  cnpj: '',
+  telefone: '',
+  senha: '',
+  email: '',
+  endereco: ''
+};
+// ---------------------------------------------------
+
+// --- DADOS MOCADOS (Alinhados com o tipo) ---
+const mockResponsaveis: Responsavel[] = [
+  { id: '1', tipo: 'PF', nome: 'Ana Silva', cpf: '123.456.789-00', nis: '123.456.789-00', telefone: '(81) 98765-4321', email: 'ana.silva@gmail.com', endereco: 'Rua das Flores, 123 - Recife/PE', animais: ['Rex', 'Mel'], senha: '123' },
+  { id: '2', tipo: 'ONG', nome: 'Bruno Costa (ONG)', cnpj: '987.654.321/0001-00', telefone: '(81) 91234-5678', email: 'bruno.costa@gmail.com', endereco: 'Avenida Boa Viagem, 456 - Recife/PE', animais: ['Thor'], senha: '456' },
 ];
 // ---------------------
 
+// Sub-componente para os itens de detalhe
+function DetalheItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) {
+  return (
+    <div className="flex items-start gap-3"> 
+      <span className="text-gray-500 mt-0.5">{icon}</span>
+      <div>
+        <label className="text-sm font-semibold text-gray-600">{label}:</label>
+        <p className="text-gray-800">{value || 'N/A'}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function PaginaResponsaveis() {
-  // Estado para o filtro de busca
   const [busca, setBusca] = useState('');
-
-  // Estado para a lista de responsáveis
-  const [responsaveis, setResponsaveis] = useState(mockResponsaveis);
   const [loading, setLoading] = useState(false);
+  
+  const [masterResponsaveis, setMasterResponsaveis] = useState<Responsavel[]>(mockResponsaveis);
+  const [responsaveisFiltrados, setResponsaveisFiltrados] = useState<Responsavel[]>(mockResponsaveis);
+  
+  const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
+  const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
+  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
 
-  // TODO: Integração Backend: Implementar lógica de fetch
+  // useEffect para filtragem
   useEffect(() => {
-    const fetchResponsaveis = async () => {
-      setLoading(true);
-      console.log(`Buscando responsáveis com: busca='${busca}'`);
-      
-      // Simulação de chamada de API
-      // const response = await fetch(`/api/responsaveis?busca=${busca}`);
-      // const data = await response.json();
-      // setResponsaveis(data);
+    setLoading(true);
+    const filtrados = masterResponsaveis.filter(r => 
+      r.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      (r.cpf && r.cpf.includes(busca)) ||
+      (r.cnpj && r.cnpj.includes(busca)) ||
+      r.animais.some(pet => pet.toLowerCase().includes(busca.toLowerCase()))
+    );
+    setTimeout(() => {
+      setResponsaveisFiltrados(filtrados);
+      setLoading(false);
+    }, 500);
+  }, [busca, masterResponsaveis]); 
+  
+  // Handlers de Cadastro
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCreateFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTipo = e.target.value as 'PF' | 'ONG';
+    setCreateFormData(prev => ({ 
+      ...emptyForm, 
+      tipo: newTipo, 
+      nome: prev.nome 
+    }));
+  };
 
-      // Filtrando dados mocados para simulação
-      const filtrados = mockResponsaveis.filter(r => 
-        r.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        r.cpf.includes(busca) ||
-        r.pets.some(pet => pet.toLowerCase().includes(busca.toLowerCase()))
-      );
+  const handleOpenCreate = () => {
+    setCreateFormData(emptyForm); 
+    setIsCreateModalOpen(true);
+  };
+  
+  const handleCloseCreate = () => {
+    setIsCreateModalOpen(false);
+    setCreateFormData(emptyForm);
+  };
 
-      setTimeout(() => { // Simula delay da rede
-        setResponsaveis(filtrados);
-        setLoading(false);
-      }, 500);
-    };
+  const handleCreateSave = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    console.log("Criando responsável com:", createFormData); 
 
-    fetchResponsaveis();
-  }, [busca]); // Dependência: refaz o fetch ao mudar o termo de busca
+    const novoResponsavel: Responsavel = { 
+      ...createFormData, 
+      id: Math.random().toString(),
+      animais: [] 
+    }; 
+    
+    setMasterResponsaveis(prev => [novoResponsavel, ...prev]); 
+    handleCloseCreate(); 
+    alert('Responsável cadastrado(a)!');
+  };
+  
+  // Handlers do Modal de Detalhes
+  const handleVerDetalhes = (responsavel: Responsavel) => {
+    setSelectedResponsavel(responsavel);
+    setIsModalDetalhesOpen(true);
+  };
+  
+  const handleCloseDetalhes = () => {
+    setIsModalDetalhesOpen(false);
+    setSelectedResponsavel(null);
+  };
 
   return (
-    // O layout pai (AdmLayout) já fornece o padding (p-8)
     <div className="flex flex-col gap-8">
 
-      {/* 1. Cabeçalho da Página */}
       <PageHeader 
         title="Responsáveis"
         description="Gerencie os tutores dos animais"
-        buttonLabel="Novo"
-        buttonHref="/atendente/responsaveis/novo" // TODO: Definir rota correta
+        buttonLabel="Novo Responsável"
+        onButtonClick={handleOpenCreate}
       />
 
-      {/* 2. Seção de Busca */}
-      <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50">
-        <label htmlFor="busca" className="flex items-center gap-2 text-xl font-semibold text-gray-800 mb-4">
-          <Search size={20} />
-          Buscar
-        </label>
-        <div className="relative">
-          <input
-            type="text"
-            id="busca"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Digite o nome do pet ou responsável"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+      <PageSearchBar
+        title="Buscar"
+        placeholder="Digite o nome, CPF ou CNPJ"
+        busca={busca}
+        onBuscaChange={setBusca}
+      />
 
-      {/* 3. Seção da Lista de Responsáveis */}
+      {/* Lista de Responsáveis */}
       <div className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold text-gray-800">Lista de Responsáveis</h2>
         <p className="text-sm text-gray-600">
-          {loading ? 'Buscando...' : `${responsaveis.length} responsável(is) encontrado(s)`}
+          {loading ? 'Buscando...' : `${responsaveisFiltrados.length} responsável(is) encontrado(s)`}
         </p>
 
-        {/* Conteúdo da Lista */}
         {loading ? (
-          <div className="text-center py-10">
-            <p>Carregando...</p>
-          </div>
-        ) : responsaveis.length > 0 ? (
+          <div className="text-center py-10"><p>Carregando...</p></div>
+        ) : responsaveisFiltrados.length > 0 ? (
           <div className="flex flex-col gap-4">
-            {responsaveis.map(resp => (
-              <ResponsavelCard key={resp.id} responsavel={resp} />
+            {responsaveisFiltrados.map(resp => (
+              <ResponsavelCard 
+                key={resp.id} 
+                responsavel={resp}
+                onVerDetalhes={handleVerDetalhes} 
+              />
             ))}
           </div>
         ) : (
@@ -104,6 +174,123 @@ export default function PaginaResponsaveis() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalhes (Alinhado) */}
+      <DetalhesModal
+        isOpen={isModalDetalhesOpen}
+        onClose={handleCloseDetalhes}
+        title="Detalhes do Responsável"
+      >
+        {selectedResponsavel && (
+          <>
+            <DetalheItem icon={<User size={14} />} label="Nome" value={selectedResponsavel.nome} />
+            <DetalheItem icon={<User size={14} />} label="Tipo" value={selectedResponsavel.tipo} />
+            {selectedResponsavel.tipo === 'PF' ? (
+              <>
+                <DetalheItem icon={<User size={14} />} label="CPF" value={selectedResponsavel.cpf} />
+                <DetalheItem icon={<User size={14} />} label="NIS" value={selectedResponsavel.nis} />
+              </>
+            ) : (
+              <DetalheItem icon={<User size={14} />} label="CNPJ" value={selectedResponsavel.cnpj} />
+            )}
+            <DetalheItem icon={<Phone size={14} />} label="Telefone" value={selectedResponsavel.telefone} />
+            <DetalheItem icon={<Mail size={14} />} label="Email" value={selectedResponsavel.email} />
+            <DetalheItem icon={<MapPin size={14} />} label="Endereço" value={selectedResponsavel.endereco} />
+            <DetalheItem icon={<Dog size={14} />} label="Animais" value={selectedResponsavel.animais.join(', ')} />
+          </>
+        )}
+      </DetalhesModal>
+
+      {/* Modal de Cadastro (Alinhado) */}
+      <CadastroModal
+        isOpen={isCreateModalOpen}
+        onClose={handleCloseCreate}
+        onSubmit={handleCreateSave}
+        title="Cadastrar Novo Responsável"
+        saveText="Cadastrar"
+      >
+        <TipoResponsavelRadio
+          tipo={createFormData.tipo}
+          onChange={handleRadioChange}
+        />
+        
+        <FormInput
+          label="Nome Completo"
+          name="nome"
+          placeholder="Insira o nome completo do responsável"
+          value={createFormData.nome}
+          onChange={handleFormChange}
+        />
+        
+        {createFormData.tipo === 'PF' && (
+          <>
+            <FormInput
+              label="CPF"
+              name="cpf"
+              placeholder="Insira o CPF do responsável"
+              value={createFormData.cpf || ''}
+              onChange={handleFormChange}
+            />
+             <FormInput
+              label="Telefone"
+              name="telefone"
+              placeholder="(XX) XXXXX-XXXX"
+              value={createFormData.telefone || ''}
+              onChange={handleFormChange}
+            />
+            <FormInput
+              label="Número do NIS"
+              name="nis"
+              placeholder="Insira o NIS do responsável"
+              value={createFormData.nis || ''}
+              onChange={handleFormChange}
+            />
+          </>
+        )}
+
+        {createFormData.tipo === 'ONG' && (
+          <>
+            <FormInput
+              label="CNPJ"
+              name="cnpj"
+              placeholder="Insira o CNPJ do responsável"
+              value={createFormData.cnpj || ''}
+              onChange={handleFormChange}
+            />
+            <FormInput
+              label="Telefone"
+              name="telefone"
+              placeholder="(XX) XXXXX-XXXX"
+              value={createFormData.telefone || ''}
+              onChange={handleFormChange}
+            />
+          </>
+        )}
+
+        <FormInput
+          label="Email"
+          name="email"
+          type="email"
+          placeholder="email@exemplo.com"
+          value={createFormData.email || ''}
+          onChange={handleFormChange}
+        />
+        <FormInput
+          label="Endereço"
+          name="endereco"
+          placeholder="Rua, Número, Bairro - Cidade/UF"
+          value={createFormData.endereco || ''}
+          onChange={handleFormChange}
+        />
+        <FormInput
+          label="Senha" 
+          name="senha"
+          type="password"
+          placeholder="Senha de acesso"
+          value={createFormData.senha}
+          onChange={handleFormChange}
+        />
+      </CadastroModal>
 
     </div>
   );

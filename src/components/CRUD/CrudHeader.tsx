@@ -12,7 +12,7 @@ export default function CrudHeader({ title, buttonText, onButtonClick }: Props) 
     <div className="flex w-full justify-between items-center">
       
       {/* 1. Título (Genérico) */}
-      <h1 className="text-2xl font-bold text-green-700">{title}</h1>
+      <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
       
       {/* 2. Botão (Genérico) */}
       <button
