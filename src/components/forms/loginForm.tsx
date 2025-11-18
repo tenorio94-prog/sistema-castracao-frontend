@@ -35,69 +35,44 @@ export default function LoginForm() {
         event.preventDefault(); 
         setIsLoading(true);
 
-        // Toast de loading
-        const loadingToast = toast.loading('Conectando ao servidor...', {
-            description: 'Aguarde enquanto validamos suas credenciais',
-        });
-
         try {
-            // Atualiza mensagem após 5s se ainda estiver carregando
-            const messageTimeout = setTimeout(() => {
-                toast.loading('O servidor pode estar iniciando...', {
-                    id: loadingToast,
-                    description: 'Servidores gratuitos podem levar até 1 minuto na primeira requisição',
-                });
-            }, 5000);
-
             // Tenta fazer login com retry automático
             const response = await attemptLogin();
 
-            clearTimeout(messageTimeout);
-            toast.dismiss(loadingToast);
+            console.log('✅ Login bem-sucedido:', response);
 
-            console.log('Login bem-sucedido:', response);
+            // Salvar tokens e obter informações do usuário
+            const user = AuthService.saveTokens(response.accessToken, response.refreshToken);
 
-            // Salvar tokens
-            AuthService.saveTokens(response.accessToken, response.refreshToken);
+            console.log('👤 Usuário decodificado:', user);
 
-            // Salvar informações do usuário
-            if (response.user) {
-                localStorage.setItem('user', JSON.stringify(response.user));
+            if (!user) {
+                throw new Error('Não foi possível decodificar as informações do usuário');
             }
+
+            // Redirecionar baseado no role do usuário
+            const redirectPath = AuthService.getRoleRoute(user.role);
+            
+            console.log('🔀 Redirecionando para:', redirectPath);
+            console.log('🔑 Role do usuário:', user.role);
 
             // Toast de sucesso
             toast.success('Login realizado com sucesso!', {
-                description: 'Redirecionando para o painel...',
+                description: `Bem-vindo! Redirecionando...`,
                 duration: 2000,
             });
 
-            // Redirecionar baseado no role do usuário
-            const redirectPath = response.user?.role 
-                ? `/${response.user.role.toLowerCase()}` 
-                : '/adm';
-            
+            // Usar window.location.href para garantir o redirecionamento
             setTimeout(() => {
-                router.push(redirectPath);
-            }, 500);
+                console.log('🚀 Executando redirecionamento...');
+                window.location.href = redirectPath;
+            }, 1000);
 
         } catch (err: any) {
-            toast.dismiss(loadingToast);
             console.error('Erro no login:', err);
             
-            // Toast de erro com informações úteis
-            if (err.message.includes('servidor')) {
-                toast.error('Erro no servidor', {
-                    description: 'O servidor pode estar iniciando. Clique para tentar novamente.',
-                    duration: 6000,
-                    action: {
-                        label: 'Tentar novamente',
-                        onClick: () => {
-                            const form = document.querySelector('form');
-                            if (form) form.requestSubmit();
-                        },
-                    },
-                });
-            } else if (err.message.includes('credenciais') || err.message.includes('401')) {
+            // Toast de erro apenas para credenciais inválidas
+            if (err.message.includes('credenciais') || err.message.includes('senha') || err.message.includes('incorretos')) {
                 toast.error('Credenciais inválidas', {
                     description: 'Email ou senha incorretos. Verifique e tente novamente.',
                     duration: 4000,

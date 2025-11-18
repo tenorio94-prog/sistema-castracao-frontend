@@ -1,3 +1,5 @@
+"use client";
+
 import { 
   SidebarProvider, 
   SidebarTrigger,
@@ -8,6 +10,8 @@ import {
   SidebarInset 
 } from "@/components/ui/sidebar";
 import MedicoSidebarButtons from "@/components/Sidebars/MedicoSidebarButtons";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { Role } from "@/types/auth.types";
 
 export default function MedicoLayout({
   children,
@@ -16,8 +20,8 @@ export default function MedicoLayout({
 }) {
 
   return (
-
-    <SidebarProvider>
+    <ProtectedRoute allowedRoles={[Role.veterinarian, Role.student]}>
+      <SidebarProvider>
       
       <Sidebar>
         <SidebarContent>
@@ -35,6 +39,7 @@ export default function MedicoLayout({
         {children}
       </SidebarInset>
 
-    </SidebarProvider>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

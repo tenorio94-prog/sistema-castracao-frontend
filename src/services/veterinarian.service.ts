@@ -1,47 +1,51 @@
 import api from '@/lib/axios';
 import { AxiosError } from 'axios';
+import { Role } from '@/types/auth.types';
 
 /**
- * Interface para Veterinário
- * Retorno da API usa "completeName"
+ * Interface para Veterinário do backend
  */
 export interface Veterinarian {
-  id: string;
-  completeName: string;
-  email: string;
-  cpf?: string;
-  phone?: string;
+  id: number;
+  userId: number;
   crmv: string;
-  specialty?: string;
+  specialty?: string | null;
+  active: boolean;
   createdAt?: string;
   updatedAt?: string;
+  user?: {
+    id: number;
+    completeName: string;
+    email: string;
+    cpf: string;
+    phone: string;
+    role: string;
+  };
+  _count?: {
+    clinicalRecords: number;
+  };
 }
 
 /**
- * Interface para criar veterinário
- * Nota: O backend usa "completeName" e não "name"
+ * Interface para criar veterinário no backend
  */
 export interface CreateVeterinarianData {
-  completeName: string;
-  email: string;
-  password: string;
-  cpf: string;
-  phone: string;
   crmv: string;
-  specialty?: string;
+  active?: boolean;
 }
 
 /**
  * Interface para atualizar veterinário
  */
 export interface UpdateVeterinarianData {
-  completeName?: string;
-  email?: string;
-  password?: string;
-  cpf?: string;
-  phone?: string;
   crmv?: string;
   specialty?: string;
+  active?: boolean;
+  email?: string;
+  password?: string;
+  phone?: string;
+  completeName?: string;
+  cpf?: string;
 }
 
 /**
@@ -59,56 +63,17 @@ export interface PaginatedResponse<T> {
  * Serviço de Veterinários
  */
 export class VeterinarianService {
-  private static readonly BASE_PATH = '/users'; // Veterinários são users com role 'veterinarian'
+  private static readonly BASE_PATH = '/veterinarian';
 
   /**
    * Buscar todos os veterinários
    */
-  static async getAll(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    specialty?: string;
-  }): Promise<Veterinarian[] | PaginatedResponse<Veterinarian>> {
+  static async getAll(): Promise<Veterinarian[]> {
     try {
-      // Adiciona filtro de role para buscar apenas veterinários
-      const requestParams = {
-        ...params,
-        role: 'veterinarian'
-      };
-      
-      console.log('🔍 Buscando veterinários com params:', requestParams);
-      
-      const response = await api.get<Veterinarian[] | PaginatedResponse<Veterinarian>>(
-        this.BASE_PATH,
-        { params: requestParams }
-      );
-      
-      console.log('✅ Veterinários recebidos:', response.data);
-      console.log('✅ Primeiro veterinário (detalhado):', Array.isArray(response.data) ? response.data[0] : response.data.data?.[0]);
-      
-      // Garantir que retorna apenas veterinários (filtro adicional no frontend)
-      const data = Array.isArray(response.data) ? response.data : response.data.data;
-      
-      // Log de cada veterinário antes do filtro
-      console.log('📋 Veterinários antes do filtro:', data?.map((v: any) => ({
-        id: v.id,
-        completeName: v.completeName,
-        email: v.email,
-        role: v.role,
-        crmv: v.crmv,
-        specialty: v.specialty,
-        veterinarian: v.veterinarian // Caso tenha nested
-      })));
-      
-      const veterinarians = data.filter((user: any) => user.role === 'veterinarian');
-      
-      console.log('✅ Veterinários filtrados:', veterinarians);
-      
-      return Array.isArray(response.data) 
-        ? veterinarians 
-        : { ...response.data, data: veterinarians, total: veterinarians.length };
-        
+      // Incluir o user relacionado via query param
+      const response = await api.get<Veterinarian[]>(`${this.BASE_PATH}?include=user`);
+      console.log('✅ Veterinários recebidos do backend:', response.data);
+      return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
@@ -117,7 +82,7 @@ export class VeterinarianService {
   /**
    * Buscar veterinário por ID
    */
-  static async getById(id: string): Promise<Veterinarian> {
+  static async getById(id: number): Promise<Veterinarian> {
     try {
       const response = await api.get<Veterinarian>(`${this.BASE_PATH}/${id}`);
       return response.data;
@@ -128,41 +93,16 @@ export class VeterinarianService {
 
   /**
    * Criar novo veterinário
-   * Usa o endpoint /auth/register com role veterinarian
+   * Usa o endpoint /veterinarian com apenas crmv e active
    */
   static async create(data: CreateVeterinarianData): Promise<Veterinarian> {
     try {
       console.log('🔄 Criando veterinário com dados:', data);
       
-      // Payload exato que o backend espera
-      const payload = {
-        completeName: data.completeName,
-        email: data.email,
-        password: data.password,
-        cpf: data.cpf,
-        phone: data.phone,
-        role: 'veterinarian' as const,
-        crmv: data.crmv,
-        specialty: data.specialty,
-        active: true
-      };
+      const response = await api.post<Veterinarian>(this.BASE_PATH, data);
       
-      console.log('📤 Payload enviado:', payload);
-      
-      const response = await api.post<any>('/auth/register', payload);
-      
-      console.log('✅ Response completo:', response);
-      console.log('✅ Response.data:', response.data);
-      console.log('✅ Response.data.user:', response.data.user);
-      
-      // O backend pode retornar { user: {...} } ou diretamente o user
-      const userData = response.data.user || response.data;
-      
-      console.log('✅ UserData final:', userData);
-      console.log('✅ CRMV no userData:', userData.crmv);
-      console.log('✅ Specialty no userData:', userData.specialty);
-      
-      return userData;
+      console.log('✅ Veterinário criado:', response.data);
+      return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
@@ -171,7 +111,7 @@ export class VeterinarianService {
   /**
    * Atualizar veterinário
    */
-  static async update(id: string, data: UpdateVeterinarianData): Promise<Veterinarian> {
+  static async update(id: number, data: UpdateVeterinarianData): Promise<Veterinarian> {
     try {
       const response = await api.patch<Veterinarian>(`${this.BASE_PATH}/${id}`, data);
       return response.data;
@@ -183,46 +123,11 @@ export class VeterinarianService {
   /**
    * Deletar veterinário
    */
-  static async delete(id: string): Promise<void> {
+  static async delete(id: number): Promise<void> {
     try {
       await api.delete(`${this.BASE_PATH}/${id}`);
     } catch (error) {
       throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar veterinários por especialidade
-   */
-  static async getBySpecialty(specialty: string): Promise<Veterinarian[]> {
-    try {
-      const response = await api.get<Veterinarian[]>(this.BASE_PATH, {
-        params: {
-          role: 'veterinarian',
-          specialty: specialty
-        }
-      });
-      return Array.isArray(response.data) ? response.data : (response.data as any).data || [];
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar agenda do veterinário
-   * Nota: Este endpoint pode não existir, ajuste conforme sua API
-   */
-  static async getSchedule(id: string, params?: {
-    startDate?: string;
-    endDate?: string;
-  }): Promise<any[]> {
-    try {
-      const response = await api.get<any[]>(`/veterinarians/${id}/schedule`, { params });
-      return response.data;
-    } catch (error) {
-      // Se o endpoint não existir, retorna array vazio ao invés de erro
-      console.warn('Endpoint de agenda não disponível:', error);
-      return [];
     }
   }
 
