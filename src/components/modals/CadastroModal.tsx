@@ -1,14 +1,16 @@
-"use client"; // Precisa ser client-side por causa do <form> e onSubmit
+// @/components/modals/CadastroModal.tsx
+"use client"; 
+
 import { X } from 'lucide-react';
 import React from 'react';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (e: React.FormEvent) => void; // Lida com o submit do formulário
+  onSubmit: (e: React.FormEvent) => void;
   title: string;
-  children: React.ReactNode;           // Os campos <input> do formulário
-  saveText?: string;                   // Texto do botão (ex: "Salvar", "Cadastrar")
+  children: React.ReactNode;
+  saveText?: string;
 };
 
 export default function CadastroModal({
@@ -17,7 +19,7 @@ export default function CadastroModal({
   onSubmit,
   title,
   children,
-  saveText = "Salvar", // Valor padrão
+  saveText = "Salvar",
 }: Props) {
   
   if (!isOpen) {
@@ -25,43 +27,41 @@ export default function CadastroModal({
   }
 
   return (
-    // Fundo (overlay)
-    <div className="fixed inset-0 bg-white/75 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4 transition-all duration-300">
       
-      {/* Conteúdo do Modal (que é um formulário) */}
       <form 
         onSubmit={onSubmit}
-        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200"
+        className="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 flex flex-col max-h-[90vh]"
       >
-        {/* Cabeçalho */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+        {/* Cabeçalho Fixo */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h2>
           <button 
-            type="button" // Importante: 'type="button"' para não submeter o form
+            type="button" 
             onClick={onClose} 
-            className="text-gray-500 hover:text-gray-800"
+            className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Corpo (Campos do Formulário Genérico) */}
-        <div className="space-y-4">
+        {/* Corpo com Scroll se necessário */}
+        <div className="p-6 overflow-y-auto space-y-5">
           {children}
         </div>
         
-        {/* Rodapé */}
-        <div className="mt-6 flex justify-end gap-3">
+        {/* Rodapé Fixo */}
+        <div className="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3">
           <button
-            type="button" // Importante: 'type="button"'
+            type="button"
             onClick={onClose}
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
           >
             Cancelar
           </button>
           <button
-            type="submit" // Este botão SUBMETE o formulário
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            type="submit"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium bg-gray-900 text-white shadow-lg shadow-gray-200 hover:bg-gray-800 hover:shadow-xl transition-all active:scale-95"
           >
             {saveText}
           </button>

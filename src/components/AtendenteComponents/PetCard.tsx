@@ -2,14 +2,13 @@
 "use client";
 
 import React, { useState } from 'react';
-import { DogIcon, Camera } from 'lucide-react';
-import ViewModal from '@/components/modals/ViewModal';
+import { Dog, Cat, Scale, Calendar, User, FileText, Edit2, Camera } from 'lucide-react';
 import CadastroModal from '@/components/modals/CadastroModal';
 
-// Tipos atualizados
-type PetStatus = 'Castrado' | 'Primeira Consulta' | 'Retorno Pós-Cirurgia' | 'Aguardando Cirurgia' | 'Sem Procedimentos';
+// Tipos (Fonte da verdade local ou importada)
+export type PetStatus = 'Castrado' | 'Em Tratamento' | 'Aguardando Cirurgia' | 'Saudável';
 
-type Pet = {
+export type Pet = {
   id: number;
   name: string;
   species: string;
@@ -26,47 +25,21 @@ type Pet = {
 type PetCardProps = {
   pet: Pet;
   onVerProntuario: (pet: Pet) => void;
-  onAtualizarPet: (petAtualizado: Pet) => void; // Callback para salvar alterações
-};
-
-const speciesStyles: { [key: string]: string } = {
-  Cachorro: 'bg-blue-100 text-blue-800',
-  Gato: 'bg-purple-100 text-purple-800',
-  Outro: 'bg-gray-100 text-gray-800',
-};
-
-const statusStyles: { [key in PetStatus]: string } = {
-  'Castrado': 'bg-green-100 text-green-800',
-  'Primeira Consulta': 'bg-blue-100 text-blue-800',
-  'Retorno Pós-Cirurgia': 'bg-yellow-100 text-yellow-800',
-  'Aguardando Cirurgia': 'bg-orange-100 text-orange-800',
-  'Sem Procedimentos': 'bg-gray-100 text-gray-800',
+  onAtualizarPet: (petAtualizado: Pet) => void;
 };
 
 export default function PetCard({ pet, onVerProntuario, onAtualizarPet }: PetCardProps) {
-  if (!pet) return null;
+  const { name, species, breed, weight, age, ownerName, photo, prontuario } = pet;
 
-  const { id, name, species, breed, gender, weight, age, ownerName, photo, status, prontuario } = pet;
-  const badgeStyle = speciesStyles[species] || speciesStyles['Outro'];
-  const statusBadge = status ? statusStyles[status] : 'bg-gray-100 text-gray-800';
-
-  // Estado do modal de edição
+  // Estados de Edição
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editPhoto, setEditPhoto] = useState(photo || '');
   const [editWeight, setEditWeight] = useState(weight.replace('kg', ''));
   const [editAge, setEditAge] = useState(age.replace(' anos', ''));
 
-  const handleEditClick = () => {
-    setEditPhoto(photo || '');
-    setEditWeight(weight.replace('kg', ''));
-    setEditAge(age.replace(' anos', ''));
-    setIsEditModalOpen(true);
-  };
-
-  const handleCloseEdit = () => {
-    setIsEditModalOpen(false);
-  };
-
+  // Helpers Visuais
+  const isCat = species.toLowerCase().includes('gato');
+  
   const handleSaveEdit = () => {
     const petAtualizado: Pet = {
       ...pet,
@@ -89,89 +62,102 @@ export default function PetCard({ pet, onVerProntuario, onAtualizarPet }: PetCar
 
   return (
     <>
-      <div className="border border-gray-200 rounded-lg p-5 shadow-sm bg-white flex flex-col h-full">
-        {/* Cabeçalho com foto/espécie */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            {photo ? (
-              <img src={photo} alt={name} className="w-10 h-10 rounded-full object-cover" />
-            ) : (
-              <DogIcon size={22} className="text-gray-700" />
-            )}
-            <span className="text-xl font-bold text-gray-800">{name}</span>
+      <div className="group bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md hover:border-gray-200 transition-all duration-200 flex flex-col h-full">
+        
+        {/* Header do Card: Foto e Nome */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 shrink-0">
+              {photo ? (
+                <img src={photo} alt={name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-gray-300">
+                  {isCat ? <Cat size={32} /> : <Dog size={32} />}
+                </div>
+              )}
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 leading-tight">{name}</h3>
+              <p className="text-sm text-gray-500 font-medium mb-1">{breed}</p>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${isCat ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                {species}
+              </span>
+            </div>
           </div>
-          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeStyle}`}>
-            {species}
-          </span>
         </div>
 
-        {/* Status do procedimento */}
-        {status && (
-          <div className="mb-3">
-            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusBadge}`}>
-              {status}
-            </span>
+        {/* Grid de Informações */}
+        <div className="grid grid-cols-2 gap-3 mb-5 grow">
+          <div className="bg-gray-50/50 p-2 rounded-lg border border-gray-50">
+            <div className="flex items-center gap-1.5 text-gray-400 mb-0.5">
+              <Scale size={12} />
+              <span className="text-xs font-medium uppercase">Peso</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-700">{weight}</p>
           </div>
-        )}
-
-        {/* Dados do pet */}
-        <div className="grow mb-4 space-y-1.5 text-sm text-gray-600">
-          <DetailItem label="Raça" value={breed} />
-          <DetailItem label="Sexo" value={gender} />
-          <DetailItem label="Peso" value={weight} />
-          <DetailItem label="Idade" value={age} />
-          <DetailItem label="Responsável" value={ownerName} isOwner={true} />
-          {prontuario && <DetailItem label="Prontuário" value={prontuario} />}
+          <div className="bg-gray-50/50 p-2 rounded-lg border border-gray-50">
+            <div className="flex items-center gap-1.5 text-gray-400 mb-0.5">
+              <Calendar size={12} />
+              <span className="text-xs font-medium uppercase">Idade</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-700">{age}</p>
+          </div>
+          <div className="col-span-2 bg-gray-50/50 p-2 rounded-lg border border-gray-50 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 text-gray-400 mb-0.5">
+                <User size={12} />
+                <span className="text-xs font-medium uppercase">Tutor</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-[180px]">{ownerName}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Botões de ação */}
-        <div className="flex items-center gap-3 mt-auto">
+        {/* Footer de Ações */}
+        <div className="flex items-center gap-2 mt-auto pt-4 border-t border-gray-50">
           <button
             onClick={() => onVerProntuario(pet)}
-            className="flex-1 text-center px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
           >
-            Ver Prontuário
+            <FileText size={14} />
+            Prontuário
           </button>
           <button
-            onClick={handleEditClick}
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 font-semibold hover:bg-gray-50 transition-colors"
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+            title="Editar Informações"
           >
-            Editar
+            <Edit2 size={14} />
           </button>
         </div>
+
       </div>
 
-      {/* ---------- Modal de Edição (apenas foto, peso, idade) ---------- */}
+      {/* Modal de Edição Rápida */}
       <CadastroModal
         isOpen={isEditModalOpen}
-        onClose={handleCloseEdit}
+        onClose={() => setIsEditModalOpen(false)}
         onSubmit={handleSaveEdit}
-        title="Editar Pet"
+        title={`Editar ${name}`}
         saveText="Salvar Alterações"
       >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Foto do Animal</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-          />
-          {editPhoto && (
-            <div className="mt-2 relative inline-block">
-              <img src={editPhoto} alt="Preview" className="h-24 w-24 object-cover rounded-lg border" />
-              <button
-                type="button"
-                onClick={() => setEditPhoto('')}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-              >
-                ×
-              </button>
+        <div className="flex flex-col items-center mb-6">
+          <label className="cursor-pointer group relative">
+            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 group-hover:border-blue-500 transition-colors">
+              {editPhoto ? (
+                <img src={editPhoto} alt="Preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-gray-400">
+                  <Camera size={24} />
+                </div>
+              )}
             </div>
-          )}
+            <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+            <span className="text-xs text-blue-600 font-medium mt-2 block text-center">Alterar foto</span>
+          </label>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
             <input
@@ -179,7 +165,7 @@ export default function PetCard({ pet, onVerProntuario, onAtualizarPet }: PetCar
               step="0.1"
               value={editWeight}
               onChange={(e) => setEditWeight(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
           <div>
@@ -188,21 +174,11 @@ export default function PetCard({ pet, onVerProntuario, onAtualizarPet }: PetCar
               type="number"
               value={editAge}
               onChange={(e) => setEditAge(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
         </div>
       </CadastroModal>
     </>
-  );
-}
-
-function DetailItem({ label, value, isOwner = false }: { label: string; value: string; isOwner?: boolean }) {
-  const valueClass = isOwner ? "font-medium text-gray-700" : "text-gray-800";
-  return (
-    <div>
-      <span className="font-medium">{label}: </span>
-      <span className={valueClass}>{value}</span>
-    </div>
   );
 }

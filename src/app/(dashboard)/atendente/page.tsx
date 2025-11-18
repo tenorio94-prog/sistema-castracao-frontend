@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { Calendar, CheckCircle, Activity, Plus } from 'lucide-react'; // Adicionei Activity
 import CardBaseDash from '@/components/Dashboard/CardBaseDash';
 import AgendamentoCard, { Agendamento, Pet, Responsavel } from '@/components/AtendenteComponents/AgendamentoCard';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import CadastroModal from '@/components/modals/CadastroModal';
 import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamento';
-import { Calendar, CheckCircle, Cross, Plus } from 'lucide-react';
 
 // ---------- Helpers de data ----------
 const hoje = new Date();
@@ -32,7 +32,7 @@ const mockAgendamentosIniciais: Agendamento[] = [
 ];
 // ---------------------------------------------
 
-// ----- Formulário vazio (mesmo da tela de agendamentos) -----
+// ----- Formulário vazio -----
 type AgendamentoForm = {
   animalId: string;
   tipoAtendimento: string;
@@ -53,7 +53,7 @@ export default function AtendenteDashboardPage() {
   // Estado único: lista completa de agendamentos
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockAgendamentosIniciais);
 
-  // Estados dos modais (iguais à tela de agendamentos)
+  // Estados dos modais
   const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
   const [formData, setFormData] = useState<AgendamentoForm>(emptyForm);
   const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
@@ -65,7 +65,7 @@ export default function AtendenteDashboardPage() {
     [agendamentos]
   );
 
-  // ----- Handlers (iguais à tela de agendamentos) -----
+  // ----- Handlers -----
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setSelectedAgendamento(agendamento);
     setIsModalDetalhesOpen(true);
@@ -95,9 +95,8 @@ export default function AtendenteDashboardPage() {
       handleCloseDetalhes();
     }
   };
-  // ----------------------------------------------------
 
-  // ----- Cadastro (modal igual da tela de agendamentos) -----
+  // ----- Cadastro -----
   const handleNovoAgendamento = () => setIsModalCadastroOpen(true);
 
   const handleCloseCadastro = () => {
@@ -124,7 +123,6 @@ export default function AtendenteDashboardPage() {
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Formata data escolhida pelo usuário para DD/MM/AAAA
     const dataFormatada = formData.data.split('-').reverse().join('/');
     const novo: Agendamento = {
       id: Date.now(),
@@ -141,59 +139,68 @@ export default function AtendenteDashboardPage() {
     alert('Agendamento criado!');
     handleCloseCadastro();
   };
-  // ----------------------------------------------------
 
   return (
-    <>
+    <div className="max-w-7xl mx-auto space-y-8">
       {/* Cabeçalho */}
-      <PageHeader 
-        title="Dashboard Atendente"
-        description="Bem-vindo(a) ao sistema de gestão hospitalar"
-      />
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
+        <PageHeader 
+          title="Dashboard Atendente"
+          description="Bem-vindo(a) ao sistema de gestão hospitalar"
+        />
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+          <Calendar size={14} className="text-gray-400"/>
+          <span>{hojeFormatado}</span>
+        </div>
+      </div>
 
       {/* Indicadores de Hoje */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Indicadores de Hoje</h2>
-        <div className="flex flex-wrap gap-6">
+      <section>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <CardBaseDash
-            title="Atendimentos Pendentes do Dia"
+            title="Atendimentos Hoje"
             value={agendamentosHoje.filter(a => a.status === 'Pendente').length}
-            subtitle="Agendamentos para hoje"
-            icon={<Calendar size={24} />}
+            subtitle="Aguardando atendimento"
+            icon={Calendar} // Passamos o componente Icon, não o elemento JSX
+            color="blue"
+            trend="Agenda do dia"
           />
           <CardBaseDash
-            title="Cirurgias Pendentes"
+            title="Cirurgias"
             value={agendamentosHoje.filter(a => a.tipo === 'Castração' && a.status === 'Pendente').length}
-            subtitle="Concluídos hoje"
-            icon={<Cross size={24} />}
+            subtitle="Procedimentos cirúrgicos"
+            icon={Activity}
+            color="purple"
           />
           <CardBaseDash
-            title="Animais Atendidos"
+            title="Finalizados"
             value={agendamentosHoje.filter(a => a.status === 'Concluído').length}
-            subtitle="Total de atendimentos hoje"
-            icon={<CheckCircle size={24} />}
+            subtitle="Animais já atendidos"
+            icon={CheckCircle}
+            color="green"
           />
         </div>
       </section>
 
       {/* Atendimentos de Hoje */}
-      <section>
-        <div className="flex justify-between items-center mb-5">
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-700">Atendimentos de Hoje</h2>
-            <p className="text-gray-600 mt-1">Sua agenda de consultas, cirurgias e retornos programados</p>
+            <h2 className="text-lg font-bold text-gray-900 tracking-tight">Fila de Atendimento</h2>
+            <p className="text-sm text-gray-500">Acompanhe o fluxo de pacientes em tempo real.</p>
           </div>
+          
           <button
             onClick={handleNovoAgendamento}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow-md hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium shadow-lg shadow-gray-200 hover:bg-gray-800 hover:shadow-xl transition-all transform active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             <span>Novo Agendamento</span>
           </button>
         </div>
 
         {/* Lista de Atendimentos com AgendamentoCard (apenas de hoje) */}
-        <div className="flex flex-col gap-4">
+        <div className="space-y-3">
           {agendamentosHoje.length > 0 ? (
             agendamentosHoje.map((appt) => (
               <AgendamentoCard
@@ -203,14 +210,18 @@ export default function AtendenteDashboardPage() {
               />
             ))
           ) : (
-            <div className="text-center py-10 border-2 border-dashed border-gray-300 rounded-lg">
-              <p className="text-gray-500">Nenhum agendamento para hoje.</p>
+             <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <div className="mx-auto h-12 w-12 text-gray-300 mb-3">
+                <Calendar size={48} strokeWidth={1} />
+              </div>
+              <p className="text-gray-500 font-medium">Agenda livre por hoje</p>
+              <p className="text-sm text-gray-400">Nenhum agendamento pendente.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ---------- Modais (iguais aos da tela de agendamentos) ---------- */}
+      {/* ---------- Modais (Mantidos Idênticos) ---------- */}
       <CadastroModal
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}
@@ -293,6 +304,6 @@ export default function AtendenteDashboardPage() {
         onCheckIn={handleCheckIn}
         onCancelAgendamento={handleCancelAgendamento}
       />
-    </>
+    </div>
   );
 }

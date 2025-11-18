@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { Plus, CalendarX } from 'lucide-react';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import AgendamentoCard, { Agendamento, Pet, Responsavel } from '@/components/AtendenteComponents/AgendamentoCard';
 import AgendamentoFilter from '@/components/AtendenteComponents/FiltroAgendamento';
 import CadastroModal from '@/components/modals/CadastroModal';
 import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamento';
 
-// ---------- Mocks ----------
+// ---------- Mocks (Mantidos) ----------
 const mockPet1: Pet = { id: 101, name: 'Rex', species: 'Cachorro', breed: 'Labrador', gender: 'Macho', weight: '13kg', age: '3 anos', ownerName: 'Ana Paula' };
 const mockPet2: Pet = { id: 102, name: 'Thor', species: 'Cachorro', breed: 'Golden', gender: 'Macho', weight: '15kg', age: '4 anos', ownerName: 'Bruno Costa' };
 const mockPet3: Pet = { id: 103, name: 'Nina', species: 'Gato', breed: 'Siamês', gender: 'Fêmea', weight: '5kg', age: '2 anos', ownerName: 'Elisa Fernandes' };
@@ -21,11 +22,9 @@ const mockAgendamentosIniciais: Agendamento[] = [
   { id: 1, petName: 'Rex', status: 'Pendente', data: '14/01/2025', hora: '09:00', tipo: 'Castração', pet: mockPet1, responsavel: mockResp1, observacoes: 'Animal dócil, sem restrições.' },
   { id: 2, petName: 'Thor', status: 'Pendente', data: '14/01/2025', hora: '09:30', tipo: 'Consulta', pet: mockPet2, responsavel: mockResp2, observacoes: '' },
   { id: 3, petName: 'Nina', status: 'Concluído', data: '14/01/2025', hora: '11:00', tipo: 'Castração', pet: mockPet3, responsavel: mockResp3, observacoes: 'Cirurgia tranquila.' },
-  // agendamento futuro
   { id: 4, petName: 'Rex', status: 'Pendente', data: '25/12/2025', hora: '14:00', tipo: 'Consulta', pet: mockPet1, responsavel: mockResp1, observacoes: '' },
 ];
 
-// ----- Tipos e estado inicial do formulário -----
 type AgendamentoForm = {
   animalId: string;
   tipoAtendimento: string;
@@ -44,18 +43,15 @@ const emptyForm: AgendamentoForm = {
 export default function PaginaAgendamentos() {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
-
-  // Estado único: TODOS os agendamentos (qualquer data)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockAgendamentosIniciais);
 
   // Estados dos modais
   const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
   const [formData, setFormData] = useState<AgendamentoForm>(emptyForm);
-
   const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
   const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
 
-  // ----- Filtros de exibição (busca + status) -----
+  // Filtros
   const agendamentosFiltrados = agendamentos.filter(ag => {
     const matchBusca = (ag.petName.toLowerCase().includes(busca.toLowerCase()) ||
                         ag.responsavel.nome.toLowerCase().includes(busca.toLowerCase()));
@@ -68,7 +64,7 @@ export default function PaginaAgendamentos() {
     return matchBusca && matchStatus();
   });
 
-  // ----- Handlers dos modais (iguais à dashboard) -----
+  // Handlers
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setSelectedAgendamento(agendamento);
     setIsModalDetalhesOpen(true);
@@ -99,14 +95,9 @@ export default function PaginaAgendamentos() {
     }
   };
 
-  // ----- Cadastro -----
+  // Cadastro Handlers
   const handleNovoAgendamento = () => setIsModalCadastroOpen(true);
-
-  const handleCloseCadastro = () => {
-    setIsModalCadastroOpen(false);
-    setFormData(emptyForm);
-  };
-
+  const handleCloseCadastro = () => { setIsModalCadastroOpen(false); setFormData(emptyForm); };
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -134,8 +125,8 @@ export default function PaginaAgendamentos() {
       hora: formData.horario,
       tipo: formData.tipoAtendimento,
       observacoes: formData.observacoes,
-      pet: mockPet1, // mock simples
-      responsavel: mockResp1, // mock simples
+      pet: mockPet1, 
+      responsavel: mockResp1, 
     };
     setAgendamentos(prev => [novo, ...prev]);
     alert('Agendamento criado!');
@@ -143,14 +134,25 @@ export default function PaginaAgendamentos() {
   };
 
   return (
-    <div className="flex flex-col gap-8 relative">
-      <PageHeader
-        title="Agendamentos"
-        description="Gerencie os agendamentos do hospital"
-        buttonLabel="Novo Agendamento"
-        onButtonClick={handleNovoAgendamento}
-      />
+    <div className="max-w-7xl mx-auto space-y-6">
+      
+      {/* Header Row com Flexbox */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <PageHeader
+          title="Gestão de Agendamentos"
+          description="Consulte e gerencie todos os agendamentos do sistema."
+        />
+        
+        <button 
+          onClick={handleNovoAgendamento}
+          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-gray-200 active:scale-95"
+        >
+          <Plus size={18} />
+          <span>Novo Agendamento</span>
+        </button>
+      </div>
 
+      {/* Barra de Filtros */}
       <AgendamentoFilter
         busca={busca}
         onBuscaChange={setBusca}
@@ -158,12 +160,17 @@ export default function PaginaAgendamentos() {
         onStatusChange={setStatusFiltro}
       />
 
-      <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold text-gray-800">Lista de Agendamentos</h2>
-        <p className="text-sm text-gray-600">{agendamentosFiltrados.length} agendamento(s) encontrado(s)</p>
+      {/* Container da Lista */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900">Todos os Agendamentos</h2>
+          <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+            {agendamentosFiltrados.length} registros
+          </span>
+        </div>
 
         {agendamentosFiltrados.length > 0 ? (
-          <div className="flex flex-col gap-4">
+          <div className="space-y-3">
             {agendamentosFiltrados.map(ag => (
               <AgendamentoCard
                 key={ag.id}
@@ -173,13 +180,17 @@ export default function PaginaAgendamentos() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 border-2 border-dashed border-gray-300 rounded-lg">
-            <p className="text-gray-500">Nenhum agendamento encontrado.</p>
+          <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
+            <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+              <CalendarX size={24} className="text-gray-400" />
+            </div>
+            <p className="text-gray-900 font-medium">Nenhum agendamento encontrado</p>
+            <p className="text-sm text-gray-500 mt-1">Tente ajustar os filtros de busca.</p>
           </div>
         )}
       </div>
 
-      {/* ---------- Modais (iguais aos da dashboard) ---------- */}
+      {/* Modais (Mantidos) */}
       <CadastroModal
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}

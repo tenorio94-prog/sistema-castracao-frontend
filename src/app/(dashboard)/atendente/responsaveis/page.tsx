@@ -2,24 +2,17 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Mail, MapPin, Dog } from 'lucide-react'; 
-
+import { User, Phone, Mail, MapPin, Dog, Plus, Search, Users, Building2 } from 'lucide-react';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
-// --- ATUALIZAÇÃO: Importando o TIPO junto com o componente ---
 import ResponsavelCard, { Responsavel } from '@/components/AtendenteComponents/ResponsavelCard';
-// -----------------------------------------------------------
-import PageSearchBar from '@/components/AtendenteComponents/BarraDeBusca';
 import DetalhesModal from '@/components/modals/DetalhesModal'; 
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput'; 
 import TipoResponsavelRadio from '@/components/forms/TipoResponsavelRadio';
 
-// --- ATUALIZAÇÃO: O tipo 'Responsavel' foi removido daqui ---
-
-// 2. Tipo 'ResponsavelForm' (agora usa o 'Responsavel' importado)
+// --- TIPOS ---
 type ResponsavelForm = Omit<Responsavel, 'id' | 'animais'>;
 
-// 3. Estado inicial do formulário (alinhado)
 const emptyForm: ResponsavelForm = { 
   tipo: 'PF', 
   nome: '', 
@@ -31,23 +24,21 @@ const emptyForm: ResponsavelForm = {
   email: '',
   endereco: ''
 };
-// ---------------------------------------------------
 
-// --- DADOS MOCADOS (Alinhados com o tipo) ---
+// --- DADOS MOCADOS ---
 const mockResponsaveis: Responsavel[] = [
   { id: '1', tipo: 'PF', nome: 'Ana Silva', cpf: '123.456.789-00', nis: '123.456.789-00', telefone: '(81) 98765-4321', email: 'ana.silva@gmail.com', endereco: 'Rua das Flores, 123 - Recife/PE', animais: ['Rex', 'Mel'], senha: '123' },
-  { id: '2', tipo: 'ONG', nome: 'Bruno Costa (ONG)', cnpj: '987.654.321/0001-00', telefone: '(81) 91234-5678', email: 'bruno.costa@gmail.com', endereco: 'Avenida Boa Viagem, 456 - Recife/PE', animais: ['Thor'], senha: '456' },
+  { id: '2', tipo: 'ONG', nome: 'Abrigo Esperança', cnpj: '987.654.321/0001-00', telefone: '(81) 91234-5678', email: 'contato@abrigo.org', endereco: 'Avenida Boa Viagem, 456 - Recife/PE', animais: ['Thor', 'Bolinha'], senha: '456' },
 ];
-// ---------------------
 
-// Sub-componente para os itens de detalhe
+// Sub-componente para modal
 function DetalheItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) {
   return (
-    <div className="flex items-start gap-3"> 
-      <span className="text-gray-500 mt-0.5">{icon}</span>
+    <div className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0"> 
+      <span className="text-gray-400 mt-0.5">{icon}</span>
       <div>
-        <label className="text-sm font-semibold text-gray-600">{label}:</label>
-        <p className="text-gray-800">{value || 'N/A'}</p>
+        <label className="text-xs uppercase font-bold text-gray-400 tracking-wide block mb-0.5">{label}</label>
+        <p className="text-gray-800 font-medium">{value || 'Não informado'}</p>
       </div>
     </div>
   );
@@ -75,10 +66,14 @@ export default function PaginaResponsaveis() {
       (r.cnpj && r.cnpj.includes(busca)) ||
       r.animais.some(pet => pet.toLowerCase().includes(busca.toLowerCase()))
     );
-    setTimeout(() => {
+    
+    // Simulando delay pequeno para UX
+    const timeout = setTimeout(() => {
       setResponsaveisFiltrados(filtrados);
       setLoading(false);
-    }, 500);
+    }, 300);
+    
+    return () => clearTimeout(timeout);
   }, [busca, masterResponsaveis]); 
   
   // Handlers de Cadastro
@@ -96,32 +91,22 @@ export default function PaginaResponsaveis() {
     }));
   };
 
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm); 
-    setIsCreateModalOpen(true);
-  };
-  
-  const handleCloseCreate = () => {
-    setIsCreateModalOpen(false);
-    setCreateFormData(emptyForm);
-  };
+  const handleOpenCreate = () => { setCreateFormData(emptyForm); setIsCreateModalOpen(true); };
+  const handleCloseCreate = () => { setIsCreateModalOpen(false); setCreateFormData(emptyForm); };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault(); 
-    console.log("Criando responsável com:", createFormData); 
-
     const novoResponsavel: Responsavel = { 
       ...createFormData, 
       id: Math.random().toString(),
       animais: [] 
     }; 
-    
     setMasterResponsaveis(prev => [novoResponsavel, ...prev]); 
     handleCloseCreate(); 
     alert('Responsável cadastrado(a)!');
   };
   
-  // Handlers do Modal de Detalhes
+  // Handlers Detalhes
   const handleVerDetalhes = (responsavel: Responsavel) => {
     setSelectedResponsavel(responsavel);
     setIsModalDetalhesOpen(true);
@@ -133,33 +118,53 @@ export default function PaginaResponsaveis() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="max-w-7xl mx-auto space-y-6">
 
-      <PageHeader 
-        title="Responsáveis"
-        description="Gerencie os tutores dos animais"
-        buttonLabel="Novo Responsável"
-        onButtonClick={handleOpenCreate}
-      />
+      {/* Header com Botão de Ação */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <PageHeader 
+          title="Responsáveis e ONGs"
+          description="Gerencie o cadastro de proprietários e ONGs parceiras."
+        />
+        <button 
+          onClick={handleOpenCreate}
+          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-gray-200 active:scale-95"
+        >
+          <Plus size={18} />
+          <span>Novo Responsável</span>
+        </button>
+      </div>
 
-      <PageSearchBar
-        title="Buscar"
-        placeholder="Digite o nome, CPF ou CNPJ"
-        busca={busca}
-        onBuscaChange={setBusca}
-      />
+      {/* Barra de Busca Limpa */}
+      <div className="relative w-full md:w-96">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, CPF, CNPJ ou animal..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent shadow-sm transition-all"
+        />
+      </div>
 
       {/* Lista de Responsáveis */}
-      <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold text-gray-800">Lista de Responsáveis</h2>
-        <p className="text-sm text-gray-600">
-          {loading ? 'Buscando...' : `${responsaveisFiltrados.length} responsável(is) encontrado(s)`}
-        </p>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-900">Lista de Cadastros</h2>
+          <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+            {responsaveisFiltrados.length} registros
+          </span>
+        </div>
 
         {loading ? (
-          <div className="text-center py-10"><p>Carregando...</p></div>
+          <div className="py-12 flex justify-center">
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 w-24 bg-gray-100 rounded"></div>
+            </div>
+          </div>
         ) : responsaveisFiltrados.length > 0 ? (
-          <div className="flex flex-col gap-4">
+          <div className="space-y-3">
             {responsaveisFiltrados.map(resp => (
               <ResponsavelCard 
                 key={resp.id} 
@@ -169,45 +174,51 @@ export default function PaginaResponsaveis() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 border-2 border-dashed border-gray-300 rounded-lg">
-            <p className="text-gray-500">Nenhum responsável encontrado.</p>
+          <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
+            <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+              <Users size={24} className="text-gray-400" />
+            </div>
+            <p className="text-gray-900 font-medium">Nenhum responsável encontrado</p>
+            <p className="text-sm text-gray-500 mt-1">Tente buscar por outro termo.</p>
           </div>
         )}
       </div>
 
-      {/* Modal de Detalhes (Alinhado) */}
+      {/* Modal de Detalhes */}
       <DetalhesModal
         isOpen={isModalDetalhesOpen}
         onClose={handleCloseDetalhes}
-        title="Detalhes do Responsável"
+        title="Perfil do Responsável"
       >
         {selectedResponsavel && (
-          <>
-            <DetalheItem icon={<User size={14} />} label="Nome" value={selectedResponsavel.nome} />
-            <DetalheItem icon={<User size={14} />} label="Tipo" value={selectedResponsavel.tipo} />
+          <div className="space-y-2">
+            <DetalheItem icon={<User size={16} />} label="Nome Completo" value={selectedResponsavel.nome} />
+            <DetalheItem icon={<Users size={16} />} label="Tipo de Cadastro" value={selectedResponsavel.tipo} />
+            
             {selectedResponsavel.tipo === 'PF' ? (
               <>
-                <DetalheItem icon={<User size={14} />} label="CPF" value={selectedResponsavel.cpf} />
-                <DetalheItem icon={<User size={14} />} label="NIS" value={selectedResponsavel.nis} />
+                <DetalheItem icon={<User size={16} />} label="CPF" value={selectedResponsavel.cpf} />
+                <DetalheItem icon={<User size={16} />} label="NIS" value={selectedResponsavel.nis} />
               </>
             ) : (
-              <DetalheItem icon={<User size={14} />} label="CNPJ" value={selectedResponsavel.cnpj} />
+              <DetalheItem icon={<Building2 size={16} />} label="CNPJ" value={selectedResponsavel.cnpj} />
             )}
-            <DetalheItem icon={<Phone size={14} />} label="Telefone" value={selectedResponsavel.telefone} />
-            <DetalheItem icon={<Mail size={14} />} label="Email" value={selectedResponsavel.email} />
-            <DetalheItem icon={<MapPin size={14} />} label="Endereço" value={selectedResponsavel.endereco} />
-            <DetalheItem icon={<Dog size={14} />} label="Animais" value={selectedResponsavel.animais.join(', ')} />
-          </>
+            
+            <DetalheItem icon={<Phone size={16} />} label="Telefone" value={selectedResponsavel.telefone} />
+            <DetalheItem icon={<Mail size={16} />} label="Email" value={selectedResponsavel.email} />
+            <DetalheItem icon={<MapPin size={16} />} label="Endereço" value={selectedResponsavel.endereco} />
+            <DetalheItem icon={<Dog size={16} />} label="Pets Vinculados" value={selectedResponsavel.animais.join(', ')} />
+          </div>
         )}
       </DetalhesModal>
 
-      {/* Modal de Cadastro (Alinhado) */}
+      {/* Modal de Cadastro (Mantido a estrutura, apenas alinhado visualmente se necessário) */}
       <CadastroModal
         isOpen={isCreateModalOpen}
         onClose={handleCloseCreate}
         onSubmit={handleCreateSave}
-        title="Cadastrar Novo Responsável"
-        saveText="Cadastrar"
+        title="Cadastrar Responsável"
+        saveText="Salvar Cadastro"
       >
         <TipoResponsavelRadio
           tipo={createFormData.tipo}
@@ -217,54 +228,57 @@ export default function PaginaResponsaveis() {
         <FormInput
           label="Nome Completo"
           name="nome"
-          placeholder="Insira o nome completo do responsável"
+          placeholder="Ex: Maria da Silva"
           value={createFormData.nome}
           onChange={handleFormChange}
         />
         
         {createFormData.tipo === 'PF' && (
-          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput
               label="CPF"
               name="cpf"
-              placeholder="Insira o CPF do responsável"
+              placeholder="000.000.000-00"
               value={createFormData.cpf || ''}
               onChange={handleFormChange}
             />
              <FormInput
               label="Telefone"
               name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
+              placeholder="(00) 00000-0000"
               value={createFormData.telefone || ''}
               onChange={handleFormChange}
             />
-            <FormInput
-              label="Número do NIS"
-              name="nis"
-              placeholder="Insira o NIS do responsável"
-              value={createFormData.nis || ''}
-              onChange={handleFormChange}
-            />
-          </>
+          </div>
         )}
 
         {createFormData.tipo === 'ONG' && (
-          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput
               label="CNPJ"
               name="cnpj"
-              placeholder="Insira o CNPJ do responsável"
+              placeholder="00.000.000/0001-00"
               value={createFormData.cnpj || ''}
               onChange={handleFormChange}
             />
             <FormInput
               label="Telefone"
               name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
+              placeholder="(00) 00000-0000"
               value={createFormData.telefone || ''}
               onChange={handleFormChange}
             />
-          </>
+          </div>
+        )}
+        
+        {createFormData.tipo === 'PF' && (
+          <FormInput
+            label="Número do NIS (Opcional)"
+            name="nis"
+            placeholder="Para programas sociais"
+            value={createFormData.nis || ''}
+            onChange={handleFormChange}
+          />
         )}
 
         <FormInput
@@ -276,22 +290,21 @@ export default function PaginaResponsaveis() {
           onChange={handleFormChange}
         />
         <FormInput
-          label="Endereço"
+          label="Endereço Completo"
           name="endereco"
-          placeholder="Rua, Número, Bairro - Cidade/UF"
+          placeholder="Rua, Número, Bairro - Cidade"
           value={createFormData.endereco || ''}
           onChange={handleFormChange}
         />
         <FormInput
-          label="Senha" 
+          label="Senha de Acesso" 
           name="senha"
           type="password"
-          placeholder="Senha de acesso"
+          placeholder="******"
           value={createFormData.senha}
           onChange={handleFormChange}
         />
       </CadastroModal>
-
     </div>
   );
 }
