@@ -346,7 +346,7 @@ export default function PaginaMedicos() {
         onButtonClick={handleOpenCreate} 
       />
       
-      <CrudDisplay<Medico>
+      <CrudDisplay<MedicoUI>
         data={medicos}
         columns={columns}
         searchPlaceholder="Buscar por nome ou CRMV..."
