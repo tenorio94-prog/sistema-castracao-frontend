@@ -182,54 +182,54 @@ export class AuthService {
     if (error instanceof AxiosError) {
       const apiError = error.response?.data as ApiError;
       
-      console.error('Detalhes do erro:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        code: error.code,
-      });
+      // Log apenas em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        console.error('🔴 Erro de autenticação:', {
+          status: error.response?.status,
+          message: apiError?.message || error.message,
+        });
+      }
       
       // Mensagem de erro da API
       if (apiError?.message) {
-        return new Error(apiError.message);
+        throw new Error(apiError.message);
       }
       
       // Erro de rede ou timeout
       if (error.code === 'ECONNABORTED') {
-        return new Error('O servidor está demorando para responder. Isso é normal quando o serviço está inativo. Por favor, aguarde e tente novamente.');
+        throw new Error('O servidor está demorando para responder. Isso é normal quando o serviço está inativo. Por favor, aguarde e tente novamente.');
       }
       
       if (error.code === 'ERR_NETWORK') {
-        return new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.');
+        throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.');
       }
       
       // Erros HTTP genéricos
       if (error.response?.status === 401) {
-        return new Error('Email ou senha incorretos. Por favor, verifique suas credenciais.');
+        throw new Error('Email ou senha incorretos. Por favor, verifique suas credenciais.');
       }
       
       if (error.response?.status === 403) {
-        return new Error('Acesso negado. Você não tem permissão para acessar este recurso.');
+        throw new Error('Acesso negado. Você não tem permissão para acessar este recurso.');
       }
       
       if (error.response?.status === 404) {
-        return new Error('Serviço não encontrado. O servidor pode estar offline.');
+        throw new Error('Serviço não encontrado. O servidor pode estar offline.');
       }
       
       if (error.response?.status === 500) {
-        return new Error('Erro interno do servidor. O backend pode estar reiniciando. Aguarde 30 segundos e tente novamente.');
+        throw new Error('Erro interno do servidor. O backend pode estar reiniciando. Aguarde 30 segundos e tente novamente.');
       }
       
       if (error.response?.status === 502 || error.response?.status === 503) {
-        return new Error('Servidor temporariamente indisponível. O serviço está sendo iniciado. Por favor, aguarde e tente novamente.');
+        throw new Error('Servidor temporariamente indisponível. O serviço está sendo iniciado. Por favor, aguarde e tente novamente.');
       }
       
       if (error.response?.status && error.response.status >= 500) {
-        return new Error('Erro no servidor. Por favor, tente novamente em alguns instantes.');
+        throw new Error('Erro no servidor. Por favor, tente novamente em alguns instantes.');
       }
     }
     
-    return new Error('Ocorreu um erro inesperado. Por favor, verifique sua conexão e tente novamente.');
+    throw new Error('Ocorreu um erro inesperado. Por favor, verifique sua conexão e tente novamente.');
   }
 }

@@ -13,7 +13,7 @@ type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
  * Inclui lógica para mostrar/esconder senhas e estilo para campos desabilitados.
  */
 const FormInput: React.FC<FormInputProps> = (props) => {
-  const { label, type, ...rest } = props; // Separa 'label' e 'type' do resto das props
+  const { label, type, value, ...rest } = props; // Separa 'label', 'type' e 'value' do resto das props
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
 
@@ -24,9 +24,10 @@ const FormInput: React.FC<FormInputProps> = (props) => {
       </label>
       <div className="relative w-full">
         <input
-          {...rest} // Passa todas as props restantes (value, onChange, name, placeholder, disabled, etc.)
+          {...rest} // Passa todas as props restantes (onChange, name, placeholder, disabled, etc.)
           id={props.id || props.name}
           type={isPassword ? (showPassword ? 'text' : 'password') : type}
+          value={value ?? ''} // Garante que value nunca seja undefined
           // Estilo condicional: adiciona 'bg-gray-100' se estiver desabilitado
           className={`w-full mt-1 p-2 pr-10 border border-gray-300 rounded-lg text-gray-500 ${props.disabled ? 'bg-gray-100' : ''}`}
         />

@@ -35,24 +35,9 @@ export default function LoginForm() {
         event.preventDefault(); 
         setIsLoading(true);
 
-        // Toast de loading
-        const loadingToast = toast.loading('Conectando ao servidor...', {
-            description: 'Aguarde enquanto validamos suas credenciais',
-        });
-
         try {
-            // Atualiza mensagem após 5s se ainda estiver carregando
-            const messageTimeout = setTimeout(() => {
-                toast.loading('O servidor pode estar iniciando...', {
-                    id: loadingToast
-                });
-            }, 5000);
-
             // Tenta fazer login com retry automático
             const response = await attemptLogin();
-
-            clearTimeout(messageTimeout);
-            toast.dismiss(loadingToast);
 
             console.log('✅ Login bem-sucedido:', response);
 
@@ -73,7 +58,7 @@ export default function LoginForm() {
 
             // Toast de sucesso
             toast.success('Login realizado com sucesso!', {
-                description: `Bem-vindo! Redirecionando para ${redirectPath}...`,
+                description: `Bem-vindo! Redirecionando...`,
                 duration: 2000,
             });
 
@@ -84,23 +69,10 @@ export default function LoginForm() {
             }, 1000);
 
         } catch (err: any) {
-            toast.dismiss(loadingToast);
             console.error('Erro no login:', err);
             
-            // Toast de erro com informações úteis
-            if (err.message.includes('servidor')) {
-                toast.error('Erro no servidor', {
-                    description: 'O servidor pode estar iniciando. Clique para tentar novamente.',
-                    duration: 6000,
-                    action: {
-                        label: 'Tentar novamente',
-                        onClick: () => {
-                            const form = document.querySelector('form');
-                            if (form) form.requestSubmit();
-                        },
-                    },
-                });
-            } else if (err.message.includes('credenciais') || err.message.includes('senha')) {
+            // Toast de erro apenas para credenciais inválidas
+            if (err.message.includes('credenciais') || err.message.includes('senha') || err.message.includes('incorretos')) {
                 toast.error('Credenciais inválidas', {
                     description: 'Email ou senha incorretos. Verifique e tente novamente.',
                     duration: 4000,

@@ -53,6 +53,7 @@ export interface CreateUserDto {
   completeName: string;
   role: Role;
   crmv?: string;      // Required for veterinarian
+  specialty?: string; // Optional specialty for veterinarian
   address?: string;   // Required for petOwner (fullAddress no backend)
 }
 
