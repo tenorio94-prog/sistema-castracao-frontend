@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import { AxiosError } from 'axios';
+import { Role } from '@/types/auth.types';
 
 /**
  * Interface para Veterinário
@@ -74,7 +75,7 @@ export class VeterinarianService {
       // Adiciona filtro de role para buscar apenas veterinários
       const requestParams = {
         ...params,
-        role: 'veterinarian'
+        role: Role.veterinarian
       };
       
       console.log('🔍 Buscando veterinários com params:', requestParams);
@@ -101,7 +102,7 @@ export class VeterinarianService {
         veterinarian: v.veterinarian // Caso tenha nested
       })));
       
-      const veterinarians = data.filter((user: any) => user.role === 'veterinarian');
+      const veterinarians = data.filter((user: any) => user.role === Role.veterinarian);
       
       console.log('✅ Veterinários filtrados:', veterinarians);
       
@@ -141,7 +142,7 @@ export class VeterinarianService {
         password: data.password,
         cpf: data.cpf,
         phone: data.phone,
-        role: 'veterinarian' as const,
+        role: Role.veterinarian,
         crmv: data.crmv,
         specialty: data.specialty,
         active: true
@@ -198,7 +199,7 @@ export class VeterinarianService {
     try {
       const response = await api.get<Veterinarian[]>(this.BASE_PATH, {
         params: {
-          role: 'veterinarian',
+          role: Role.veterinarian,
           specialty: specialty
         }
       });

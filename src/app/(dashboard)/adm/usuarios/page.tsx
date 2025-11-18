@@ -5,24 +5,29 @@ import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm'
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput'; 
-import { UserService, User, CreateUserData, UpdateUserData } from '@/services/user.service';
+import { UserService, User, UpdateUserData } from '@/services/user.service';
+import { CreateUserDto, Role } from '@/types/auth.types';
 
 // 1. Mapeamento de Perfis
-const ROLE_MAP = {
-  'admin': 'Administrador',
-  'veterinarian': 'Médico',
-  'attendant': 'Atendente',
-  'petOwner': 'Responsável',
+const ROLE_MAP: Record<Role, string> = {
+  [Role.administrator]: 'Administrador',
+  [Role.veterinarian]: 'Médico',
+  [Role.receptionist]: 'Atendente',
+  [Role.semas]: 'SEMAS',
+  [Role.student]: 'Estudante',
+  [Role.petOwner]: 'Responsável',
 } as const;
 
-const ROLE_REVERSE_MAP = {
-  'Administrador': 'admin',
-  'Médico': 'veterinarian',
-  'Atendente': 'attendant',
-  'Responsável': 'petOwner',
+const ROLE_REVERSE_MAP: Record<string, Role> = {
+  'Administrador': Role.administrator,
+  'Médico': Role.veterinarian,
+  'Atendente': Role.receptionist,
+  'SEMAS': Role.semas,
+  'Estudante': Role.student,
+  'Responsável': Role.petOwner,
 } as const;
 
-type Perfil = 'Médico' | 'Atendente' | 'Responsável' | 'Administrador';
+type Perfil = 'Médico' | 'Atendente' | 'Responsável' | 'Administrador' | 'SEMAS' | 'Estudante';
 
 type Usuario = {
   id: string;
@@ -40,6 +45,7 @@ type UsuarioForm = {
   telefone: string;
   perfil: Perfil;
   senha: string;
+  nome?: string;
   crmv?: string;
   endereco?: string;
 };
@@ -105,9 +111,9 @@ export default function PaginaGestaoUsuarios() {
         email: user.email,
         cpf: user.cpf || '',
         telefone: user.phone || '',
-        perfil: ROLE_MAP[user.role] || 'Atendente',
-        crmv: user.role === 'veterinarian' ? 'CRMV-PE' : undefined,
-        endereco: user.role === 'petOwner' ? 'Endereço' : undefined
+        perfil: ROLE_MAP[user.role] as Perfil,
+        crmv: user.role === Role.veterinarian ? 'CRMV-PE' : undefined,
+        endereco: user.role === Role.petOwner ? 'Endereço' : undefined
       }));
       
       setUsuarios(usuariosFormatados);
@@ -213,13 +219,13 @@ export default function PaginaGestaoUsuarios() {
     try {
       setLoading(true);
       
-      const createData: CreateUserData = {
+      const createData: CreateUserDto = {
         email: createFormData.email,
         password: createFormData.senha,
         cpf: createFormData.cpf,
         phone: createFormData.telefone,
-        role: ROLE_REVERSE_MAP[createFormData.perfil] as any,
-        active: true
+        completeName: createFormData.nome || createFormData.email.split('@')[0],
+        role: ROLE_REVERSE_MAP[createFormData.perfil],
       };
 
       // Campos obrigatórios por role

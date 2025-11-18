@@ -44,8 +44,7 @@ export default function LoginForm() {
             // Atualiza mensagem após 5s se ainda estiver carregando
             const messageTimeout = setTimeout(() => {
                 toast.loading('O servidor pode estar iniciando...', {
-                    id: loadingToast,
-                    description: 'Servidores gratuitos podem levar até 1 minuto na primeira requisição',
+                    id: loadingToast
                 });
             }, 5000);
 
@@ -55,30 +54,34 @@ export default function LoginForm() {
             clearTimeout(messageTimeout);
             toast.dismiss(loadingToast);
 
-            console.log('Login bem-sucedido:', response);
+            console.log('✅ Login bem-sucedido:', response);
 
-            // Salvar tokens
-            AuthService.saveTokens(response.accessToken, response.refreshToken);
+            // Salvar tokens e obter informações do usuário
+            const user = AuthService.saveTokens(response.accessToken, response.refreshToken);
 
-            // Salvar informações do usuário
-            if (response.user) {
-                localStorage.setItem('user', JSON.stringify(response.user));
+            console.log('👤 Usuário decodificado:', user);
+
+            if (!user) {
+                throw new Error('Não foi possível decodificar as informações do usuário');
             }
+
+            // Redirecionar baseado no role do usuário
+            const redirectPath = AuthService.getRoleRoute(user.role);
+            
+            console.log('🔀 Redirecionando para:', redirectPath);
+            console.log('🔑 Role do usuário:', user.role);
 
             // Toast de sucesso
             toast.success('Login realizado com sucesso!', {
-                description: 'Redirecionando para o painel...',
+                description: `Bem-vindo! Redirecionando para ${redirectPath}...`,
                 duration: 2000,
             });
 
-            // Redirecionar baseado no role do usuário
-            const redirectPath = response.user?.role 
-                ? `/${response.user.role.toLowerCase()}` 
-                : '/adm';
-            
+            // Usar window.location.href para garantir o redirecionamento
             setTimeout(() => {
-                router.push(redirectPath);
-            }, 500);
+                console.log('🚀 Executando redirecionamento...');
+                window.location.href = redirectPath;
+            }, 1000);
 
         } catch (err: any) {
             toast.dismiss(loadingToast);
@@ -97,7 +100,7 @@ export default function LoginForm() {
                         },
                     },
                 });
-            } else if (err.message.includes('credenciais') || err.message.includes('401')) {
+            } else if (err.message.includes('credenciais') || err.message.includes('senha')) {
                 toast.error('Credenciais inválidas', {
                     description: 'Email ou senha incorretos. Verifique e tente novamente.',
                     duration: 4000,

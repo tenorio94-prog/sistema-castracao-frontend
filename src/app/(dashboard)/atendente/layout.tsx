@@ -1,3 +1,5 @@
+"use client";
+
 import { 
   SidebarProvider, 
   SidebarTrigger,
@@ -8,6 +10,8 @@ import {
   SidebarInset 
 } from "@/components/ui/sidebar";
 import AtendenteSidebarButtons from "@/components/Sidebars/AtendenteSidebarButtons";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { Role } from "@/types/auth.types";
 
 export default function AtendenteLayout({
   children,
@@ -16,8 +20,8 @@ export default function AtendenteLayout({
 }) {
 
   return (
-
-    <SidebarProvider>
+    <ProtectedRoute allowedRoles={[Role.receptionist, Role.semas]}>
+      <SidebarProvider>
       
       <Sidebar>
         <SidebarContent>
@@ -35,6 +39,7 @@ export default function AtendenteLayout({
         {children}
       </SidebarInset>
 
-    </SidebarProvider>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

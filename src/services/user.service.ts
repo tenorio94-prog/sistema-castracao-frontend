@@ -1,6 +1,6 @@
 import api from '@/lib/axios';
 import { AxiosError } from 'axios';
-import { RegisterData } from './auth.service';
+import { CreateUserDto, Role, RegisterResponse } from '@/types/auth.types';
 
 /**
  * Interface para Usuário
@@ -10,24 +10,11 @@ export interface User {
   email: string;
   cpf?: string;
   phone?: string;
-  role: 'admin' | 'veterinarian' | 'attendant' | 'petOwner';
+  completeName?: string;
+  role: Role;
   active?: boolean;
   createdAt?: string;
   updatedAt?: string;
-}
-
-/**
- * Interface para criar usuário (usa auth/register)
- */
-export interface CreateUserData {
-  email: string;
-  password: string;
-  cpf?: string;
-  phone?: string;
-  role: 'admin' | 'veterinarian' | 'attendant' | 'petOwner';
-  crmv?: string; // Required for veterinarian
-  address?: string; // Required for petOwner
-  active?: boolean;
 }
 
 /**
@@ -38,7 +25,8 @@ export interface UpdateUserData {
   password?: string;
   cpf?: string;
   phone?: string;
-  role?: 'admin' | 'veterinarian' | 'attendant' | 'petOwner';
+  completeName?: string;
+  role?: Role;
   crmv?: string;
   address?: string;
   active?: boolean;
@@ -96,21 +84,10 @@ export class UserService {
   /**
    * Criar novo usuário (usa /auth/register)
    */
-  static async create(data: CreateUserData): Promise<User> {
+  static async create(data: CreateUserDto): Promise<RegisterResponse> {
     try {
-      const registerData: RegisterData = {
-        email: data.email,
-        password: data.password,
-        cpf: data.cpf,
-        phone: data.phone,
-        role: data.role,
-        crmv: data.crmv,
-        address: data.address,
-        active: data.active ?? true
-      };
-      
-      const response = await api.post<any>('/auth/register', registerData);
-      return response.data.user || response.data;
+      const response = await api.post<RegisterResponse>('/auth/register', data);
+      return response.data;
     } catch (error) {
       throw this.handleError(error);
     }

@@ -1,49 +1,33 @@
 import api from '@/lib/axios';
 import { AxiosError } from 'axios';
+import { 
+  LoginDto, 
+  LoginResponse, 
+  CreateUserDto, 
+  RegisterResponse, 
+  ApiError,
+  AuthUser,
+  Role 
+} from '@/types/auth.types';
 
 /**
- * Interface para os dados de login
+ * Decodifica o JWT token para extrair as informações do usuário
  */
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
-/**
- * Interface para registro de usuário
- */
-export interface RegisterData {
-  email: string;
-  password: string;
-  cpf?: string;
-  phone?: string;
-  role: 'admin' | 'veterinarian' | 'attendant' | 'petOwner';
-  crmv?: string; // Required for veterinarian
-  address?: string; // Required for petOwner
-  active?: boolean;
-}
-
-/**
- * Interface para a resposta de login bem-sucedido
- */
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-    role?: string;
-  };
-}
-
-/**
- * Interface para erros de API
- */
-export interface ApiError {
-  message: string;
-  statusCode?: number;
-  errors?: Record<string, string[]>;
+function decodeToken(token: string): AuthUser | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload) as AuthUser;
+  } catch (error) {
+    console.error('Erro ao decodificar token:', error);
+    return null;
+  }
 }
 
 /**
@@ -54,9 +38,9 @@ export class AuthService {
   /**
    * Realiza o login do usuário
    * @param credentials - Email e senha do usuário
-   * @returns Dados do usuário e tokens de acesso
+   * @returns Tokens de acesso e refresh
    */
-  static async login(credentials: LoginData): Promise<LoginResponse> {
+  static async login(credentials: LoginDto): Promise<LoginResponse> {
     try {
       const response = await api.post<LoginResponse>('/auth/login', credentials);
       return response.data;
@@ -68,11 +52,11 @@ export class AuthService {
   /**
    * Registra um novo usuário no sistema
    * @param data - Dados do usuário a ser registrado
-   * @returns Dados do usuário criado e tokens
+   * @returns Dados do usuário criado
    */
-  static async register(data: RegisterData): Promise<LoginResponse> {
+  static async register(data: CreateUserDto): Promise<RegisterResponse> {
     try {
-      const response = await api.post<LoginResponse>('/auth/register', data);
+      const response = await api.post<RegisterResponse>('/auth/register', data);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -109,13 +93,21 @@ export class AuthService {
   }
 
   /**
-   * Salva os tokens no localStorage
+   * Salva os tokens no localStorage e retorna as informações do usuário decodificadas
    */
-  static saveTokens(accessToken: string, refreshToken: string): void {
+  static saveTokens(accessToken: string, refreshToken: string): AuthUser | null {
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      
+      // Decodifica o token e salva as informações do usuário
+      const user = decodeToken(accessToken);
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      return user;
     }
+    return null;
   }
 
   /**
@@ -125,6 +117,7 @@ export class AuthService {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
     }
   }
 
@@ -150,6 +143,39 @@ export class AuthService {
   }
 
   /**
+   * Obtém as informações do usuário logado
+   */
+  static getCurrentUser(): AuthUser | null {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          return JSON.parse(userStr) as AuthUser;
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Mapeia o role do usuário para a rota correspondente
+   */
+  static getRoleRoute(role: Role): string {
+    const roleRoutes: Record<Role, string> = {
+      [Role.administrator]: '/adm',
+      [Role.veterinarian]: '/medico',
+      [Role.receptionist]: '/atendente',
+      [Role.semas]: '/atendente', // SEMAS usa mesma interface do atendente
+      [Role.student]: '/medico',   // Estudante usa mesma interface do médico
+      [Role.petOwner]: '/responsavel',
+    };
+    
+    return roleRoutes[role] || '/adm';
+  }
+
+  /**
    * Trata erros de requisição da API
    */
   private static handleError(error: unknown): Error {
@@ -163,12 +189,6 @@ export class AuthService {
         message: error.message,
         code: error.code,
       });
-      
-      // Erros de validação
-      if (apiError?.errors) {
-        const errorMessages = Object.values(apiError.errors).flat();
-        return new Error(errorMessages.join(', '));
-      }
       
       // Mensagem de erro da API
       if (apiError?.message) {
