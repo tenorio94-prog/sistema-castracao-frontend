@@ -19,7 +19,7 @@ const TYPE_REVERSE_MAP = { 'Pessoa Física': 'INDIVIDUAL', 'ONG': 'NGO' } as con
 type TipoResponsavel = 'Pessoa Física' | 'ONG';
 
 // Usando a tipagem do novo componente
-type Responsavel = ResponsavelAdmUI; 
+type Responsavel = ResponsavelAdmUI;
 
 type ResponsavelForm = {
   nome: string;

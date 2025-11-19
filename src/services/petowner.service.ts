@@ -2,68 +2,83 @@ import api from '@/lib/axios';
 import { AxiosError } from 'axios';
 
 /**
- * Interface para PetOwner do backend (baseado no Prisma schema)
+ * Interface para Responsável (Pet Owner)
  */
 export interface PetOwner {
-  id: number;
-  userId: number;
-  fullAddress: string | null;
-  user?: {
-    id: number;
-    completeName: string;
-    email: string;
-    cpf: string;
-    phone: string;
-  };
-  _count?: {
-    animals: number;
-  };
-  commitmentTerms?: CommitmentTerm[];
-}
-
-/**
- * Interface para CommitmentTerm
- */
-export interface CommitmentTerm {
-  id: number;
-  documentUrl: string;
-  signatureDate: Date;
-}
-
-/**
- * Interface para criar PetOwner (via AuthService)
- * PetOwner é criado via POST /auth/register com role: petOwner
- */
-export interface CreatePetOwnerDto {
-  fullAddress: string;
-  documentUrl?: string;
-}
-
-/**
- * Interface para atualizar PetOwner
- */
-export interface UpdatePetOwnerDto {
-  fullAddress?: string;
-  email?: string;
-  password?: string;
-  phone?: string;
-  completeName?: string;
+  id: string;
+  name: string;
+  type: 'INDIVIDUAL' | 'NGO';
   cpf?: string;
+  nis?: string;
+  cnpj?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
- * Serviço de PetOwners (Responsáveis)
+ * Interface para criar responsável
+ */
+export interface CreatePetOwnerData {
+  name: string;
+  type: 'INDIVIDUAL' | 'NGO';
+  cpf?: string;
+  nis?: string;
+  cnpj?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  password?: string;
+}
+
+/**
+ * Interface para atualizar responsável
+ */
+export interface UpdatePetOwnerData {
+  name?: string;
+  type?: 'INDIVIDUAL' | 'NGO';
+  cpf?: string;
+  nis?: string;
+  cnpj?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  password?: string;
+}
+
+/**
+ * Interface para resposta paginada
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Serviço de Responsáveis (Pet Owners)
  */
 export class PetOwnerService {
   private static readonly BASE_PATH = '/pet-owner';
 
   /**
-   * Buscar todos os pet owners
+   * Buscar todos os responsáveis
    */
-  static async getAll(): Promise<PetOwner[]> {
+  static async getAll(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    type?: 'INDIVIDUAL' | 'NGO';
+  }): Promise<PetOwner[] | PaginatedResponse<PetOwner>> {
     try {
-      const response = await api.get<PetOwner[]>(this.BASE_PATH);
-      console.log('✅ PetOwners recebidos do backend:', response.data);
+      const response = await api.get<PetOwner[] | PaginatedResponse<PetOwner>>(
+        this.BASE_PATH,
+        { params }
+      );
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -71,11 +86,11 @@ export class PetOwnerService {
   }
 
   /**
-   * Buscar pet owner por ID (userId)
+   * Buscar responsável por ID
    */
-  static async getById(userId: number): Promise<PetOwner> {
+  static async getById(id: string): Promise<PetOwner> {
     try {
-      const response = await api.get<PetOwner>(`${this.BASE_PATH}/${userId}`);
+      const response = await api.get<PetOwner>(`${this.BASE_PATH}/${id}`);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -83,7 +98,66 @@ export class PetOwnerService {
   }
 
   /**
-   * Buscar pet owner por email
+   * Criar novo responsável
+   */
+  static async create(data: CreatePetOwnerData): Promise<PetOwner> {
+    try {
+      const response = await api.post<PetOwner>(this.BASE_PATH, data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Atualizar responsável
+   */
+  static async update(id: string, data: UpdatePetOwnerData): Promise<PetOwner> {
+    try {
+      const response = await api.put<PetOwner>(`${this.BASE_PATH}/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Deletar responsável
+   */
+  static async delete(id: string): Promise<void> {
+    try {
+      await api.delete(`${this.BASE_PATH}/${id}`);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Buscar responsáveis por tipo
+   */
+  static async getByType(type: 'INDIVIDUAL' | 'NGO'): Promise<PetOwner[]> {
+    try {
+      const response = await api.get<PetOwner[]>(`${this.BASE_PATH}/type/${type}`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Buscar animais de um responsável
+   */
+  static async getAnimals(id: string): Promise<any[]> {
+    try {
+      const response = await api.get<any[]>(`${this.BASE_PATH}/me/pets`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Buscar responsável por email
    */
   static async getByEmail(email: string): Promise<PetOwner> {
     try {
@@ -95,57 +169,7 @@ export class PetOwnerService {
   }
 
   /**
-   * Criar novo pet owner
-   * Primeiro cria o User via AuthService, depois cria o PetOwner
-   */
-  static async create(dto: CreatePetOwnerDto): Promise<PetOwner> {
-    try {
-      console.log('🔄 Criando pet owner:', dto);
-      const response = await api.post<PetOwner>(this.BASE_PATH, dto);
-      console.log('✅ PetOwner criado:', response.data);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Atualizar pet owner (usa userId, não petOwnerId)
-   */
-  static async update(userId: number, dto: UpdatePetOwnerDto): Promise<PetOwner> {
-    try {
-      const response = await api.patch<PetOwner>(`${this.BASE_PATH}/${userId}`, dto);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Deletar pet owner
-   */
-  static async delete(userId: number): Promise<void> {
-    try {
-      await api.delete(`${this.BASE_PATH}/${userId}`);
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar animais de um pet owner
-   */
-  static async getAnimals(userId: number): Promise<any[]> {
-    try {
-      const response = await api.get<any[]>(`${this.BASE_PATH}/${userId}/animals`);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Rotas para o pet owner logado
+   * Buscar perfil do responsável logado
    */
   static async getMe(): Promise<PetOwner> {
     try {
@@ -156,24 +180,21 @@ export class PetOwnerService {
     }
   }
 
-  static async getMyPets(): Promise<any[]> {
+  /**
+   * Atualizar perfil do responsável logado
+   */
+  static async updateMe(data: UpdatePetOwnerData): Promise<PetOwner> {
     try {
-      const response = await api.get<any[]>(`${this.BASE_PATH}/me/pets`);
+      const response = await api.patch<PetOwner>(`${this.BASE_PATH}/me`, data);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
-  static async updateMe(dto: UpdatePetOwnerDto): Promise<PetOwner> {
-    try {
-      const response = await api.patch<PetOwner>(`${this.BASE_PATH}/me`, dto);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
+  /**
+   * Deletar perfil do responsável logado
+   */
   static async deleteMe(): Promise<void> {
     try {
       await api.delete(`${this.BASE_PATH}/me`);
@@ -187,30 +208,9 @@ export class PetOwnerService {
    */
   private static handleError(error: unknown): Error {
     if (error instanceof AxiosError) {
-      console.error('❌ Erro no PetOwnerService:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-      });
-
-      const apiMessage = error.response?.data?.message || error.message;
-      
-      if (error.response?.status === 400) {
-        return new Error(`Dados inválidos: ${apiMessage}`);
-      }
-      
-      if (error.response?.status === 404) {
-        return new Error('Responsável não encontrado');
-      }
-      
-      if (error.response?.status === 409) {
-        return new Error(`Conflito: ${apiMessage}`);
-      }
-      
-      return new Error(apiMessage);
+      const message = error.response?.data?.message || error.message;
+      return new Error(message);
     }
     return new Error('Erro ao processar requisição de responsáveis');
   }
 }
-
