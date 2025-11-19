@@ -1,129 +1,222 @@
-// app/medico/dashboard/page.tsx
+"use client";
 
-import React from 'react';
+import React, { useState } from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Dog, 
+  Search, 
+  Stethoscope, 
+  Activity, 
+  CheckCircle2,
+  FileText,
+  ClipboardList,
+  Play
+} from 'lucide-react';
+
+import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import CardBaseDash from '@/components/Dashboard/CardBaseDash';
-import { Stethoscope, CheckCircle, Users, CalendarCheck, Dog } from 'lucide-react';
-import CardAgendamento from '@/components/Dashboard/CardAgendamento';
+import ViewModal from '@/components/modals/ViewModal';
+// Reutilizando o card padrão para consistência visual
+import AgendamentoCard, { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
 
-// --- Mock Data ---
-const mockAppointments = [
+// --- Mocks Adaptados para o Tipo Agendamento ---
+const mockAppointments: Agendamento[] = [
   {
     id: 1,
-    time: '09:00',
     petName: 'Luna',
-    service: 'Cirurgia - Felino',
-    details: 'Castração eletiva - Em preparação pré-operatória',
-    status: 'Castração',
-    statusVariant: 'yellow' as const, 
+    status: 'Pendente', // Status para cor amarela/azul
+    data: '2023-11-20',
+    hora: '09:00',
+    tipo: 'Cirurgia - Castração',
+    observacoes: 'Jejum de 12h realizado. Animal calmo.',
+    pet: { id: 101, name: 'Luna', species: 'Gato', breed: 'Siamês', gender: 'Fêmea', weight: '4kg', age: '2 anos', ownerName: 'Ana' },
+    responsavel: { id: 'r1', tipo: 'PF', nome: 'Ana Souza', animais: ['Luna'], senha: '123', telefone: '(81) 98888-1111', email: 'ana@gmail.com' }
   },
   {
     id: 2,
-    time: '09:30',
     petName: 'Thor',
-    service: 'Consulta - Canino',
-    details: 'Vacinação anual e check-up',
-    status: 'Consulta',
-    statusVariant: 'blue' as const,
+    status: 'Confirmado', 
+    data: '2023-11-20',
+    hora: '09:30',
+    tipo: 'Consulta de Rotina',
+    observacoes: 'Vacinação anual e check-up geral.',
+    pet: { id: 102, name: 'Thor', species: 'Cachorro', breed: 'Golden', gender: 'Macho', weight: '28kg', age: '4 anos', ownerName: 'Carlos' },
+    responsavel: { id: 'r2', tipo: 'PF', nome: 'Carlos Silva', animais: ['Thor'], senha: '123', telefone: '(81) 97777-2222', email: 'carlos@gmail.com' }
   },
   {
     id: 3,
-    time: '10:00',
     petName: 'Simba',
-    service: 'Retorno - Felino',
-    details: 'Revisão pós-operatória',
-    status: 'Retorno',
-    statusVariant: 'gray' as const,
+    status: 'Concluído', 
+    data: '2023-11-20',
+    hora: '10:00',
+    tipo: 'Retorno Pós-Cirúrgico',
+    observacoes: 'Revisão de pontos da cirurgia ortopédica.',
+    pet: { id: 103, name: 'Simba', species: 'Gato', breed: 'Persa', gender: 'Macho', weight: '5kg', age: '5 anos', ownerName: 'Mariana' },
+    responsavel: { id: 'r3', tipo: 'PF', nome: 'Mariana X.', animais: ['Simba'], senha: '123', telefone: '(81) 96666-3333', email: 'mariana@gmail.com' }
   },
 ];
-// ----------------------------------------------
-
-/** Botão de Ação Padrão (Reutilizado) */
-const ActionButton = ({ children, className = 'bg-green-700 hover:bg-green-800' }: { children: React.ReactNode, className?: string }) => (
-  <button className={`text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors ${className}`}>
-    {children}
-  </button>
-);
-
 
 export default function MedicoDashboardPage() {
-  return (
-    <>
-      {/* SEÇÃO 1: Cabeçalho */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-green-700">Dashboard Médico</h1>
-        <p className="text-gray-600 mt-1">Bem-vindo(a) ao sistema de gestão hospitalar</p> 
-      </header>
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockAppointments);
+  const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-      {/* SEÇÃO 2: Indicadores de Hoje */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Seus Indicadores de Hoje</h2>
+  // --- Handlers ---
+  const handleVerDetalhes = (agendamento: Agendamento) => {
+    setSelectedAgendamento(agendamento);
+    setIsViewModalOpen(true);
+  };
+
+  const handleCloseDetalhes = () => {
+    setIsViewModalOpen(false);
+    setSelectedAgendamento(null);
+  };
+
+  const handleIniciarAtendimento = () => {
+    alert(`Iniciando atendimento de ${selectedAgendamento?.petName}... Redirecionando para prontuário.`);
+    handleCloseDetalhes();
+  };
+
+  const handleVerProntuario = () => {
+    alert(`Abrindo histórico médico de ${selectedAgendamento?.petName}.`);
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8">
+      
+      {/* Cabeçalho */}
+      <PageHeader 
+        title="Dashboard Médico"
+        description="Bem-vindo(a) ao sistema de gestão hospitalar."
+      />
+
+      {/* Indicadores (KPIs) - CORRIGIDO O ERRO DE BUILD AQUI */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardBaseDash
+          title="Animais Agendados"
+          value={mockAppointments.length}
+          subtitle="Aguardando seu atendimento"
+          icon={Dog} // ✅ Passando a referência do componente, sem JSX <Dog />
+          color="blue"
+          trend="Agenda do dia"
+        />
         
-        <div className="flex flex-wrap gap-6">
-          <CardBaseDash
-            title="Animais Agendados"
-            value={mockAppointments.length} 
-            subtitle="Aguardando seu atendimento"
-            icon={<Dog size={24} />}
-          />
-          <CardBaseDash
-            title="Cirurgias Agendadas"
-            value={mockAppointments.filter(a => a.service.includes('Cirurgia')).length}
-            subtitle="Cirurgias para hoje"
-            icon={<Stethoscope size={24} />}
-          />
-          <CardBaseDash
-            title="Atendimentos Realizados"
-            value="0" 
-            subtitle="Realizados por você hoje"
-            icon={<CheckCircle size={24} />}
-          />
-          
-        </div>
+        <CardBaseDash
+          title="Cirurgias"
+          value={mockAppointments.filter(a => a.tipo.includes('Cirurgia')).length}
+          subtitle="Procedimentos hoje"
+          icon={Stethoscope} // ✅ Passando a referência
+          color="purple"
+        />
+
+        <CardBaseDash
+          title="Realizados"
+          value={mockAppointments.filter(a => a.status === 'Concluído').length}
+          subtitle="Atendimentos finalizados"
+          icon={CheckCircle2} // ✅ Passando a referência
+          color="green"
+        />
       </section>
 
-      {/* SEÇÃO 3: Próximos Atendimentos */}
-      <section>
-        {/* Cabeçalho da Seção */}
-        <div className="flex justify-between items-center mb-5">
+      {/* Lista de Próximos Atendimentos */}
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-700">Próximos Atendimentos</h2>
-            <p className="text-gray-600 mt-1">Sua fila de pacientes programados</p>
+            <h2 className="text-lg font-bold text-gray-900">Próximos Atendimentos</h2>
+            <p className="text-sm text-gray-500">Sua fila de pacientes programados.</p>
           </div>
           
-          {/* * * AQUI ESTÁ A MUDANÇA:
-            * O botão foi substituído para ser idêntico ao "Novo Agendamento".
-          */}
-          <button className="bg-green-600 text-white px-5 py-2 rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors">
-            Novo Agendamento
+          {/* Botão identico ao "Novo Agendamento" mas com função para o médico se necessário (ex: Encaixe) */}
+          <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-green-100 transition-all active:scale-95">
+            <Activity size={18} />
+            <span>Novo Encaixe</span>
           </button>
-          
         </div>
 
-        {/* Lista de Atendimentos */}
-        <div className="space-y-4">
-          {mockAppointments.map((appt) => (
-            <CardAgendamento
+        <div className="space-y-3">
+          {agendamentos.map((appt) => (
+            <AgendamentoCard
               key={appt.id}
-              time={appt.time}
-              petName={appt.petName}
-              service={appt.service}
-              details={appt.details}
-              status={appt.status}
-              statusVariant={appt.statusVariant}
-            >
-              {/* Botões do Médico (agora verdes e com novo texto) */}
-              <ActionButton>
-                Ver Prontuário
-              </ActionButton>
-              
-              <ActionButton>
-                Preencher Ficha
-              </ActionButton>
-              
-            </CardAgendamento>
+              agendamento={appt}
+              onVerDetalhes={handleVerDetalhes}
+            />
           ))}
         </div>
       </section>
-    </>
+
+      {/* Modal de Ações do Médico */}
+      <ViewModal
+        isOpen={isViewModalOpen}
+        onClose={handleCloseDetalhes}
+        title={`Paciente: ${selectedAgendamento?.petName}`}
+      >
+        <div className="space-y-5">
+           {/* Resumo do Paciente */}
+           <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+             <div className="h-16 w-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-100">
+               <Dog size={32} />
+             </div>
+             <div>
+               <h3 className="text-xl font-bold text-gray-900">{selectedAgendamento?.petName}</h3>
+               <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                 <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-700 font-medium">{selectedAgendamento?.pet.species}</span>
+                 <span>•</span>
+                 <span>{selectedAgendamento?.pet.breed}</span>
+                 <span>•</span>
+                 <span>{selectedAgendamento?.pet.age}</span>
+               </div>
+             </div>
+           </div>
+
+           {/* Detalhes do Agendamento */}
+           <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                 <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Procedimento</label>
+                 <p className="font-semibold text-gray-900">{selectedAgendamento?.tipo}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                 <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Horário</label>
+                 <div className="flex items-center gap-2 font-semibold text-gray-900">
+                   <Clock size={16} className="text-gray-400"/> 
+                   {selectedAgendamento?.hora}
+                 </div>
+              </div>
+           </div>
+
+           <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+             <label className="text-xs font-bold text-blue-400 uppercase block mb-1">Motivo / Queixa Principal</label>
+             <p className="text-blue-900 text-sm leading-relaxed">{selectedAgendamento?.observacoes || 'Nenhuma observação registrada.'}</p>
+           </div>
+
+           {/* Ações Principais do Médico */}
+           <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+             <button 
+               onClick={handleIniciarAtendimento}
+               className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-100 active:scale-95"
+             >
+               <Play size={20} fill="currentColor" />
+               Iniciar Atendimento
+             </button>
+             
+             <div className="grid grid-cols-2 gap-3">
+               <button 
+                 onClick={handleVerProntuario}
+                 className="w-full bg-white border border-gray-200 text-gray-700 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+               >
+                 <FileText size={18} />
+                 Ver Prontuário
+               </button>
+               <button 
+                 className="w-full bg-white border border-gray-200 text-gray-700 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+               >
+                 <ClipboardList size={18} />
+                 Preencher Ficha
+               </button>
+             </div>
+           </div>
+        </div>
+      </ViewModal>
+    </div>
   );
 }
