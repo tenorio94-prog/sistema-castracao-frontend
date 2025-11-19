@@ -1,5 +1,3 @@
-//Componente: Gráfico de Barras para Carga de Trabalho dos Médicos, disponível no Dashboard ADM//
-
 'use client'; 
 
 import { 
@@ -13,7 +11,6 @@ import {
   CartesianGrid 
 } from 'recharts';
 
-// 1. Dados mocados baseados no nosso protótipo 
 const data = [
   { name: 'Dra. Cecília', Consultas: 45, Cirurgias: 25 },
   { name: 'Dr. Antônio', Consultas: 42, Cirurgias: 24 },
@@ -23,78 +20,65 @@ const data = [
 
 export default function CargaTrabalhoChart() {
   return (
-
-    // Container Principal
-    <div className="bg-white p-6 rounded-lg shadow-sm mt-6">
-      {/* Título e Descrição */}
-      <h3 className="text-lg font-semibold text-gray-800">
-        Distribuição de Carga de Trabalho
-      </h3>
-      <p className="text-sm text-gray-500 mb-4">
-        Consultas e cirurgias por médico este mês
-      </p>
-
-      {/* Container do gráfico precisa de uma altura definida */}
-      <div style={{ width: '100%', height: 350 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{
-              top: 5,
-              right: 30, // Espaço para a legenda
-              left: 0,
-              bottom: 5,
+    // Removemos o container com bg-white e shadow daqui.
+    // O gráfico agora ocupa 100% do espaço que o pai der a ele.
+    <div className="w-full h-full min-h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+          
+          <XAxis 
+            dataKey="name" 
+            stroke="#9ca3af" 
+            fontSize={12} 
+            tickLine={false} 
+            axisLine={false} 
+            dy={10} // Espaçamento texto x eixo
+          />
+          
+          <YAxis 
+            stroke="#9ca3af" 
+            fontSize={12} 
+            axisLine={false} 
+            tickLine={false} 
+          />
+          
+          <Tooltip
+            cursor={{ fill: '#f9fafb' }}
+            contentStyle={{ 
+              backgroundColor: '#ffffff', 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '12px', 
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              color: '#374151'
             }}
-          >
-            {/* Grid e Eixos (para parecer limpo como na imagem) */}
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-            <XAxis 
-              dataKey="name" 
-              stroke="#6b7280" 
-              fontSize={12} 
-              tickLine={false} // Remove os "tracinhos" do eixo X
-              axisLine={true}  // Mantém a linha do eixo X
-            />
-            <YAxis 
-              stroke="#9ca3af" 
-              fontSize={12} 
-              axisLine={false}  // Remove a linha do eixo Y
-              tickLine={false}  // Remove os "tracinhos" do eixo Y
-            />
-            
-            {/* Tooltip que aparece ao passar o mouse */}
-            <Tooltip
-              cursor={{ fill: 'transparent' }}
-              contentStyle={{ 
-                backgroundColor: '#ffffff', 
-                border: '1px solid #e5e7eb', 
-                borderRadius: '0.5rem', 
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-              }}
-            />
+          />
 
-            {/* Legenda (configurada para ficar à direita, como na imagem) */}
-            <Legend 
-              layout="vertical" 
-              verticalAlign="middle" 
-              align="right" 
-              wrapperStyle={{ paddingLeft: '20px' }} 
-            />
-            
-            {/* 4. As Barras de dados com as cores da sua imagem */}
-            <Bar 
-              dataKey="Consultas" 
-              fill="#9DBFCE" // Cor azul-acinzentada da imagem
-              radius={[4, 4, 0, 0]} // Arredonda os cantos superiores
-            />
-            <Bar 
-              dataKey="Cirurgias" 
-              fill="#4A7C59" // Cor verde-escura da imagem
-              radius={[4, 4, 0, 0]} 
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+          <Legend 
+            verticalAlign="top" 
+            align="right"
+            iconType="circle"
+            wrapperStyle={{ paddingBottom: '20px', fontSize: '12px', fontWeight: 500 }} 
+          />
+          
+          {/* Barras com cores mais modernas (Indigo e Emerald) */}
+          <Bar 
+            dataKey="Consultas" 
+            fill="#6366f1" // Indigo-500
+            radius={[4, 4, 4, 4]} 
+            barSize={32}
+          />
+          <Bar 
+            dataKey="Cirurgias" 
+            fill="#10b981" // Emerald-500
+            radius={[4, 4, 4, 4]} 
+            barSize={32}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

@@ -1,72 +1,88 @@
-import Home from "@/app/page";
-import Link from 'next/link';
+"use client";
+
+import React from "react";
 import CardBaseDash from "@/components/Dashboard/CardBaseDash";
-import { Calendar, Dog, Users, ArrowUp, BuildingIcon, CrossIcon } from "lucide-react";
+import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import CargaTrabalhoChart from "@/components/Dashboard/CargaTrabalhoGrafico";
-import AgendaDoDia from "@/components/Dashboard/AgendaDoDia";
+// Importando ícones. Note o 'Stethoscope' para cirurgias.
+import { Calendar, Dog, Users, Building2, Activity, Stethoscope } from "lucide-react";
 
 export default function AdminPage(){
-
-return (
-  <>
-  {/*Cabeçalho*/}
-    <div>
-      <h1 className="text-2xl font-bold mb-4 text-green-700">Dashboard ADM</h1>
-      <p className= "text-green-800">Bem-vindo à seção de administração do painel</p>
-    </div>
-
-{/* Cards de Resumo (CardBaseDash) */}
-    <div className= "flex flex-wrap gap-3 mt-1">
-
-      <CardBaseDash
-        title="Consultas Hoje"
-        value={150}
-        subtitle="Agendadas para hoje"
-        icon={<Calendar/>}
+  return (
+    <div className="max-w-7xl mx-auto space-y-8">
+      
+      <PageHeader 
+        title="Dashboard Administrativo"
+        description="Visão geral de desempenho e métricas da clínica."
       />
 
-      <CardBaseDash
-        title="Animais Castrados"
-        value={75}
-        subtitle="Total desde o início"
-        icon={<CrossIcon/>}
-      />
+      {/* Grid de Cards */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <CardBaseDash
+          title="Consultas Hoje"
+          value={150}
+          subtitle="Agendadas para hoje"
+          icon={Calendar}
+          color="blue"
+          trend="+12% vs ontem"
+        />
 
-      <CardBaseDash
-        title="Animais Cadastrados"
-        value={20}
-        subtitle="Total desde o início"
-        icon={<Dog/>}
-      />
+        <CardBaseDash
+          title="Cirurgias (Mês)"
+          value={75}
+          subtitle="Realizadas em Novembro"
+          icon={Activity}
+          color="purple"
+        />
 
-      <CardBaseDash
-        title="ONG's Cadastradas"
-        value={20}
-        subtitle="Organizações parceiras"
-        icon= {<BuildingIcon/>}
-      />
+        <CardBaseDash
+          title="Novos Animais"
+          value={20}
+          subtitle="Cadastrados este mês"
+          icon={Dog}
+          color="green"
+          trend="+5 novos"
+        />
 
-      <CardBaseDash
-        title="Este Mês"
-        value={20}
-        subtitle="Cirurgias Realizadas"
-        icon= {<ArrowUp/>}
-      />
+        <CardBaseDash
+          title="Parceiros (ONGs)"
+          value={8}
+          subtitle="Instituições ativas"
+          icon={Building2}
+          color="indigo"
+        />
 
-      <CardBaseDash
-        title="Responsáveis Cadastrados"
-        value={20}
-        subtitle="Total desde o início"
-        icon= {<Users/>}
-      />
+        {/* Substituição Realizada: Faturamento -> Total de Cirurgias */}
+        <CardBaseDash
+          title="Total de Cirurgias"
+          value={842}
+          subtitle="Acumulado do Ano"
+          icon={Stethoscope}
+          color="purple" // Roxo para indicar procedimento médico/cirúrgico
+        />
+
+        <CardBaseDash
+          title="Base de Usuários"
+          value={340}
+          subtitle="Tutores registrados"
+          icon={Users}
+          color="blue"
+        />
+      </section>
+
+      {/* Seção do Gráfico com estilo unificado */}
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-900">Produtividade da Equipe</h3>
+          <p className="text-sm text-gray-500">Comparativo de consultas e procedimentos por profissional.</p>
         </div>
-
-      {/* Gráfico de Carga de Trabalho */}
-      <div className="mt-6">
-        <CargaTrabalhoChart />
-      </div>  
-
-  </>
-);
-
+        
+        {/* Altura fixa para o gráfico renderizar corretamente */}
+        <div className="w-full h-[350px]">
+          <CargaTrabalhoChart />
+        </div>
+      </section>  
+    </div>
+  );
 }

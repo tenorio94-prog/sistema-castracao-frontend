@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { Plus, Dog, Search, PawPrint } from 'lucide-react';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import PetCard, { Pet } from '@/components/AtendenteComponents/PetCard';
+import PetCard, { Pet } from '@/components/CRUD/PetCard';
 import CadastroModal from '@/components/modals/CadastroModal';
 import ViewModal from '@/components/modals/ViewModal';
 

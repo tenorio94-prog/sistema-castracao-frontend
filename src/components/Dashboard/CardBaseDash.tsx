@@ -28,7 +28,7 @@ export default function CardBaseDash({
   };
 
   return (
-    <div className="flex-1 min-w-[240px] bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="flex-1 min-w-60 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-500">{title}</p>

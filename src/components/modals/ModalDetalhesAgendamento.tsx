@@ -5,7 +5,6 @@ import React from 'react';
 import { X, User, Dog, CalendarCheck, AlertCircle } from 'lucide-react';
 import { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard'; 
 
-// --- Sub-componentes Visuais ---
 const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (
   <div className="flex items-center gap-2 mb-3 text-gray-900">
     <div className="p-1.5 bg-gray-100 rounded-lg text-gray-600">{icon}</div>
@@ -16,7 +15,8 @@ const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ ico
 const DetailItem: React.FC<{ label: string; value: string | undefined }> = ({ label, value }) => (
   <div className="flex flex-col">
     <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</span>
-    <span className="text-sm font-medium text-gray-800 break-words">{value || '—'}</span>
+    {/* CORREÇÃO AQUI: Alterado 'break-words' para 'break-all' para evitar erros de lint e quebra de layout */}
+    <span className="text-sm font-medium text-gray-800 break-all">{value || '—'}</span>
   </div>
 );
 
@@ -28,7 +28,6 @@ const formatarData = (dataString: string) => {
   return dataString; 
 };
 
-// --- Props ---
 type ModalDetalhesProps = {
   isOpen: boolean;
   agendamento: Agendamento | null;
@@ -50,7 +49,6 @@ export default function ModalDetalhesAgendamento({
   const { responsavel, pet, tipo, data, hora, observacoes, status } = agendamento;
   const isPendente = status === 'Pendente';
   
-  // Badges mais suaves
   const statusStyles: { [key: string]: string } = {
     Pendente: 'bg-amber-50 text-amber-700 border-amber-100',
     Concluído: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -60,7 +58,6 @@ export default function ModalDetalhesAgendamento({
 
   return (
     <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 flex flex-col max-h-[90vh]">
         
         {/* Header */}
@@ -79,11 +76,10 @@ export default function ModalDetalhesAgendamento({
           </div>
         </div>
 
-        {/* Corpo Scrollável */}
+        {/* Corpo */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Bloco 1: Responsável */}
             <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
               <SectionHeader icon={<User size={16} />} title="Responsável" />
               <div className="space-y-3">
@@ -96,7 +92,6 @@ export default function ModalDetalhesAgendamento({
               </div>
             </div>
 
-            {/* Bloco 2: Animal */}
             <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
               <SectionHeader icon={<Dog size={16} />} title="Paciente" />
               <div className="grid grid-cols-2 gap-4">
@@ -109,7 +104,6 @@ export default function ModalDetalhesAgendamento({
               </div>
             </div>
 
-            {/* Bloco 3: Dados do Agendamento (Largura Total) */}
             <div className="lg:col-span-2 bg-blue-50/30 p-5 rounded-xl border border-blue-100/50">
               <SectionHeader icon={<CalendarCheck size={16} />} title="Dados do Serviço" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -127,7 +121,7 @@ export default function ModalDetalhesAgendamento({
           </div>
         </div>
 
-        {/* Footer de Ações */}
+        {/* Footer */}
         <div className="p-6 border-t border-gray-100 bg-gray-50/30 rounded-b-2xl flex justify-end gap-3">
           <button
             type="button"
