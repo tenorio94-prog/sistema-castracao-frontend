@@ -2,30 +2,21 @@
 "use client";
 
 import React from 'react';
-import { X, User, Dog, ClipboardList } from 'lucide-react';
-// Importa os tipos do Card
-import { Agendamento } from '../AtendenteComponents/AgendamentoCard'; 
+import { X, User, Dog, CalendarCheck, AlertCircle } from 'lucide-react';
+import { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard'; 
 
-// (Sub-componentes SectionHeader, DetailItem, formatarData... sem alteração)
-type SectionHeaderProps = {
-  icon: React.ReactNode;
-  title: string;
-};
-const SectionHeader: React.FC<SectionHeaderProps> = ({ icon, title }) => (
-  <div className="flex items-center gap-3 border-b border-gray-200 pb-2 mb-4">
-    <span className="text-green-600">{icon}</span>
-    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (
+  <div className="flex items-center gap-2 mb-3 text-gray-900">
+    <div className="p-1.5 bg-gray-100 rounded-lg text-gray-600">{icon}</div>
+    <h3 className="text-sm font-bold uppercase tracking-wide">{title}</h3>
   </div>
 );
 
-type DetailItemProps = {
-  label: string;
-  value: string | undefined;
-};
-const DetailItem: React.FC<DetailItemProps> = ({ label, value }) => (
-  <div>
-    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>
-    <p className="text-gray-800">{value || 'N/A'}</p>
+const DetailItem: React.FC<{ label: string; value: string | undefined }> = ({ label, value }) => (
+  <div className="flex flex-col">
+    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</span>
+    {/* CORREÇÃO AQUI: Alterado 'break-words' para 'break-all' para evitar erros de lint e quebra de layout */}
+    <span className="text-sm font-medium text-gray-800 break-all">{value || '—'}</span>
   </div>
 );
 
@@ -36,15 +27,12 @@ const formatarData = (dataString: string) => {
   }
   return dataString; 
 };
-// ---------------------------------------------
 
-// --- Props do Modal (ATUALIZADO) ---
 type ModalDetalhesProps = {
   isOpen: boolean;
   agendamento: Agendamento | null;
   onClose: () => void;
   onCheckIn: () => void;
-  // onEdit: () => void; // <-- REMOVIDO
   onCancelAgendamento: () => void;
 };
 
@@ -53,112 +41,103 @@ export default function ModalDetalhesAgendamento({
   agendamento,
   onClose,
   onCheckIn,
-  // onEdit, // <-- REMOVIDO
   onCancelAgendamento
 }: ModalDetalhesProps) {
   
-  if (!isOpen || !agendamento) {
-    return null;
-  }
+  if (!isOpen || !agendamento) return null;
 
   const { responsavel, pet, tipo, data, hora, observacoes, status } = agendamento;
   const isPendente = status === 'Pendente';
   
   const statusStyles: { [key: string]: string } = {
-    Pendente: 'bg-blue-100 text-blue-800',
-    Concluído: 'bg-gray-100 text-gray-800',
-    Confirmado: 'bg-green-100 text-green-800',
+    Pendente: 'bg-amber-50 text-amber-700 border-amber-100',
+    Concluído: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    Confirmado: 'bg-blue-50 text-blue-700 border-blue-100',
   };
-  const badgeStyle = statusStyles[status] || 'bg-gray-100 text-gray-800';
+  const badgeStyle = statusStyles[status] || 'bg-gray-50 text-gray-700 border-gray-100';
 
   return (
-    <div className="fixed inset-0 bg-white/75 backdrop-blur-sm flex justify-center items-center z-50 p-4 overflow-y-auto">
-      
-      <div 
-        className="relative bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl border border-gray-200"
-      >
-        {/* (Cabeçalho - sem alteração) */}
-        <div className="flex justify-between items-start mb-4">
+    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 flex flex-col max-h-[90vh]">
+        
+        {/* Header */}
+        <div className="flex justify-between items-start p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Detalhes do Agendamento</h2>
-            <p className="text-gray-500 mt-1">Visualise e gerencie informações importantes do agendamento</p>
+            <h2 className="text-xl font-bold text-gray-900">Detalhes do Agendamento</h2>
+            <p className="text-sm text-gray-500 mt-1">Protocolo #{agendamento.id}</p>
           </div>
           <div className="flex items-center gap-4">
-            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeStyle}`}>
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${badgeStyle}`}>
               {status}
             </span>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="text-gray-500 hover:text-gray-800"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
               <X size={24} />
             </button>
           </div>
         </div>
 
-        {/* (Corpo - Seções 1, 2, 3 - sem alteração) */}
-        <div className="space-y-6">
+        {/* Corpo */}
+        <div className="p-6 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="border border-gray-200 rounded-lg p-4">
-              <SectionHeader icon={<User size={20} />} title="Informações do Responsável" />
+            
+            <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
+              <SectionHeader icon={<User size={16} />} title="Responsável" />
               <div className="space-y-3">
-                <DetailItem label="Nome Completo" value={responsavel.nome} />
-                <DetailItem label="CPF" value={responsavel.cpf} />
-                <DetailItem label="Telefone" value={responsavel.telefone} />
+                <DetailItem label="Nome" value={responsavel.nome} />
+                <div className="grid grid-cols-2 gap-2">
+                  <DetailItem label="CPF" value={responsavel.cpf} />
+                  <DetailItem label="Telefone" value={responsavel.telefone} />
+                </div>
                 <DetailItem label="Email" value={responsavel.email} />
               </div>
             </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <SectionHeader icon={<Dog size={20} />} title="Informações do Animal" />
-              <div className="grid grid-cols-2 gap-3">
+
+            <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
+              <SectionHeader icon={<Dog size={16} />} title="Paciente" />
+              <div className="grid grid-cols-2 gap-4">
                 <DetailItem label="Nome" value={pet.name} />
                 <DetailItem label="Espécie" value={pet.species} />
                 <DetailItem label="Raça" value={pet.breed} />
+                <DetailItem label="Sexo" value={pet.gender} />
                 <DetailItem label="Idade" value={pet.age} />
                 <DetailItem label="Peso" value={pet.weight} />
-                <DetailItem label="Sexo" value={pet.gender} />
               </div>
             </div>
-          </div>
-          <div className="border border-gray-200 rounded-lg p-4">
-            <SectionHeader icon={<ClipboardList size={20} />} title="Informações do Agendamento" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <DetailItem label="Serviço Agendado" value={tipo} />
-              <DetailItem label="Data" value={formatarData(data)} />
-              <DetailItem label="Horário" value={hora} />
-            </div>
-            <div className="mt-4">
-              <DetailItem label="Observações" value={observacoes} />
-            </div>
-          </div>
 
-          {/* --- Seção 4: Ações (ATUALIZADO) --- */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Ações do Agendamento</h3>
-            <div className="flex flex-wrap items-center gap-3">
-              
-              {/* Botão de Editar REMOVIDO daqui */}
-              
-              <button
-                type="button"
-                onClick={onCancelAgendamento}
-                className="px-4 py-2 rounded-lg bg-red-100 text-red-700 font-semibold hover:bg-red-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={onCheckIn}
-                disabled={!isPendente}
-                className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors
-                           disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                Confirmar Check-in
-              </button>
+            <div className="lg:col-span-2 bg-blue-50/30 p-5 rounded-xl border border-blue-100/50">
+              <SectionHeader icon={<CalendarCheck size={16} />} title="Dados do Serviço" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <DetailItem label="Procedimento" value={tipo} />
+                <DetailItem label="Data" value={formatarData(data)} />
+                <DetailItem label="Horário" value={hora} />
+              </div>
+              {observacoes && (
+                <div className="mt-4 pt-4 border-t border-blue-100/50 flex gap-3">
+                  <AlertCircle size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                  <DetailItem label="Observações Clínicas" value={observacoes} />
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-100 bg-gray-50/30 rounded-b-2xl flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancelAgendamento}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            Cancelar Agendamento
+          </button>
+          <button
+            type="button"
+            onClick={onCheckIn}
+            disabled={!isPendente}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-lg shadow-gray-200"
+          >
+            Confirmar Check-in
+          </button>
         </div>
       </div>
     </div>

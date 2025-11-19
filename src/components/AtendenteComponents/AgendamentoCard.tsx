@@ -1,9 +1,7 @@
-// @/components/AtendenteComponents/AgendamentoCard.tsx
 import React from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Clock, MoreHorizontal, PawPrint, User } from 'lucide-react';
 
-// --- ATUALIZAÇÃO: "FONTE DA VERDADE" DOS TIPOS ---
-
+// --- TIPOS (Mantidos da sua versão original) ---
 export type Pet = {
   id: number;
   name: string;
@@ -15,8 +13,6 @@ export type Pet = {
   ownerName: string;
 };
 
-// 1. TIPO RESPONSAVEL (AGORA COMPLETO E CORRETO)
-// Alinhado com o seu formulário de cadastro (admin)
 export type Responsavel = {
   id: string;
   tipo: 'PF' | 'ONG';
@@ -39,74 +35,68 @@ export type Agendamento = {
   hora: string; 
   tipo: string;
   observacoes?: string;
-  pet: Pet; // Pet completo
-  responsavel: Responsavel; // Responsavel completo
+  pet: Pet;
+  responsavel: Responsavel;
 };
-// ------------------------------------------------
 
-// Props do Componente
-type AgendamentoCardProps = {
+interface AgendamentoCardProps {
   agendamento: Agendamento;
   onVerDetalhes: (agendamento: Agendamento) => void;
-};
-
-// Mapeamento de status
-const statusStyles: { [key: string]: string } = {
-  Pendente: 'bg-blue-100 text-blue-800',
-  Concluído: 'bg-gray-100 text-gray-800',
-};
-
-// Função de formatação de data
-const formatarData = (dataString: string) => {
-  if (dataString && dataString.includes('-') && dataString.length === 10) { 
-    const partes = dataString.split('-');
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-  return dataString; 
-};
+}
 
 export default function AgendamentoCard({ agendamento, onVerDetalhes }: AgendamentoCardProps) {
-  if (!agendamento) {
-    return null;
-  }
-  
-  const { id, petName, status, responsavel, data, hora, pet } = agendamento;
-  const badgeStyle = statusStyles[status] || 'bg-gray-100 text-gray-800';
-  
+  const { petName, status, responsavel, hora, tipo } = agendamento;
+
+  // Estilização dinâmica de status
+  const statusConfig = {
+    Pendente: "bg-amber-50 text-amber-700 border-amber-100",
+    Concluído: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    Cancelado: "bg-red-50 text-red-700 border-red-100",
+  } as const;
+
+  const currentStatusStyle = statusConfig[status as keyof typeof statusConfig] || "bg-gray-50 text-gray-700 border-gray-100";
+
   return (
-    <div className="border border-gray-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-      {/* (Informações) */}
-      <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-gray-800">{petName}</span>
-          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeStyle}`}>
-            {status}
-          </span>
+    <div className="group flex flex-col md:flex-row items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all duration-200">
+      
+      {/* Esquerda: Identificação do Pet e Dono */}
+      <div className="flex items-center gap-4 w-full md:w-1/3 mb-3 md:mb-0">
+        <div className="h-12 w-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+          <PawPrint size={20} />
         </div>
-        {/* 2. Mostra o nome do responsável (o tipo 'Responsavel' importado agora tem 'nome') */}
-        <span className="text-sm text-gray-600">
-          Responsável: <span className="font-medium text-gray-700">{responsavel.nome}</span>
-        </span>
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
-          <div className="flex items-center gap-1.5">
-            <Calendar size={14} />
-            <span>{formatarData(data)}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock size={14} />
-            <span>{hora}</span>
+        <div>
+          <h4 className="font-bold text-gray-900 text-base">{petName}</h4>
+          <div className="flex items-center gap-1 text-sm text-gray-500">
+            <User size={12} />
+            <span>{responsavel.nome.split(' ')[0]}</span> {/* Mostra só o primeiro nome */}
           </div>
         </div>
       </div>
-      
-      {/* Botão Simplificado */}
-      <div className="flex items-center gap-3">
+
+      {/* Centro: Tipo de Atendimento */}
+      <div className="w-full md:w-1/4 mb-3 md:mb-0 pl-0 md:pl-4">
+        <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Serviço</p>
+        <p className="text-sm font-medium text-gray-700">{tipo}</p>
+      </div>
+
+      {/* Direita: Hora, Status e Ação */}
+      <div className="flex items-center justify-between w-full md:w-auto gap-6">
+        <div className="flex items-center gap-2 text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+          <Clock size={14} />
+          <span className="text-sm font-medium">{hora}</span>
+        </div>
+        
+        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${currentStatusStyle}`}>
+          {status}
+        </span>
+
+        {/* Botão de Ação Discreto */}
         <button 
-          type="button"
-          onClick={() => onVerDetalhes(agendamento)} 
-          className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 font-semibold hover:bg-gray-50 transition-colors"
+          onClick={() => onVerDetalhes(agendamento)}
+          className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          title="Ver Detalhes"
         >
-          Ver Detalhes
+          <MoreHorizontal size={20} />
         </button>
       </div>
     </div>

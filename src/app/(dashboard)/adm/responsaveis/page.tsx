@@ -1,493 +1,325 @@
 ﻿"use client";
 
-import React, { useEffect, useState } from 'react';
-import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
+import React, { useEffect, useState, useMemo } from 'react';
+import { User, Building2 } from 'lucide-react';
+
 import CrudHeader from '@/components/CRUD/CrudHeader';
+import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
+// IMPORTAÇÃO ATUALIZADA
+import ResponsavelCardAdm, { ResponsavelAdmUI } from '@/components/CRUD/ResponsavelAdmCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
-import { PetOwnerService, PetOwner, UpdatePetOwnerDto } from '@/services/petowner.service';
-import { AuthService } from '@/services/auth.service';
-import { CreateUserDto, Role } from '@/types/auth.types';
-import { maskCPF, maskPhone, unmask, validateCPF, validatePhone } from '@/lib/masks';
+import { PetOwnerService, PetOwner, CreatePetOwnerData, UpdatePetOwnerData } from '@/services/petowner.service';
 
-type ResponsavelUI = {
-  id: number;
-  userId: number;
-  nome: string;
-  email: string;
-  cpf: string;
-  telefone: string;
-  endereco: string;
-  qtdAnimais: number;
-};
+// --- CONSTANTES E TIPOS ---
+const TYPE_MAP = { 'INDIVIDUAL': 'Pessoa Física', 'NGO': 'ONG' } as const;
+const TYPE_REVERSE_MAP = { 'Pessoa Física': 'INDIVIDUAL', 'ONG': 'NGO' } as const;
+
+type TipoResponsavel = 'Pessoa Física' | 'ONG';
+
+// Usando a tipagem do novo componente
+type Responsavel = ResponsavelAdmUI; 
 
 type ResponsavelForm = {
   nome: string;
-  email: string;
+  tipo: TipoResponsavel;
   cpf: string;
+  nis: string;
+  cnpj: string;
   telefone: string;
+  email: string;
   endereco: string;
   senha: string;
 };
 
 const emptyForm: ResponsavelForm = {
-  nome: '',
-  email: '',
-  cpf: '',
-  telefone: '',
-  endereco: '',
-  senha: '',
+  nome: '', tipo: 'Pessoa Física', cpf: '', nis: '', cnpj: '', telefone: '', email: '', endereco: '', senha: '',
 };
 
-export default function PaginaResponsaveis() {
-  const [responsaveis, setResponsaveis] = useState<ResponsavelUI[]>([]);
+const TipoBadge: React.FC<{ tipo: TipoResponsavel }> = ({ tipo }) => {
+  const isPF = tipo === 'Pessoa Física';
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${isPF ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}`}>
+      {tipo}
+    </span>
+  );
+};
+
+export default function PaginaGestaoResponsaveis() {
+  // --- ESTADOS ---
+  const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  
+  // Filtros
+  const [filterPF, setFilterPF] = useState(false);
+  const [filterONG, setFilterONG] = useState(false);
+
+  // Modais e Forms
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedResponsavel, setSelectedResponsavel] = useState<ResponsavelUI | null>(null);
-  const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
+  
+  const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
   const [editFormData, setEditFormData] = useState<ResponsavelForm | null>(null);
+  const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Carregar responsáveis do backend
-   */
+  // --- LOADERS ---
   const loadResponsaveis = async () => {
     try {
       setLoading(true);
       setError(null);
+      const response = await PetOwnerService.getAll();
+      const data = Array.isArray(response) ? response : response.data;
+      
+      const formatados: Responsavel[] = data.map((petOwner: PetOwner) => ({
+        id: petOwner.id,
+        nome: petOwner.name,
+        tipo: TYPE_MAP[petOwner.type] || 'Pessoa Física',
+        cpf: petOwner.cpf || '',
+        nis: petOwner.nis || '',
+        cnpj: petOwner.cnpj || '',
+        telefone: petOwner.phone || '',
+        email: petOwner.email || '',
+        endereco: petOwner.address || '',
+      }));
+      setResponsaveis(formatados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar responsáveis');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      console.log('🔄 Carregando responsáveis (PetOwners)...');
-      const data = await PetOwnerService.getAll();
+  useEffect(() => { loadResponsaveis(); }, []);
 
-      console.log('📦 Dados brutos do backend:', data);
-
-      const responsaveisFormatados: ResponsavelUI[] = data.map((petOwner: PetOwner) => {
-        console.log('🔍 PetOwner individual:', petOwner);
-        console.log('👤 User do petOwner:', petOwner.user);
+  // --- FILTRAGEM ---
+  const filteredResponsaveis = useMemo(() => {
+    return responsaveis.filter(resp => {
+      let match = true;
+      if (filterPF || filterONG) {
+        const isPF = resp.tipo === 'Pessoa Física';
+        const isONG = resp.tipo === 'ONG';
         
-        return {
-          id: petOwner.id,
-          userId: petOwner.userId,
-          nome: petOwner.user?.completeName || 'Nome não informado',
-          email: petOwner.user?.email || 'Email não informado',
-          cpf: petOwner.user?.cpf || '',
-          telefone: petOwner.user?.phone || '',
-          endereco: petOwner.fullAddress || '',
-          qtdAnimais: petOwner._count?.animals || 0,
-        };
-      });
-
-      console.log('✅ Responsáveis formatados:', responsaveisFormatados);
-      setResponsaveis(responsaveisFormatados);
-    } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao carregar responsáveis';
-      setError(errorMessage);
-      console.error('❌ Erro ao carregar responsáveis:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadResponsaveis();
-  }, []);
-
-  /**
-   * Colunas da tabela
-   */
-  const columns: ColumnDefinition<ResponsavelUI>[] = [
-    {
-      header: 'Nome',
-      cell: (item) => <span className="font-medium text-gray-900">{item.nome}</span>,
-    },
-    {
-      header: 'CPF',
-      cell: (item) => <span className="text-gray-700">{item.cpf ? maskCPF(item.cpf) : 'Não informado'}</span>,
-    },
-    {
-      header: 'Email',
-      cell: (item) => <span className="text-gray-700">{item.email}</span>,
-    },
-    {
-      header: 'Telefone',
-      cell: (item) => <span>{item.telefone ? maskPhone(item.telefone) : 'Não informado'}</span>,
-    },
-    {
-      header: 'Animais',
-      cell: (item) => (
-        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-          {item.qtdAnimais} {item.qtdAnimais === 1 ? 'animal' : 'animais'}
-        </span>
-      ),
-    },
-  ];
-
-  /**
-   * Visualizar detalhes
-   */
-  const handleView = (responsavel: ResponsavelUI) => {
-    setSelectedResponsavel(responsavel);
-    setIsViewModalOpen(true);
-  };
-
-  /**
-   * Editar responsável
-   */
-  const handleEdit = (responsavel: ResponsavelUI) => {
-    setEditFormData({
-      nome: responsavel.nome,
-      email: responsavel.email,
-      cpf: maskCPF(responsavel.cpf),
-      telefone: maskPhone(responsavel.telefone),
-      endereco: responsavel.endereco,
-      senha: '',
+        match = false;
+        if (filterPF && isPF) match = true;
+        if (filterONG && isONG) match = true;
+      }
+      return match;
     });
-    setSelectedResponsavel(responsavel);
-    setIsEditModalOpen(true);
+  }, [responsaveis, filterPF, filterONG]);
+
+  // --- HANDLERS ---
+  const handleView = (responsavel: Responsavel) => { setSelectedResponsavel(responsavel); setIsViewModalOpen(true); };
+  
+  const handleEdit = (responsavel: Responsavel) => {
+    setEditFormData({
+      nome: responsavel.nome, tipo: responsavel.tipo, cpf: responsavel.cpf || '', nis: responsavel.nis || '',
+      cnpj: responsavel.cnpj || '', telefone: responsavel.telefone || '', email: responsavel.email || '',
+      endereco: responsavel.endereco || '', senha: '',
+    });
+    setSelectedResponsavel(responsavel); setIsEditModalOpen(true);
   };
 
-  /**
-   * Deletar responsável
-   */
-  const handleDelete = async (responsavel: ResponsavelUI) => {
-    if (!window.confirm(`Tem certeza que deseja deletar o responsável ${responsavel.nome}?`)) {
-      return;
-    }
-
+  const handleDelete = async (responsavel: Responsavel) => {
+    if (!window.confirm(`Deletar ${responsavel.nome}?`)) return;
     try {
-      setLoading(true);
-      console.log(`🗑️ Deletando responsável userId: ${responsavel.userId}`);
-      await PetOwnerService.delete(responsavel.userId);
-      await loadResponsaveis();
-      alert('Responsável deletado com sucesso!');
-    } catch (err: any) {
-      console.error('❌ Erro ao deletar:', err);
-      alert(`Erro ao deletar responsável: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+      setLoading(true); await PetOwnerService.delete(responsavel.id); await loadResponsaveis();
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  /**
-   * Abrir modal de criação
-   */
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm);
-    setIsCreateModalOpen(true);
-  };
-
-  /**
-   * Salvar novo responsável
-   * 1. Cria User via POST /auth/register
-   * 2. PetOwner é criado automaticamente pelo backend
-   */
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       setLoading(true);
-      setError(null);
-
-      // Validações
-      if (!createFormData.nome.trim()) {
-        alert('Nome é obrigatório');
-        return;
-      }
-      if (!createFormData.email.trim()) {
-        alert('Email é obrigatório');
-        return;
-      }
-      if (!createFormData.senha || createFormData.senha.length < 6) {
-        alert('Senha deve ter no mínimo 6 caracteres');
-        return;
-      }
-      if (!validateCPF(createFormData.cpf)) {
-        alert('CPF inválido');
-        return;
-      }
-      if (!validatePhone(createFormData.telefone)) {
-        alert('Telefone inválido');
-        return;
-      }
-      if (!createFormData.endereco.trim()) {
-        alert('Endereço é obrigatório');
-        return;
-      }
-
-      // Criar usuário via AuthService (POST /auth/register)
-      const createUserDto: CreateUserDto = {
-        completeName: createFormData.nome,
-        email: createFormData.email,
+      const createData: CreatePetOwnerData = {
+        name: createFormData.nome, type: TYPE_REVERSE_MAP[createFormData.tipo] as any,
+        phone: createFormData.telefone, email: createFormData.email, address: createFormData.endereco,
         password: createFormData.senha,
-        cpf: unmask(createFormData.cpf),
-        phone: unmask(createFormData.telefone),
-        role: Role.petOwner,
-        address: createFormData.endereco,
       };
-
-      console.log('📤 Criando usuário responsável:', createUserDto);
-      await AuthService.register(createUserDto);
-
-      await loadResponsaveis();
-      setIsCreateModalOpen(false);
-      setCreateFormData(emptyForm);
-      alert('Responsável cadastrado com sucesso!');
-    } catch (err: any) {
-      console.error('❌ Erro ao cadastrar responsável:', err);
-      alert(`Erro ao cadastrar responsável: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+      if (createFormData.tipo === 'Pessoa Física') {
+        if (!createFormData.cpf) { alert('CPF obrigatório'); setLoading(false); return; }
+        createData.cpf = createFormData.cpf; createData.nis = createFormData.nis;
+      } else {
+        if (!createFormData.cnpj) { alert('CNPJ obrigatório'); setLoading(false); return; }
+        createData.cnpj = createFormData.cnpj;
+      }
+      await PetOwnerService.create(createData); await loadResponsaveis();
+      setIsCreateModalOpen(false); setCreateFormData(emptyForm);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  /**
-   * Salvar edição - Usa PATCH /pet-owner/:userId
-   */
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData || !selectedResponsavel) return;
-
     try {
       setLoading(true);
-
-      // Validações
-      if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
-        alert('CPF inválido');
-        return;
-      }
-      if (editFormData.telefone && !validatePhone(editFormData.telefone)) {
-        alert('Telefone inválido');
-        return;
-      }
-
-      const updateData: UpdatePetOwnerDto = {
-        completeName: editFormData.nome,
-        email: editFormData.email,
-        cpf: unmask(editFormData.cpf),
-        phone: unmask(editFormData.telefone),
-        fullAddress: editFormData.endereco,
+      const updateData: UpdatePetOwnerData = {
+        name: editFormData.nome, type: TYPE_REVERSE_MAP[editFormData.tipo] as any,
+        phone: editFormData.telefone, email: editFormData.email, address: editFormData.endereco,
       };
-
-      // Só inclui senha se foi preenchida
-      if (editFormData.senha && editFormData.senha.trim() !== '') {
-        updateData.password = editFormData.senha;
-      }
-
-      console.log('📤 Atualizando responsável:', updateData);
-      await PetOwnerService.update(selectedResponsavel.userId, updateData);
-
-      await loadResponsaveis();
-      setIsEditModalOpen(false);
-      setSelectedResponsavel(null);
-      alert('Responsável atualizado com sucesso!');
-    } catch (err: any) {
-      console.error('❌ Erro ao atualizar responsável:', err);
-      alert(`Erro ao atualizar responsável: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+      if (editFormData.tipo === 'Pessoa Física') { updateData.cpf = editFormData.cpf; updateData.nis = editFormData.nis; } 
+      else { updateData.cnpj = editFormData.cnpj; }
+      if (editFormData.senha) updateData.password = editFormData.senha;
+      
+      await PetOwnerService.update(selectedResponsavel.id, updateData); await loadResponsaveis();
+      setIsEditModalOpen(false); setSelectedResponsavel(null);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  /**
-   * Handlers de input com máscaras
-   */
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
-    const masked = maskCPF(e.target.value);
-    if (isEdit) {
-      setEditFormData((prev) => (prev ? { ...prev, cpf: masked } : null));
-    } else {
-      setCreateFormData((prev) => ({ ...prev, cpf: masked }));
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
-    const masked = maskPhone(e.target.value);
-    if (isEdit) {
-      setEditFormData((prev) => (prev ? { ...prev, telefone: masked } : null));
-    } else {
-      setCreateFormData((prev) => ({ ...prev, telefone: masked }));
-    }
-  };
+  // --- COLUNAS ---
+  const columns: ColumnDefinition<Responsavel>[] = [
+    { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
+    { header: 'Tipo', cell: (item) => <TipoBadge tipo={item.tipo} /> },
+    { header: 'Documento', cell: (item) => <span className="text-gray-600 font-mono text-xs">{item.tipo === 'Pessoa Física' ? item.cpf || '-' : item.cnpj || '-'}</span> },
+    { header: 'Telefone', cell: (item) => <span className="text-gray-600">{item.telefone || '-'}</span> },
+    { header: 'Email', cell: (item) => <span className="text-gray-600">{item.email || '-'}</span> },
+  ];
 
   return (
-    <div className="space-y-4">
-      
-      {/* Mensagem de erro */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      <CrudHeader
-        title="Gerenciar Responsáveis"
+    <div className="max-w-7xl mx-auto">
+      <CrudHeader 
+        title="Gestão de Responsáveis"
+        description="Cadastre e gerencie os tutores e ONGs parceiras."
         buttonText="Cadastrar Responsável"
-        onButtonClick={handleOpenCreate} 
+        onButtonClick={() => setIsCreateModalOpen(true)}
       />
-      
-      <CrudDisplay<ResponsavelUI>
-        data={responsaveis}
+
+      {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
+
+      <CrudDisplay
+        data={filteredResponsaveis}
         columns={columns}
-        searchPlaceholder="Buscar por nome, CPF ou email..."
-        emptyMessage="Nenhum responsável cadastrado."
+        searchPlaceholder="Buscar por nome, documento ou email..."
+        emptyMessage="Nenhum responsável encontrado."
         isLoading={loading}
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        
+        // FILTROS EXTRAS
+        extraFilters={
+          <>
+             <button onClick={() => setFilterPF(!filterPF)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterPF ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <User size={16} /> Pessoa Física
+              </button>
+              <button onClick={() => setFilterONG(!filterONG)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterONG ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <Building2 size={16} /> ONG
+              </button>
+          </>
+        }
+
+        // GRID VIEW (Usando o novo componente)
+        renderGrid={(items) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map(resp => (
+              <ResponsavelCardAdm
+                key={resp.id} 
+                responsavel={resp} 
+                onView={handleView} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete} 
+              />
+            ))}
+          </div>
+        )}
       />
-      
-      {/* Modal de Visualização */}
-      <ViewModal
-        isOpen={isViewModalOpen && !!selectedResponsavel}
-        onClose={() => setIsViewModalOpen(false)}
-        title="Detalhes do Responsável"
-      >
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Nome:</label>
-          <p className="text-gray-800">{selectedResponsavel?.nome || 'Não informado'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Email:</label>
-          <p className="text-gray-800">{selectedResponsavel?.email || 'Não informado'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">CPF:</label>
-          <p className="text-gray-800">{selectedResponsavel?.cpf ? maskCPF(selectedResponsavel.cpf) : 'Não informado'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Telefone:</label>
-          <p className="text-gray-800">{selectedResponsavel?.telefone ? maskPhone(selectedResponsavel.telefone) : 'Não informado'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Endereço:</label>
-          <p className="text-gray-800">{selectedResponsavel?.endereco || 'Não informado'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Quantidade de Animais:</label>
-          <p className="text-gray-800">{selectedResponsavel?.qtdAnimais || 0}</p>
+
+      {/* --- MODAL VIEW --- */}
+      <ViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalhes do Responsável">
+        <div className="space-y-4">
+           <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+             <div className={`h-16 w-16 rounded-full flex items-center justify-center ${selectedResponsavel?.tipo === 'ONG' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+               {selectedResponsavel?.tipo === 'ONG' ? <Building2 size={32}/> : <User size={32}/>}
+             </div>
+             <div>
+               <h3 className="text-lg font-bold text-gray-900">{selectedResponsavel?.nome}</h3>
+               <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase ${selectedResponsavel?.tipo === 'ONG' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{selectedResponsavel?.tipo}</span>
+             </div>
+           </div>
+           
+           <div className="grid grid-cols-2 gap-4">
+              {selectedResponsavel?.tipo === 'Pessoa Física' ? (
+                <>
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedResponsavel?.cpf || '-'}</p></div>
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">NIS</label><p className="font-medium">{selectedResponsavel?.nis || '-'}</p></div>
+                </>
+              ) : (
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">CNPJ</label><p className="font-medium">{selectedResponsavel?.cnpj || '-'}</p></div>
+              )}
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+              <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedResponsavel?.telefone || '-'}</p></div>
+              <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedResponsavel?.email || '-'}</p></div>
+           </div>
+           <div><label className="text-xs font-bold text-gray-400 uppercase">Endereço</label><p className="font-medium text-gray-900">{selectedResponsavel?.endereco || '-'}</p></div>
         </div>
       </ViewModal>
 
-      {/* Modal de Edição */}
-      <CadastroModal
-        isOpen={isEditModalOpen && !!editFormData}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleEditSave}
-        title="Editar Responsável"
-        saveText="Salvar Alterações"
-      >
-        <FormInput
-          label="Nome:"
-          name="nome"
-          value={editFormData?.nome || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, nome: e.target.value } : null)}
-          required
-        />
-        <FormInput
-          label="Email:"
-          name="email"
-          type="email"
-          value={editFormData?.email || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, email: e.target.value } : null)}
-          required
-        />
-        <FormInput
-          label="CPF:"
-          name="cpf"
-          value={editFormData?.cpf || ''}
-          onChange={(e) => handleCPFChange(e, true)}
-          placeholder="000.000.000-00"
-          maxLength={14}
-        />
-        <FormInput
-          label="Telefone:"
-          name="telefone"
-          value={editFormData?.telefone || ''}
-          onChange={(e) => handlePhoneChange(e, true)}
-          placeholder="(00) 00000-0000"
-          maxLength={15}
-        />
-        <FormInput
-          label="Endereço:"
-          name="endereco"
-          value={editFormData?.endereco || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, endereco: e.target.value } : null)}
-        />
-        <FormInput
-          label="Nova Senha:"
-          name="senha"
-          type="password" 
-          placeholder="Deixe em branco para não alterar"
-          value={editFormData?.senha || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
-        />
+      {/* --- MODAL CADASTRO --- */}
+      <CadastroModal isOpen={isCreateModalOpen} onClose={() => {setIsCreateModalOpen(false); setCreateFormData(emptyForm);}} onSubmit={handleCreateSave} title="Novo Responsável" saveText="Cadastrar">
+         <FormInput label="Nome Completo" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
+         
+         <div className="space-y-1">
+           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo de Cadastro</label>
+           <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900" value={createFormData.tipo} onChange={e => setCreateFormData({...createFormData, tipo: e.target.value as TipoResponsavel})}>
+             <option value="Pessoa Física">Pessoa Física</option>
+             <option value="ONG">ONG</option>
+           </select>
+         </div>
+
+         {createFormData.tipo === 'Pessoa Física' ? (
+            <div className="grid grid-cols-2 gap-4">
+               <FormInput label="CPF *" name="cpf" value={createFormData.cpf} onChange={e => setCreateFormData({...createFormData, cpf: e.target.value})} required />
+               <FormInput label="NIS" name="nis" value={createFormData.nis} onChange={e => setCreateFormData({...createFormData, nis: e.target.value})} />
+            </div>
+         ) : (
+            <FormInput label="CNPJ *" name="cnpj" value={createFormData.cnpj} onChange={e => setCreateFormData({...createFormData, cnpj: e.target.value})} required />
+         )}
+
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput label="Telefone" name="telefone" value={createFormData.telefone} onChange={e => setCreateFormData({...createFormData, telefone: e.target.value})} />
+            <FormInput label="Email" name="email" type="email" value={createFormData.email} onChange={e => setCreateFormData({...createFormData, email: e.target.value})} />
+         </div>
+         <FormInput label="Endereço" name="endereco" value={createFormData.endereco} onChange={e => setCreateFormData({...createFormData, endereco: e.target.value})} />
+         <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
       </CadastroModal>
 
-      {/* Modal de Cadastro */}
-      <CadastroModal
-        isOpen={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setCreateFormData(emptyForm);
-        }}
-        onSubmit={handleCreateSave}
-        title="Cadastrar Novo Responsável"
-        saveText="Cadastrar"
-      >
-        <FormInput
-          label="Nome:"
-          name="nome"
-          value={createFormData.nome}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, nome: e.target.value }))}
-          required
-        />
-        <FormInput
-          label="Email:"
-          name="email"
-          type="email"
-          value={createFormData.email}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, email: e.target.value }))}
-          required
-        />
-        <FormInput
-          label="CPF:"
-          name="cpf"
-          value={createFormData.cpf}
-          onChange={(e) => handleCPFChange(e, false)}
-          placeholder="000.000.000-00"
-          maxLength={14}
-          required
-        />
-        <FormInput
-          label="Telefone:"
-          name="telefone"
-          value={createFormData.telefone}
-          onChange={(e) => handlePhoneChange(e, false)}
-          placeholder="(00) 00000-0000"
-          maxLength={15}
-          required
-        />
-        <FormInput
-          label="Endereço:"
-          name="endereco"
-          value={createFormData.endereco}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, endereco: e.target.value }))}
-          placeholder="Rua, Número, Bairro, Cidade - Estado"
-          required
-        />
-        <FormInput
-          label="Senha:"
-          name="senha"
-          type="password"
-          value={createFormData.senha}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
-          placeholder="Mínimo 6 caracteres"
-          required
-        />
+      {/* --- MODAL EDIÇÃO --- */}
+      <CadastroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Responsável" saveText="Salvar">
+         <FormInput label="Nome Completo" name="nome" value={editFormData?.nome || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} />
+         
+         <div className="space-y-1">
+           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo</label>
+           <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={editFormData?.tipo} onChange={e => setEditFormData(prev => prev ? {...prev, tipo: e.target.value as TipoResponsavel} : null)}>
+             <option value="Pessoa Física">Pessoa Física</option>
+             <option value="ONG">ONG</option>
+           </select>
+         </div>
+
+         {editFormData?.tipo === 'Pessoa Física' ? (
+            <div className="grid grid-cols-2 gap-4">
+               <FormInput label="CPF" name="cpf" value={editFormData?.cpf || ''} onChange={e => setEditFormData(prev => prev ? {...prev, cpf: e.target.value} : null)} />
+               <FormInput label="NIS" name="nis" value={editFormData?.nis || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nis: e.target.value} : null)} />
+            </div>
+         ) : (
+            <FormInput label="CNPJ" name="cnpj" value={editFormData?.cnpj || ''} onChange={e => setEditFormData(prev => prev ? {...prev, cnpj: e.target.value} : null)} />
+         )}
+         
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput label="Telefone" name="telefone" value={editFormData?.telefone || ''} onChange={e => setEditFormData(prev => prev ? {...prev, telefone: e.target.value} : null)} />
+            <FormInput label="Email" name="email" type="email" value={editFormData?.email || ''} onChange={e => setEditFormData(prev => prev ? {...prev, email: e.target.value} : null)} />
+         </div>
+         <FormInput label="Endereço" name="endereco" value={editFormData?.endereco || ''} onChange={e => setEditFormData(prev => prev ? {...prev, endereco: e.target.value} : null)} />
+         
+         <div className="pt-4 border-t border-gray-100 mt-2">
+            <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
+            <FormInput label="Nova Senha" name="senha" type="password" value={editFormData?.senha || ''} onChange={e => setEditFormData(prev => prev ? {...prev, senha: e.target.value} : null)} />
+         </div>
       </CadastroModal>
+
     </div>
   );
 }

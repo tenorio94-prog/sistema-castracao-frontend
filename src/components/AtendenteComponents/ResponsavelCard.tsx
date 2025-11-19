@@ -1,10 +1,7 @@
 // @/components/AtendenteComponents/ResponsavelCard.tsx
 import React from 'react';
-import { User, Phone, Mail, MapPin, Dog } from 'lucide-react';
+import { Phone, Mail, MapPin, Dog, User, Building2, MoreHorizontal } from 'lucide-react';
 
-// --- ATUALIZAÇÃO ---
-// 1. Esta é agora a "Fonte da Verdade" para o tipo.
-// Nós o definimos e exportamos daqui.
 export type Responsavel = {
   id: string;
   tipo: 'PF' | 'ONG';
@@ -18,56 +15,60 @@ export type Responsavel = {
   email?: string;     
   endereco?: string;  
 };
-// --------------------
 
-// 2. Props do Componente (usa o tipo local)
 type ResponsavelCardProps = {
   responsavel: Responsavel;
   onVerDetalhes: (responsavel: Responsavel) => void;
 };
 
 export default function ResponsavelCard({ responsavel, onVerDetalhes }: ResponsavelCardProps) {
-  if (!responsavel) {
-    return null;
-  }
+  const { tipo, nome, telefone, email, animais } = responsavel;
 
-  // 3. 'animais' extraído (nome correto)
-  const { id, nome, cpf, telefone, email, endereco, animais } = responsavel;
+  const isONG = tipo === 'ONG';
 
   return (
-    <div className="border border-gray-200 rounded-lg p-5 shadow-sm bg-white flex flex-wrap items-center justify-between gap-6">
+    <div className="group relative flex flex-col md:flex-row md:items-center justify-between p-5 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all duration-200">
       
-      <div className="flex-1 min-w-[300px]">
-        <h3 className="text-xl font-bold text-gray-800 mb-3">{nome}</h3>
-        <div className="space-y-2 text-sm text-gray-600">
-          <DetailItem icon={<User size={14} />} label="CPF" value={cpf || 'N/A'} />
-          <DetailItem icon={<Phone size={14} />} label="Telefone" value={telefone || 'N/A'} />
-          <DetailItem icon={<Mail size={14} />} label="Email" value={email || 'N/A'} />
-          <DetailItem icon={<MapPin size={14} />} label="Endereço" value={endereco || 'N/A'} />
-          <DetailItem icon={<Dog size={14} />} label="Animais" value={animais.join(', ')} />
+      {/* Coluna 1: Identidade */}
+      <div className="flex items-start gap-4 w-full md:w-1/3 mb-4 md:mb-0">
+        <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${isONG ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+          {isONG ? <Building2 size={20} /> : <User size={20} />}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 text-base">{nome}</h3>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${isONG ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+              {tipo}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+            <Dog size={12} />
+            {animais.length > 0 ? animais.join(', ') : 'Sem pets cadastrados'}
+          </p>
         </div>
       </div>
-      
-      <div className="shrink-0">
+
+      {/* Coluna 2: Contato */}
+      <div className="flex flex-col gap-1 w-full md:w-1/3 mb-4 md:mb-0 md:pl-4 md:border-l border-gray-50">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Phone size={14} className="text-gray-400" />
+          <span>{telefone || 'Sem telefone'}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Mail size={14} className="text-gray-400" />
+          <span className="truncate max-w-[200px]">{email || 'Sem email'}</span>
+        </div>
+      </div>
+
+      {/* Coluna 3: Ação */}
+      <div className="flex justify-end w-full md:w-auto">
         <button 
-          type="button"
           onClick={() => onVerDetalhes(responsavel)} 
-          className="px-5 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
         >
-          Ver Detalhes
+          Ver Perfil
         </button>
       </div>
-    </div>
-  );
-}
-
-// Sub-componente
-function DetailItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-gray-500">{icon}</span>
-      <span className="font-medium">{label}:</span>
-      <span className="text-gray-700">{value}</span>
     </div>
   );
 }
