@@ -1,44 +1,90 @@
-// Localização: components/Sidebars/MedicoSidebarButtons.tsx
-
-import SidebarButton from "@/components/Buttons/SidebarButton";
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,         
+  SidebarGroupLabel,    
+} from "@/components/ui/sidebar";
+// import Link from "next/link"; 
 import { 
-  LayoutDashboardIcon, 
+  HomeIcon, 
   Calendar,
-  DogIcon,
-  SheetIcon // Exemplo de ícone para prontuário
-  // Adicione outros ícones necessários da 'lucide-react'
+  SearchIcon,
+  StethoscopeIcon,
+  SyringeIcon,
+  ClipboardListIcon,
+  BeakerIcon,
+  LayoutDashboardIcon
 } from "lucide-react";
 
+// --- Seção 1: Menu Principal ---
+// Alinhado com a hierarquia da imagem: Início é o primeiro botão após o Dashboard
+const menuPrincipalLinks = [
+  // Assumimos que /medico é a rota da Dashboard
+  { href: "/medico", icon: <LayoutDashboardIcon/>, label: "Dashboard" }, 
+  
+  // Mapeamos para a pasta 'atendimentos' (sua pasta de destino)
+  { href: "/medico/atendimentos", icon: <Calendar/>, label: "Atendimentos" }, 
+  
+  // Mapeamos para a pasta 'prontuarios'
+  { href: "/medico/prontuarios", icon: <SearchIcon/>, label: "Buscar Prontuários" },
+];
+
+// --- Seção 2: Fichas e Registros ---
+// Alinhado com as pastas do seu sistema:
+const fichasLinks = [
+  { href: "/medico/fichas-clinicas", icon: <StethoscopeIcon/>, label: "Fichas Clínicas" },
+  { href: "/medico/fichas-cirurgicas", icon: <SyringeIcon/>, label: "Fichas Cirúrgicas" },
+  { href: "/medico/fichas-anestesicas", icon: <ClipboardListIcon/>, label: "Fichas Anestésicas" },
+  { href: "/medico/exames", icon: <BeakerIcon/>, label: "Exames" }, // Assumimos que a pasta 'exames' existe
+];
+
+/**
+ * Componente MedicoSidebarButtons Padronizado e com links completos.
+ * CORREÇÃO: Usando <a> tag em vez de Next Link.
+ */
 export default function MedicoSidebarButtons() {
   return (
-    <nav className = "gap-2 flex flex-col">
-      {/* Exemplo de botões para o Médico */}
+    <>
+      {/* --- GRUPO: Menu Principal --- */}
+      <SidebarGroup>
+        <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+        <SidebarMenu>
+          {menuPrincipalLinks.map((link) => (
+            <SidebarMenuItem key={link.href}>
+              <SidebarMenuButton asChild>
+                <a 
+                  href={link.href}
+                  className="text-base" 
+                >
+                  {link.icon}
+                  <span>{link.label}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
 
-      <SidebarButton
-        href= "/medico"
-        icon = {<LayoutDashboardIcon/>}
-        label= "Dashboard"
-      />
-
-      <SidebarButton 
-        href= "/medico/agenda"
-        icon = {<Calendar/>}
-        label= "Minha Agenda"
-      />
-
-      <SidebarButton 
-        href= "/medico/pacientes"
-        icon = {<DogIcon/>}
-        label= "Pacientes"
-      />
-
-      <SidebarButton 
-        href= "/medico/prontuarios"
-        icon = {<SheetIcon/>}
-        label= "Prontuários"
-      />
-
-      {/* Adicione mais botões aqui */}
-    </nav>
+      {/* --- GRUPO: Fichas e Registros --- */}
+      <SidebarGroup>
+        <SidebarGroupLabel>Fichas e Registros</SidebarGroupLabel>
+        <SidebarMenu>
+          {fichasLinks.map((link) => (
+            <SidebarMenuItem key={link.href}>
+              <SidebarMenuButton asChild>
+                <a 
+                  href={link.href}
+                  className="text-base" 
+                >
+                  {link.icon}
+                  <span>{link.label}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    </>
   );
 }

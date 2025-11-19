@@ -63,19 +63,19 @@ export default function MedicoDashboardPage() {
             title="Animais Agendados"
             value={mockAppointments.length} 
             subtitle="Aguardando seu atendimento"
-            icon={<Dog size={24} />}
+            icon={Dog}
           />
           <CardBaseDash
             title="Cirurgias Agendadas"
             value={mockAppointments.filter(a => a.service.includes('Cirurgia')).length}
             subtitle="Cirurgias para hoje"
-            icon={<Stethoscope size={24} />}
+            icon={Stethoscope}
           />
           <CardBaseDash
             title="Atendimentos Realizados"
             value="0" 
             subtitle="Realizados por você hoje"
-            icon={<CheckCircle size={24} />}
+            icon={CheckCircle}
           />
           
         </div>
