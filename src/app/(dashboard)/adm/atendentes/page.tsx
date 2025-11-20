@@ -10,49 +10,28 @@ import AtendenteCard, { AtendenteUI } from '@/components/CRUD/AtendenteCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
+import { UserService, User } from '@/services/user.service';
+import { AuthService } from '@/services/auth.service';
+import { CreateUserDto, Role } from '@/types/auth.types';
 import { maskCPF, maskPhone, unmask, validateCPF } from '@/lib/masks';
-
-// --- MOCK SERVICE (Simulando Backend) ---
-// Isso substitui o AttendantService/AuthService temporariamente
-const MOCK_DB: AtendenteUI[] = [
-  { id: 1, userId: 101, nome: 'Ana Clara Souza', email: 'ana.clara@vet.com', cpf: '123.456.789-00', telefone: '(81) 98888-7777', ativo: true },
-  { id: 2, userId: 102, nome: 'João Pedro Silva', email: 'joao.pedro@vet.com', cpf: '987.654.321-11', telefone: '(81) 99999-0000', ativo: true },
-  { id: 3, userId: 103, nome: 'Mariana Oliveira', email: 'mariana.o@vet.com', cpf: '456.789.123-22', telefone: '(81) 97777-6666', ativo: false },
-];
-
-const MockAttendantService = {
-  getAll: async (): Promise<AtendenteUI[]> => {
-    return new Promise((resolve) => setTimeout(() => resolve([...MOCK_DB]), 600));
-  },
-  create: async (data: any): Promise<AtendenteUI> => {
-    return new Promise((resolve) => setTimeout(() => resolve({
-      id: Math.random(),
-      userId: Math.random(),
-      nome: data.nome,
-      email: data.email,
-      cpf: data.cpf,
-      telefone: data.telefone,
-      ativo: true
-    }), 600));
-  },
-  update: async (id: number, data: any): Promise<void> => {
-    return new Promise((resolve) => setTimeout(() => resolve(), 600));
-  },
-  delete: async (id: number): Promise<void> => {
-    return new Promise((resolve) => setTimeout(() => resolve(), 600));
-  }
-};
-// ----------------------------------------
 
 type AtendenteForm = {
   nome: string;
   email: string;
   cpf: string;
   telefone: string;
+  role: 'receptionist' | 'semas';
   senha: string;
 };
 
-const emptyForm: AtendenteForm = { nome: '', email: '', cpf: '', telefone: '', senha: '' };
+const emptyForm: AtendenteForm = { 
+  nome: '', 
+  email: '', 
+  cpf: '', 
+  telefone: '', 
+  role: 'receptionist',
+  senha: '' 
+};
 
 export default function PaginaAtendentes() {
   // --- ESTADOS ---
@@ -74,11 +53,28 @@ export default function PaginaAtendentes() {
     try {
       setLoading(true);
       setError(null);
-      // Chamada ao Mock
-      const data = await MockAttendantService.getAll();
-      setAtendentes(data);
+      
+      // Buscar todos os usuários
+      const allUsers = await UserService.getAll();
+      
+      // Filtrar apenas atendentes (receptionist e semas)
+      const attendants = UserService.filterAttendants(allUsers);
+      
+      // Formatar para o formato da UI
+      const formatados: AtendenteUI[] = attendants.map((user: User) => ({
+        id: user.id,
+        userId: user.id,
+        nome: user.completeName || 'Nome não informado',
+        email: user.email || 'Email não informado',
+        cpf: user.cpf || '',
+        telefone: user.phone || '',
+        ativo: true, // Backend não tem campo active para users simples
+      }));
+      
+      setAtendentes(formatados);
     } catch (err: any) {
-      setError('Erro ao carregar atendentes');
+      setError(err.message || 'Erro ao carregar atendentes');
+      console.error('Erro ao carregar atendentes:', err);
     } finally {
       setLoading(false);
     }
@@ -87,71 +83,139 @@ export default function PaginaAtendentes() {
   useEffect(() => { loadAtendentes(); }, []);
 
   // --- HANDLERS ---
-  const handleView = (item: AtendenteUI) => { setSelectedAtendente(item); setIsViewModalOpen(true); };
+  const handleView = (item: AtendenteUI) => { 
+    setSelectedAtendente(item); 
+    setIsViewModalOpen(true); 
+  };
 
   const handleEdit = (item: AtendenteUI) => {
     setEditFormData({
-      nome: item.nome, email: item.email, cpf: maskCPF(item.cpf), telefone: maskPhone(item.telefone), senha: ''
+      nome: item.nome, 
+      email: item.email, 
+      cpf: maskCPF(item.cpf), 
+      telefone: maskPhone(item.telefone),
+      role: 'receptionist',
+      senha: ''
     });
-    setSelectedAtendente(item); setIsEditModalOpen(true);
+    setSelectedAtendente(item); 
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = async (item: AtendenteUI) => {
     if (!window.confirm(`Deletar atendente ${item.nome}?`)) return;
     try {
       setLoading(true); 
-      await MockAttendantService.delete(item.userId); 
-      
-      // Atualização Otimista (Remove da lista localmente pois o Mock não persiste)
-      setAtendentes(prev => prev.filter(att => att.userId !== item.userId));
-      
-    } catch (err: any) { alert('Erro ao deletar'); } finally { setLoading(false); }
+      await UserService.delete(item.userId); 
+      await loadAtendentes();
+      alert('Atendente deletado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao deletar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      if (!validateCPF(createFormData.cpf)) { alert('CPF inválido'); setLoading(false); return; }
       
-      // Prepara dados
-      const newData = {
-        nome: createFormData.nome,
+      // Validações
+      if (!validateCPF(createFormData.cpf)) { 
+        alert('CPF inválido'); 
+        setLoading(false); 
+        return; 
+      }
+      
+      if (!createFormData.senha || createFormData.senha.length < 6) {
+        alert('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
+      
+      // Determinar a role correta - enviar o valor STRING direto
+      const selectedRole = createFormData.role; // 'receptionist' ou 'semas'
+      
+      // Criar via auth/register
+      const createUserDto = {
+        completeName: createFormData.nome,
         email: createFormData.email,
-        cpf: createFormData.cpf, // Mock aceita mascarado para exibição
-        telefone: createFormData.telefone,
-        senha: createFormData.senha
+        password: createFormData.senha,
+        cpf: unmask(createFormData.cpf),
+        phone: unmask(createFormData.telefone),
+        role: selectedRole, // Enviar como string direto
       };
       
-      // Envia para o Mock
-      const createdUser = await MockAttendantService.create(newData);
+      console.log('📤 Enviando dados para registro:', JSON.stringify(createUserDto, null, 2));
+      console.log('📤 Tipo da role:', typeof selectedRole, '| Valor:', selectedRole);
       
-      // Atualiza estado local
-      setAtendentes(prev => [...prev, createdUser]);
+      const result = await AuthService.register(createUserDto as CreateUserDto);
+      console.log('✅ Resultado do registro:', result);
       
-      setIsCreateModalOpen(false); setCreateFormData(emptyForm);
+      await loadAtendentes();
+      setIsCreateModalOpen(false);
+      setCreateFormData(emptyForm);
       alert('Atendente cadastrado com sucesso!');
-    } catch (err: any) { alert('Erro ao cadastrar'); } finally { setLoading(false); }
+    } catch (err: any) {
+      console.error('❌ Erro detalhado:', err);
+      console.error('❌ Response completo:', err.response);
+      console.error('❌ Response data:', err.response?.data);
+      console.error('❌ Response status:', err.response?.status);
+      alert(err.message || 'Erro ao cadastrar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData || !selectedAtendente) return;
+    
     try {
       setLoading(true);
       
-      await MockAttendantService.update(selectedAtendente.userId, editFormData);
+      // Validações
+      if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
+        alert('CPF inválido');
+        setLoading(false);
+        return;
+      }
       
-      // Atualiza estado local manualmente (pois o mock não persiste)
-      setAtendentes(prev => prev.map(att => 
-        att.userId === selectedAtendente.userId 
-          ? { ...att, nome: editFormData.nome, email: editFormData.email, cpf: editFormData.cpf, telefone: editFormData.telefone } 
-          : att
-      ));
+      if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
+        alert('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
       
-      setIsEditModalOpen(false); setSelectedAtendente(null);
+      // Montar objeto apenas com campos modificados
+      const updateData: any = {};
+      
+      if (editFormData.nome && editFormData.nome !== selectedAtendente.nome) {
+        updateData.completeName = editFormData.nome;
+      }
+      if (editFormData.email && editFormData.email !== selectedAtendente.email) {
+        updateData.email = editFormData.email;
+      }
+      if (editFormData.cpf && unmask(editFormData.cpf) !== selectedAtendente.cpf) {
+        updateData.cpf = unmask(editFormData.cpf);
+      }
+      if (editFormData.telefone && unmask(editFormData.telefone) !== selectedAtendente.telefone) {
+        updateData.phone = unmask(editFormData.telefone);
+      }
+      if (editFormData.senha && editFormData.senha.trim() !== '') {
+        updateData.password = editFormData.senha;
+      }
+      
+      await UserService.update(selectedAtendente.userId, updateData);
+      await loadAtendentes();
+      setIsEditModalOpen(false);
+      setSelectedAtendente(null);
       alert('Atendente atualizado com sucesso!');
-    } catch (err: any) { alert('Erro ao atualizar'); } finally { setLoading(false); }
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao atualizar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   // Inputs Controlados
@@ -247,13 +311,67 @@ export default function PaginaAtendentes() {
 
       {/* --- MODAL CADASTRO --- */}
       <CadastroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateSave} title="Cadastrar Atendente" saveText="Cadastrar">
-         <FormInput label="Nome Completo" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
-         <FormInput label="Email" name="email" type="email" value={createFormData.email} onChange={e => setCreateFormData({...createFormData, email: e.target.value})} required />
+         <FormInput 
+           label="Nome Completo" 
+           name="nome" 
+           value={createFormData.nome} 
+           onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} 
+           required 
+         />
+         
+         <FormInput 
+           label="Email" 
+           name="email" 
+           type="email" 
+           value={createFormData.email} 
+           onChange={e => setCreateFormData({...createFormData, email: e.target.value})} 
+           required 
+         />
+         
          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="CPF" name="cpf" value={createFormData.cpf} onChange={e => handleCPFChange(e, false)} placeholder="000.000.000-00" required />
-            <FormInput label="Telefone" name="telefone" value={createFormData.telefone} onChange={e => handlePhoneChange(e, false)} placeholder="(00) 00000-0000" required />
+            <FormInput 
+              label="CPF" 
+              name="cpf" 
+              value={createFormData.cpf} 
+              onChange={e => handleCPFChange(e, false)} 
+              placeholder="000.000.000-00" 
+              required 
+            />
+            <FormInput 
+              label="Telefone" 
+              name="telefone" 
+              value={createFormData.telefone} 
+              onChange={e => handlePhoneChange(e, false)} 
+              placeholder="(00) 00000-0000" 
+              required 
+            />
          </div>
-         <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
+         
+         <div className="space-y-1">
+           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo de Atendente</label>
+           <select 
+             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900" 
+             value={createFormData.role} 
+             onChange={e => setCreateFormData({...createFormData, role: e.target.value as 'receptionist' | 'semas'})}
+           >
+             <option value="receptionist">Recepcionista (HVU)</option>
+             <option value="semas">SEMAS (Cadastra Tutores)</option>
+           </select>
+           <p className="text-xs text-gray-500 mt-1">
+             {createFormData.role === 'receptionist' 
+               ? 'Recepcionista do HVU - agenda retornos e gerencia atendimentos' 
+               : 'Equipe SEMAS - cadastra tutores e animais'}
+           </p>
+         </div>
+         
+         <FormInput 
+           label="Senha de Acesso" 
+           name="senha" 
+           type="password" 
+           value={createFormData.senha} 
+           onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} 
+           required 
+         />
       </CadastroModal>
 
       {/* --- MODAL EDIÇÃO --- */}

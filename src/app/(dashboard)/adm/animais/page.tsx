@@ -1,4 +1,3 @@
-// app/adm/animais/page.tsx
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -11,75 +10,43 @@ import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
 
-import { AnimalService, Animal, CreateAnimalData, UpdateAnimalData } from '@/services/animal.service';
+import { AnimalService, Animal, CreateAnimalData, UpdateAnimalData, Gender, Species, GENDER_LABELS, SPECIES_LABELS } from '@/services/animal.service';
 import { PetOwnerService, PetOwner } from '@/services/petowner.service';
 
-// --- CONSTANTES E TIPOS ---
-const STATUS_MAP = {
-  'COMPLETED': 'Finalizado',
-  'PENDING_SCREENING': 'Triagem pendente',
-  'PENDING_RETURN': 'Retorno pendente',
-  'UNFIT': 'Inapto',
-} as const;
-
-const STATUS_REVERSE_MAP = {
-  'Finalizado': 'COMPLETED',
-  'Triagem pendente': 'PENDING_SCREENING',
-  'Retorno pendente': 'PENDING_RETURN',
-  'Inapto': 'UNFIT',
-} as const;
-
-const SEX_MAP = { 'MALE': 'Macho', 'FEMALE': 'Fêmea' } as const;
-const SEX_REVERSE_MAP = { 'Macho': 'MALE', 'Fêmea': 'FEMALE' } as const;
-
-type StatusAnimal = 'Finalizado' | 'Triagem pendente' | 'Retorno pendente' | 'Inapto';
-type SexoAnimal = 'Macho' | 'Fêmea';
-type EspecieAnimal = 'Cão' | 'Gato' | ''; // Restrição de tipo
-
+// --- TIPOS ---
 type AnimalUI = {
   id: string;
   nome: string;
   especie: string;
-  raca?: string;
-  idade?: number;
-  peso?: number;
-  sexo?: SexoAnimal;
-  status?: StatusAnimal;
+  raca: string;
+  idadeEstimada: string;
+  pesoTamanho: string;
+  sexo: string;
+  microchip: string;
   responsavelId: string;
-  responsavelNome?: string;
-  // Foto removida
+  responsavelNome: string;
 };
 
 type AnimalForm = {
-  nome: string; 
-  especie: EspecieAnimal; // Select restrito
-  raca: string; 
-  idade: string; 
-  peso: string; 
-  sexo: SexoAnimal; 
+  nome: string;
+  especie: Species | '';
+  raca: string;
+  idadeEstimada: string;
+  pesoTamanho: string;
+  sexo: Gender | '';
+  microchip: string;
   responsavelId: string;
 };
 
 const emptyForm: AnimalForm = {
-  nome: '', especie: '', raca: '', idade: '', peso: '', sexo: 'Macho', responsavelId: '',
-};
-
-// Badge de Status
-const StatusBadge: React.FC<{ status?: StatusAnimal }> = ({ status }) => {
-  const getClasses = () => {
-    switch (status) {
-      case 'Finalizado': return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-      case 'Triagem pendente': return 'bg-amber-50 text-amber-700 border border-amber-100';
-      case 'Retorno pendente': return 'bg-blue-50 text-blue-700 border border-blue-100';
-      case 'Inapto': return 'bg-red-50 text-red-700 border border-red-100';
-      default: return 'bg-gray-50 text-gray-700 border border-gray-100';
-    }
-  };
-  return (
-    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${getClasses()}`}>
-      {status || 'N/A'}
-    </span>
-  );
+  nome: '', 
+  especie: '', 
+  raca: '', 
+  idadeEstimada: '', 
+  pesoTamanho: '', 
+  sexo: '', 
+  microchip: '',
+  responsavelId: '',
 };
 
 export default function PaginaGestaoAnimais() {
@@ -90,7 +57,6 @@ export default function PaginaGestaoAnimais() {
   // Estados de Filtro
   const [filterDog, setFilterDog] = useState(false);
   const [filterCat, setFilterCat] = useState(false);
-  const [filterCastrated, setFilterCastrated] = useState(false);
 
   // Modais
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -108,23 +74,26 @@ export default function PaginaGestaoAnimais() {
   const loadAnimais = async () => {
     try {
       setLoading(true);
-      const response = await AnimalService.getAll();
-      const data = Array.isArray(response) ? response : response.data;
+      setError(null);
+      const data = await AnimalService.getAll();
+      
       const animaisFormatados: AnimalUI[] = data.map((animal: Animal) => ({
-        id: animal.id,
-        nome: animal.name,
-        especie: animal.species,
-        raca: animal.breed,
-        idade: animal.age,
-        peso: animal.weight,
-        sexo: animal.sex ? SEX_MAP[animal.sex] : undefined,
-        status: animal.status ? STATUS_MAP[animal.status] : undefined,
-        responsavelId: animal.petOwnerId,
-        responsavelNome: animal.petOwner?.name,
+        id: animal.id.toString(),
+        nome: animal.name || 'Sem nome',
+        especie: SPECIES_LABELS[animal.species],
+        raca: animal.breed || 'SRD',
+        idadeEstimada: animal.estimatedAge,
+        pesoTamanho: animal.sizeWeight,
+        sexo: GENDER_LABELS[animal.gender],
+        microchip: animal.microchipNumber || 'Não possui',
+        responsavelId: animal.petOwnerId.toString(),
+        responsavelNome: animal.petOwner?.user?.completeName || 'Sem responsável',
       }));
+      
       setAnimais(animaisFormatados);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar animais');
+      console.error('Erro ao carregar animais:', err);
     } finally {
       setLoading(false);
     }
@@ -132,99 +101,190 @@ export default function PaginaGestaoAnimais() {
 
   const loadResponsaveis = async () => {
     try {
-      const response = await PetOwnerService.getAll();
-      setResponsaveis(Array.isArray(response) ? response : response.data);
-    } catch (err) { console.error(err); }
+      const data = await PetOwnerService.getAll();
+      setResponsaveis(data);
+    } catch (err) { 
+      console.error('Erro ao carregar responsáveis:', err); 
+    }
   };
 
-  useEffect(() => { loadAnimais(); loadResponsaveis(); }, []);
+  useEffect(() => { 
+    loadAnimais(); 
+    loadResponsaveis(); 
+  }, []);
 
   // --- LÓGICA DE FILTRAGEM ---
   const filteredAnimais = useMemo(() => {
     return animais.filter(animal => {
-      // Normaliza para garantir match (Cão/Gato)
-      const especie = animal.especie; 
-      
       let speciesMatch = true;
+      
       if (filterDog && filterCat) {
-        speciesMatch = especie === 'Cão' || especie === 'Gato';
+        speciesMatch = animal.especie === 'Cachorro' || animal.especie === 'Gato';
       } else if (filterDog) {
-        speciesMatch = especie === 'Cão';
+        speciesMatch = animal.especie === 'Cachorro';
       } else if (filterCat) {
-        speciesMatch = especie === 'Gato';
+        speciesMatch = animal.especie === 'Gato';
       }
 
-      let statusMatch = true;
-      if (filterCastrated) {
-        statusMatch = animal.status === 'Finalizado';
-      }
-
-      return speciesMatch && statusMatch;
+      return speciesMatch;
     });
-  }, [animais, filterDog, filterCat, filterCastrated]);
+  }, [animais, filterDog, filterCat]);
 
   // --- HANDLERS ---
-  
-  const handleView = (animal: AnimalUI) => { setSelectedAnimal(animal); setIsViewModalOpen(true); };
+  const handleView = (animal: AnimalUI) => { 
+    setSelectedAnimal(animal); 
+    setIsViewModalOpen(true); 
+  };
   
   const handleEdit = (animal: AnimalUI) => {
+    // Converter de volta para os enums
+    const especieEnum = animal.especie === 'Cachorro' ? Species.dog : Species.cat;
+    const sexoEnum = animal.sexo === 'Macho' ? Gender.male : Gender.female;
+    
     setEditFormData({
-      nome: animal.nome, 
-      especie: animal.especie as EspecieAnimal, 
-      raca: animal.raca || '', 
-      idade: animal.idade?.toString() || '',
-      peso: animal.peso?.toString() || '', 
-      sexo: animal.sexo || 'Macho', 
+      nome: animal.nome === 'Sem nome' ? '' : animal.nome,
+      especie: especieEnum,
+      raca: animal.raca === 'SRD' ? '' : animal.raca,
+      idadeEstimada: animal.idadeEstimada,
+      pesoTamanho: animal.pesoTamanho,
+      sexo: sexoEnum,
+      microchip: animal.microchip === 'Não possui' ? '' : animal.microchip,
       responsavelId: animal.responsavelId,
     });
-    setSelectedAnimal(animal); setIsEditModalOpen(true);
+    setSelectedAnimal(animal); 
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = async (animal: AnimalUI) => {
     if (!window.confirm(`Deletar ${animal.nome}?`)) return;
     try {
-      setLoading(true); await AnimalService.delete(animal.id); await loadAnimais();
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+      setLoading(true); 
+      await AnimalService.delete(Number(animal.id)); 
+      await loadAnimais();
+      alert('Animal deletado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao deletar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
+      
+      // Validações
+      if (!createFormData.especie) {
+        alert('Espécie é obrigatória');
+        setLoading(false);
+        return;
+      }
+      
+      if (!createFormData.sexo) {
+        alert('Sexo é obrigatório');
+        setLoading(false);
+        return;
+      }
+      
+      if (!createFormData.idadeEstimada || createFormData.idadeEstimada.trim() === '') {
+        alert('Idade estimada é obrigatória');
+        setLoading(false);
+        return;
+      }
+      
+      if (!createFormData.pesoTamanho || createFormData.pesoTamanho.trim() === '') {
+        alert('Peso/Tamanho é obrigatório');
+        setLoading(false);
+        return;
+      }
+      
+      if (!createFormData.responsavelId) {
+        alert('Responsável é obrigatório');
+        setLoading(false);
+        return;
+      }
+      
       const createData: CreateAnimalData = {
-        name: createFormData.nome, species: createFormData.especie, breed: createFormData.raca || undefined,
-        age: createFormData.idade ? parseInt(createFormData.idade) : undefined,
-        weight: createFormData.peso ? parseFloat(createFormData.peso) : undefined,
-        sex: SEX_REVERSE_MAP[createFormData.sexo] as any, petOwnerId: createFormData.responsavelId,
+        name: createFormData.nome || undefined,
+        estimatedAge: createFormData.idadeEstimada,
+        species: createFormData.especie as Species,
+        gender: createFormData.sexo as Gender,
+        sizeWeight: createFormData.pesoTamanho,
+        breed: createFormData.raca || undefined,
+        microchipNumber: createFormData.microchip || undefined,
+        petOwnerId: Number(createFormData.responsavelId),
       };
-      await AnimalService.create(createData); await loadAnimais();
-      setIsCreateModalOpen(false); setCreateFormData(emptyForm);
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+      
+      await AnimalService.create(createData); 
+      await loadAnimais();
+      setIsCreateModalOpen(false); 
+      setCreateFormData(emptyForm);
+      alert('Animal cadastrado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao cadastrar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData || !selectedAnimal) return;
+    
     try {
       setLoading(true);
-      const updateData: UpdateAnimalData = {
-        name: editFormData.nome, species: editFormData.especie, breed: editFormData.raca || undefined,
-        age: editFormData.idade ? parseInt(editFormData.idade) : undefined,
-        weight: editFormData.peso ? parseFloat(editFormData.peso) : undefined,
-        sex: SEX_REVERSE_MAP[editFormData.sexo] as any, petOwnerId: editFormData.responsavelId,
-      };
-      await AnimalService.update(selectedAnimal.id, updateData); await loadAnimais();
-      setIsEditModalOpen(false); setSelectedAnimal(null);
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+      
+      // Montar objeto apenas com campos modificados
+      const updateData: UpdateAnimalData = {};
+      
+      if (editFormData.nome && editFormData.nome !== (selectedAnimal.nome === 'Sem nome' ? '' : selectedAnimal.nome)) {
+        updateData.name = editFormData.nome;
+      }
+      
+      if (editFormData.idadeEstimada && editFormData.idadeEstimada !== selectedAnimal.idadeEstimada) {
+        updateData.estimatedAge = editFormData.idadeEstimada;
+      }
+      
+      if (editFormData.pesoTamanho && editFormData.pesoTamanho !== selectedAnimal.pesoTamanho) {
+        updateData.sizeWeight = editFormData.pesoTamanho;
+      }
+      
+      if (editFormData.raca !== undefined) {
+        updateData.breed = editFormData.raca || undefined;
+      }
+      
+      if (editFormData.microchip !== undefined) {
+        updateData.microchipNumber = editFormData.microchip || undefined;
+      }
+      
+      if (editFormData.especie) {
+        updateData.species = editFormData.especie as Species;
+      }
+      
+      if (editFormData.sexo) {
+        updateData.gender = editFormData.sexo as Gender;
+      }
+      
+      await AnimalService.update(Number(selectedAnimal.id), updateData); 
+      await loadAnimais();
+      setIsEditModalOpen(false); 
+      setSelectedAnimal(null);
+      alert('Animal atualizado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao atualizar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const columns: ColumnDefinition<AnimalUI>[] = [
     { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
     { header: 'Espécie', cell: (item) => <span className="text-gray-600">{item.especie}</span> },
-    { header: 'Raça', cell: (item) => <span>{item.raca || '-'}</span> },
-    { header: 'Sexo', cell: (item) => <span>{item.sexo || '-'}</span> },
-    { header: 'Responsável', cell: (item) => <span className="text-blue-600 font-medium">{item.responsavelNome || '-'}</span> },
-    { header: 'Status', cell: (item) => <StatusBadge status={item.status} /> },
+    { header: 'Raça', cell: (item) => <span className="text-gray-600">{item.raca}</span> },
+    { header: 'Sexo', cell: (item) => <span className="text-gray-600">{item.sexo}</span> },
+    { header: 'Idade', cell: (item) => <span className="text-gray-600">{item.idadeEstimada}</span> },
+    { header: 'Responsável', cell: (item) => <span className="text-blue-600 font-medium">{item.responsavelNome}</span> },
   ];
 
   return (
@@ -258,9 +318,6 @@ export default function PaginaGestaoAnimais() {
               <button onClick={() => setFilterCat(!filterCat)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterCat ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                 <Cat size={16} /> Gatos
               </button>
-              <button onClick={() => setFilterCastrated(!filterCastrated)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterCastrated ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                <CheckCircle2 size={16} /> Castrados
-              </button>
           </>
         }
 
@@ -273,13 +330,12 @@ export default function PaginaGestaoAnimais() {
                   id: Number(animal.id) || 0,
                   name: animal.nome,
                   species: animal.especie,
-                  breed: animal.raca || '',
-                  gender: animal.sexo || '',
-                  weight: animal.peso ? `${animal.peso}kg` : 'N/A',
-                  age: animal.idade ? `${animal.idade} anos` : 'N/A',
-                  ownerName: animal.responsavelNome || '',
-                  status: animal.status === 'Finalizado' ? 'Castrado' : 'Em Tratamento',
-                  // Foto removida, PetCard deve usar placeholder interno se undefined
+                  breed: animal.raca,
+                  gender: animal.sexo,
+                  weight: animal.pesoTamanho,
+                  age: animal.idadeEstimada,
+                  ownerName: animal.responsavelNome,
+                  status: 'Em Tratamento',
                 }}
                 onVerProntuario={(pet) => {
                   const animalUI = animais.find(a => a.id === pet.id.toString());
@@ -292,13 +348,20 @@ export default function PaginaGestaoAnimais() {
         )}
       />
 
+      {/* --- MODAL VIEW --- */}
       <ViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title={`Detalhes: ${selectedAnimal?.nome}`}>
          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                <div><label className="text-xs font-bold text-gray-400 uppercase">Espécie</label><p className="font-medium">{selectedAnimal?.especie}</p></div>
                <div><label className="text-xs font-bold text-gray-400 uppercase">Raça</label><p className="font-medium">{selectedAnimal?.raca}</p></div>
-               <div><label className="text-xs font-bold text-gray-400 uppercase">Peso</label><p className="font-medium">{selectedAnimal?.peso}kg</p></div>
-               <div><label className="text-xs font-bold text-gray-400 uppercase">Idade</label><p className="font-medium">{selectedAnimal?.idade} anos</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div><label className="text-xs font-bold text-gray-400 uppercase">Sexo</label><p className="font-medium">{selectedAnimal?.sexo}</p></div>
+               <div><label className="text-xs font-bold text-gray-400 uppercase">Idade Estimada</label><p className="font-medium">{selectedAnimal?.idadeEstimada}</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div><label className="text-xs font-bold text-gray-400 uppercase">Peso/Tamanho</label><p className="font-medium">{selectedAnimal?.pesoTamanho}</p></div>
+               <div><label className="text-xs font-bold text-gray-400 uppercase">Microchip</label><p className="font-medium">{selectedAnimal?.microchip}</p></div>
             </div>
             <div className="pt-3 border-t border-gray-100">
                <label className="text-xs font-bold text-gray-400 uppercase">Responsável</label>
@@ -308,88 +371,191 @@ export default function PaginaGestaoAnimais() {
       </ViewModal>
 
       {/* --- MODAL DE CADASTRO --- */}
-      <CadastroModal isOpen={isCreateModalOpen} onClose={() => {setIsCreateModalOpen(false); setCreateFormData(emptyForm);}} onSubmit={handleCreateSave} title="Novo Animal" saveText="Cadastrar">
+      <CadastroModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => {setIsCreateModalOpen(false); setCreateFormData(emptyForm);}} 
+        onSubmit={handleCreateSave} 
+        title="Novo Animal" 
+        saveText="Cadastrar"
+      >
+         <FormInput 
+           label="Nome (Opcional)" 
+           name="nome" 
+           value={createFormData.nome} 
+           onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} 
+           placeholder="Ex: Rex"
+         />
+         
          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Nome" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
-            
-            {/* Select de Espécie Restrito */}
+            {/* Select de Espécie */}
             <div className="space-y-1">
                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Espécie *</label>
                <select 
                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 outline-none"
                  value={createFormData.especie} 
-                 onChange={e => setCreateFormData({...createFormData, especie: e.target.value as EspecieAnimal})}
+                 onChange={e => setCreateFormData({...createFormData, especie: e.target.value as Species})}
                  required
                >
                  <option value="">Selecione...</option>
-                 <option value="Cão">Cão</option>
-                 <option value="Gato">Gato</option>
+                 <option value={Species.dog}>Cachorro</option>
+                 <option value={Species.cat}>Gato</option>
                </select>
             </div>
-         </div>
-         <div className="grid grid-cols-2 gap-4">
-             <FormInput label="Raça" name="raca" value={createFormData.raca} onChange={e => setCreateFormData({...createFormData, raca: e.target.value})} />
-             <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Sexo</label>
-                <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={createFormData.sexo} onChange={e => setCreateFormData({...createFormData, sexo: e.target.value as SexoAnimal})}>
-                  <option value="Macho">Macho</option>
-                  <option value="Fêmea">Fêmea</option>
+            
+            {/* Select de Sexo */}
+            <div className="space-y-1">
+                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Sexo *</label>
+                <select 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none"
+                  value={createFormData.sexo} 
+                  onChange={e => setCreateFormData({...createFormData, sexo: e.target.value as Gender})}
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  <option value={Gender.male}>Macho</option>
+                  <option value={Gender.female}>Fêmea</option>
                 </select>
              </div>
          </div>
+         
          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Idade (anos)" name="idade" type="number" value={createFormData.idade} onChange={e => setCreateFormData({...createFormData, idade: e.target.value})} />
-            <FormInput label="Peso (kg)" name="peso" type="number" step="0.1" value={createFormData.peso} onChange={e => setCreateFormData({...createFormData, peso: e.target.value})} />
+             <FormInput 
+               label="Raça (Opcional)" 
+               name="raca" 
+               value={createFormData.raca} 
+               onChange={e => setCreateFormData({...createFormData, raca: e.target.value})} 
+               placeholder="Ex: SRD, Labrador"
+             />
+             <FormInput 
+               label="Microchip (Opcional)" 
+               name="microchip" 
+               value={createFormData.microchip} 
+               onChange={e => setCreateFormData({...createFormData, microchip: e.target.value})} 
+               placeholder="Ex: 123456789"
+             />
          </div>
+         
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput 
+              label="Idade Estimada *" 
+              name="idadeEstimada" 
+              value={createFormData.idadeEstimada} 
+              onChange={e => setCreateFormData({...createFormData, idadeEstimada: e.target.value})} 
+              placeholder="Ex: 2 anos, 6 meses"
+              required
+            />
+            <FormInput 
+              label="Peso/Tamanho *" 
+              name="pesoTamanho" 
+              value={createFormData.pesoTamanho} 
+              onChange={e => setCreateFormData({...createFormData, pesoTamanho: e.target.value})} 
+              placeholder="Ex: 15kg, Médio"
+              required
+            />
+         </div>
+         
          <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Responsável</label>
-            <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={createFormData.responsavelId} onChange={e => setCreateFormData({...createFormData, responsavelId: e.target.value})}>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Responsável *</label>
+            <select 
+              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none"
+              value={createFormData.responsavelId} 
+              onChange={e => setCreateFormData({...createFormData, responsavelId: e.target.value})}
+              required
+            >
                <option value="">Selecione...</option>
-               {responsaveis.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+               {responsaveis.map(r => (
+                 <option key={r.id} value={r.id}>
+                   {r.user?.completeName || `Responsável #${r.id}`}
+                 </option>
+               ))}
             </select>
          </div>
       </CadastroModal>
 
       {/* --- MODAL DE EDIÇÃO --- */}
-      <CadastroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Animal" saveText="Salvar">
-          <div className="grid grid-cols-2 gap-4">
-             <FormInput label="Nome" name="nome" value={editFormData?.nome || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} />
-             
-             {/* Select de Espécie na Edição */}
-             <div className="space-y-1">
-               <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Espécie *</label>
+      <CadastroModal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        onSubmit={handleEditSave} 
+        title="Editar Animal" 
+        saveText="Salvar"
+      >
+         <FormInput 
+           label="Nome" 
+           name="nome" 
+           value={editFormData?.nome || ''} 
+           onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} 
+         />
+         
+         <div className="grid grid-cols-2 gap-4">
+            {/* Select de Espécie */}
+            <div className="space-y-1">
+               <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Espécie</label>
                <select 
                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 outline-none"
                  value={editFormData?.especie || ''} 
-                 onChange={e => setEditFormData(prev => prev ? {...prev, especie: e.target.value as EspecieAnimal} : null)}
-                 required
+                 onChange={e => setEditFormData(prev => prev ? {...prev, especie: e.target.value as Species} : null)}
                >
                  <option value="">Selecione...</option>
-                 <option value="Cão">Cão</option>
-                 <option value="Gato">Gato</option>
+                 <option value={Species.dog}>Cachorro</option>
+                 <option value={Species.cat}>Gato</option>
                </select>
-             </div>
-          </div>
-           <div className="grid grid-cols-2 gap-4">
-             <FormInput label="Raça" name="raca" value={editFormData?.raca || ''} onChange={e => setEditFormData(prev => prev ? {...prev, raca: e.target.value} : null)} />
-             <div className="space-y-1">
+            </div>
+            
+            {/* Select de Sexo */}
+            <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Sexo</label>
-                <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={editFormData?.sexo} onChange={e => setEditFormData(prev => prev ? {...prev, sexo: e.target.value as SexoAnimal} : null)}>
-                  <option value="Macho">Macho</option>
-                  <option value="Fêmea">Fêmea</option>
+                <select 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none"
+                  value={editFormData?.sexo || ''} 
+                  onChange={e => setEditFormData(prev => prev ? {...prev, sexo: e.target.value as Gender} : null)}
+                >
+                  <option value="">Selecione...</option>
+                  <option value={Gender.male}>Macho</option>
+                  <option value={Gender.female}>Fêmea</option>
                 </select>
              </div>
          </div>
+         
          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Idade (anos)" name="idade" type="number" value={editFormData?.idade || ''} onChange={e => setEditFormData(prev => prev ? {...prev, idade: e.target.value} : null)} />
-            <FormInput label="Peso (kg)" name="peso" type="number" step="0.1" value={editFormData?.peso || ''} onChange={e => setEditFormData(prev => prev ? {...prev, peso: e.target.value} : null)} />
+             <FormInput 
+               label="Raça" 
+               name="raca" 
+               value={editFormData?.raca || ''} 
+               onChange={e => setEditFormData(prev => prev ? {...prev, raca: e.target.value} : null)} 
+             />
+             <FormInput 
+               label="Microchip" 
+               name="microchip" 
+               value={editFormData?.microchip || ''} 
+               onChange={e => setEditFormData(prev => prev ? {...prev, microchip: e.target.value} : null)} 
+             />
          </div>
+         
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput 
+              label="Idade Estimada" 
+              name="idadeEstimada" 
+              value={editFormData?.idadeEstimada || ''} 
+              onChange={e => setEditFormData(prev => prev ? {...prev, idadeEstimada: e.target.value} : null)} 
+            />
+            <FormInput 
+              label="Peso/Tamanho" 
+              name="pesoTamanho" 
+              value={editFormData?.pesoTamanho || ''} 
+              onChange={e => setEditFormData(prev => prev ? {...prev, pesoTamanho: e.target.value} : null)} 
+            />
+         </div>
+         
          <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Responsável</label>
-            <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={editFormData?.responsavelId} onChange={e => setEditFormData(prev => prev ? {...prev, responsavelId: e.target.value} : null)}>
-               <option value="">Selecione...</option>
-               {responsaveis.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Responsável (Somente Visualização)</label>
+            <input 
+              type="text"
+              className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm outline-none cursor-not-allowed"
+              value={responsaveis.find(r => r.id.toString() === editFormData?.responsavelId)?.user?.completeName || 'Não encontrado'}
+              disabled
+            />
+            <p className="text-xs text-gray-500 mt-1">O responsável não pode ser alterado após a criação.</p>
          </div>
       </CadastroModal>
     </div>
