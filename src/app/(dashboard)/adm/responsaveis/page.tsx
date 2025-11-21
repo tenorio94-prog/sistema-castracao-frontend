@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { User } from 'lucide-react';
+import { toast } from 'sonner';
 
 import CrudHeader from '@/components/CRUD/CrudHeader';
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
@@ -30,30 +31,28 @@ const emptyForm: ResponsavelForm = {
 };
 
 export default function PaginaGestaoResponsaveis() {
-  // --- ESTADOS ---
   const [responsaveis, setResponsaveis] = useState<ResponsavelAdmUI[]>([]);
-
-  // Modais e Forms
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  
+   
   const [selectedResponsavel, setSelectedResponsavel] = useState<ResponsavelAdmUI | null>(null);
   const [editFormData, setEditFormData] = useState<ResponsavelForm | null>(null);
   const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
-  
-  const [loading, setLoading] = useState(false);
+   
+  // 1. SEPARAÇÃO DOS ESTADOS DE LOADING
+  const [loadingTable, setLoadingTable] = useState(false); // Usado apenas para a tabela
+  const [loadingDetails, setLoadingDetails] = useState(false); // Usado para as ações de ver/editar
   const [error, setError] = useState<string | null>(null);
 
-  // --- LOADERS ---
   const loadResponsaveis = async () => {
     try {
-      setLoading(true);
+      setLoadingTable(true); // Usa loadingTable
       setError(null);
       const data = await PetOwnerService.getAll();
       
       const formatados: ResponsavelAdmUI[] = data.map((petOwner: PetOwner) => ({
-        id: petOwner.id.toString(),
+        id: petOwner.userId.toString(), 
         nome: petOwner.user?.completeName || 'Nome não informado',
         tipo: 'Pessoa Física' as const,
         cpf: petOwner.user?.cpf || '',
@@ -70,99 +69,97 @@ export default function PaginaGestaoResponsaveis() {
       setError(err.message || 'Erro ao carregar responsáveis');
       console.error('Erro ao carregar responsáveis:', err);
     } finally {
-      setLoading(false);
+      setLoadingTable(false); // Finaliza loadingTable
     }
   };
 
   useEffect(() => { loadResponsaveis(); }, []);
 
-  // --- HANDLERS ---
-  const handleView = (responsavel: ResponsavelAdmUI) => { 
-    setSelectedResponsavel(responsavel); 
-    setIsViewModalOpen(true); 
+  // Função auxiliar para buscar dados frescos
+  const fetchFullDetails = async (userId: string) => {
+    try {
+      setLoadingDetails(true); // 2. Usa loadingDetails (não afeta a tabela)
+      const fullData = await PetOwnerService.getById(Number(userId));
+      return fullData;
+    } catch (error) {
+      toast.error('Erro ao buscar detalhes atualizados do servidor.');
+      throw error;
+    } finally {
+      setLoadingDetails(false); // Finaliza loadingDetails
+    }
   };
-  
-  const handleEdit = (responsavel: ResponsavelAdmUI) => {
-    setEditFormData({
-      nome: responsavel.nome, 
-      cpf: maskCPF(responsavel.cpf || ''), 
-      nis: responsavel.nis || '',
-      telefone: maskPhone(responsavel.telefone || ''), 
-      email: responsavel.email || '',
-      endereco: responsavel.endereco || '', 
-      documentUrl: '',
-      senha: '',
-    });
-    setSelectedResponsavel(responsavel); 
-    setIsEditModalOpen(true);
+
+  const handleView = async (responsavel: ResponsavelAdmUI) => {
+    try {
+        // Opcional: Mostrar um toast de "Carregando..." se a conexão for lenta, 
+        // já que removemos o feedback visual da tabela.
+        const fullData = await fetchFullDetails(responsavel.id);
+        
+        const responsavelCompleto: ResponsavelAdmUI = {
+            ...responsavel,
+            telefone: fullData.user?.phone || responsavel.telefone,
+            nome: fullData.user?.completeName || responsavel.nome,
+            email: fullData.user?.email || responsavel.email,
+            endereco: fullData.fullAddress || responsavel.endereco,
+            cpf: fullData.user?.cpf || responsavel.cpf,
+            nis: fullData.nis || responsavel.nis
+        };
+
+        setSelectedResponsavel(responsavelCompleto);
+        setIsViewModalOpen(true);
+    } catch (error) {
+        console.error(error);
+    }
+  };
+   
+  const handleEdit = async (responsavel: ResponsavelAdmUI) => {
+    try {
+        const fullData = await fetchFullDetails(responsavel.id);
+
+        setEditFormData({
+            nome: fullData.user?.completeName || '',
+            cpf: maskCPF(fullData.user?.cpf || ''),
+            nis: fullData.nis || '',
+            telefone: maskPhone(fullData.user?.phone || ''), 
+            email: fullData.user?.email || '',
+            endereco: fullData.fullAddress || '',
+            documentUrl: fullData.documentUrl || '',
+            senha: '',
+        });
+        
+        setSelectedResponsavel(responsavel);
+        setIsEditModalOpen(true);
+    } catch (error) {
+        console.error(error);
+    }
   };
 
   const handleDelete = async (responsavel: ResponsavelAdmUI) => {
     if (!window.confirm(`Deletar ${responsavel.nome}?`)) return;
     try {
-      setLoading(true); 
-      // Buscar o petOwner para pegar o userId
-      const allData = await PetOwnerService.getAll();
-      const petOwner = allData.find(p => p.id.toString() === responsavel.id);
-      if (petOwner) {
-        await PetOwnerService.delete(petOwner.userId);
-        await loadResponsaveis();
-        alert('Responsável deletado com sucesso!');
-      } else {
-        alert('Erro: Responsável não encontrado');
-      }
+      setLoadingTable(true); // Aqui queremos bloquear a tabela pois ela vai mudar
+      await PetOwnerService.delete(Number(responsavel.id));
+      await loadResponsaveis(); // Já gerencia o loadingTable internamente, mas ok manter
+      toast.success('Responsável deletado com sucesso!');
     } catch (err: any) { 
-      alert(err.message); 
-    } finally { 
-      setLoading(false); 
+      toast.error(err.message); 
+      setLoadingTable(false);
     }
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setLoading(true);
+      setLoadingTable(true); // Bloqueia a tabela durante o salvamento
       
-      // Validações detalhadas
-      if (!createFormData.nome || createFormData.nome.trim() === '') {
-        alert('Nome completo é obrigatório');
-        setLoading(false);
-        return;
-      }
+      // ... (Validações mantidas igual) ...
+      if (!createFormData.nome?.trim()) { toast.error('Nome completo é obrigatório'); setLoadingTable(false); return; }
+      if (!createFormData.email?.trim()) { toast.error('Email é obrigatório'); setLoadingTable(false); return; }
+      if (!createFormData.cpf || !validateCPF(createFormData.cpf)) { toast.error('CPF inválido ou não preenchido'); setLoadingTable(false); return; }
+      if (!createFormData.telefone?.trim()) { toast.error('Telefone é obrigatório'); setLoadingTable(false); return; }
+      if (!createFormData.endereco?.trim()) { toast.error('Endereço completo é obrigatório'); setLoadingTable(false); return; }
+      if (!createFormData.senha || createFormData.senha.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres'); setLoadingTable(false); return; }
       
-      if (!createFormData.email || createFormData.email.trim() === '') {
-        alert('Email é obrigatório');
-        setLoading(false);
-        return;
-      }
-      
-      if (!createFormData.cpf || !validateCPF(createFormData.cpf)) { 
-        alert('CPF inválido ou não preenchido'); 
-        setLoading(false); 
-        return; 
-      }
-      
-      if (!createFormData.telefone || createFormData.telefone.trim() === '') {
-        alert('Telefone é obrigatório');
-        setLoading(false);
-        return;
-      }
-      
-      if (!createFormData.endereco || createFormData.endereco.trim() === '') {
-        alert('Endereço completo é obrigatório para responsáveis');
-        setLoading(false);
-        return;
-      }
-      
-      if (!createFormData.senha || createFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
-        setLoading(false);
-        return;
-      }
-      
-      // Criar usuário PetOwner via /auth/register
-      // O backend do AuthService DEVE criar automaticamente o PetOwner quando role=petOwner
-      // e fullAddress estiver presente
       const createUserDto: CreateUserDto = {
         completeName: createFormData.nome.trim(),
         email: createFormData.email.trim(),
@@ -170,32 +167,24 @@ export default function PaginaGestaoResponsaveis() {
         cpf: unmask(createFormData.cpf),
         phone: unmask(createFormData.telefone),
         role: Role.petOwner,
-        // Campos específicos para PetOwner
-        fullAddress: createFormData.endereco.trim(),
-        nis: createFormData.nis && createFormData.nis.trim() !== '' ? createFormData.nis.trim() : undefined,
-        documentUrl: createFormData.documentUrl && createFormData.documentUrl.trim() !== '' ? createFormData.documentUrl.trim() : undefined,
+        address: createFormData.endereco.trim(),
+        nis: createFormData.nis?.trim() || undefined,
+        documentUrl: createFormData.documentUrl?.trim() || undefined,
       };
       
-      console.log('📤 Criando responsável via /auth/register:', JSON.stringify(createUserDto, null, 2));
-      
-      const result = await AuthService.register(createUserDto);
-      console.log('✅ Responsável criado com sucesso:', result);
+      await AuthService.register(createUserDto);
       
       await loadResponsaveis();
       setIsCreateModalOpen(false);
       setCreateFormData(emptyForm);
-      alert('Responsável cadastrado com sucesso!');
+      toast.success('Responsável cadastrado com sucesso!');
     } catch (err: any) {
-      console.error('❌ Erro ao cadastrar responsável:', err);
-      console.error('❌ Response completo:', err.response);
-      console.error('❌ Response data:', err.response?.data);
-      console.error('❌ Response status:', err.response?.status);
-      
-      // Mensagem de erro mais específica
-      const errorMessage = err.response?.data?.message || err.message || 'Erro ao cadastrar responsável';
-      alert(errorMessage); 
+      console.error('❌ Erro ao cadastrar:', err);
+      const message = err.response?.data?.message;
+      const displayMessage = Array.isArray(message) ? message[0] : (message || err.message);
+      toast.error(`Erro ao cadastrar: ${displayMessage}`);
     } finally { 
-      setLoading(false); 
+      setLoadingTable(false); 
     }
   };
 
@@ -204,91 +193,49 @@ export default function PaginaGestaoResponsaveis() {
     if (!editFormData || !selectedResponsavel) return;
     
     try {
-      setLoading(true);
+      setLoadingTable(true); // Bloqueia tabela pois os dados vão mudar
       
-      // Validações
-      if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
-        alert('CPF inválido');
-        setLoading(false);
-        return;
-      }
+      // ... (Validações mantidas) ...
+      if (editFormData.cpf && !validateCPF(editFormData.cpf)) { toast.error('CPF inválido'); setLoadingTable(false); return; }
+      if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres'); setLoadingTable(false); return; }
       
-      if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
-        setLoading(false);
-        return;
-      }
-      
-      if (editFormData.endereco && editFormData.endereco.trim() === '') {
-        alert('Endereço não pode ser vazio');
-        setLoading(false);
-        return;
-      }
-      
-      // Buscar o petOwner para pegar o userId
-      const allData = await PetOwnerService.getAll();
-      const petOwner = allData.find(p => p.id.toString() === selectedResponsavel.id);
-      
-      if (!petOwner) {
-        alert('Erro: Responsável não encontrado');
-        setLoading(false);
-        return;
-      }
-      
-      // Monta o objeto apenas com campos modificados
       const updateData: UpdatePetOwnerData = {};
       
-      // Campos do User
-      if (editFormData.nome && editFormData.nome.trim() !== '' && editFormData.nome !== selectedResponsavel.nome) {
-        updateData.completeName = editFormData.nome.trim();
-      }
-      if (editFormData.email && editFormData.email.trim() !== '' && editFormData.email !== selectedResponsavel.email) {
-        updateData.email = editFormData.email.trim();
-      }
-      if (editFormData.cpf && unmask(editFormData.cpf) !== selectedResponsavel.cpf) {
-        updateData.cpf = unmask(editFormData.cpf);
-      }
-      if (editFormData.telefone && unmask(editFormData.telefone) !== selectedResponsavel.telefone) {
-        updateData.phone = unmask(editFormData.telefone);
-      }
-      if (editFormData.senha && editFormData.senha.trim() !== '') {
-        updateData.password = editFormData.senha;
-      }
+      if (editFormData.nome) updateData.completeName = editFormData.nome.trim();
+      if (editFormData.email) updateData.email = editFormData.email.trim();
+      if (editFormData.cpf) updateData.cpf = unmask(editFormData.cpf);
+      if (editFormData.telefone) updateData.phone = unmask(editFormData.telefone);
+      if (editFormData.senha?.trim()) updateData.password = editFormData.senha;
+      if (editFormData.endereco) updateData.fullAddress = editFormData.endereco.trim();
+      if (editFormData.documentUrl?.trim()) updateData.documentUrl = editFormData.documentUrl.trim();
       
-      // Campos do PetOwner
-      if (editFormData.endereco && editFormData.endereco !== selectedResponsavel.endereco) {
-        updateData.fullAddress = editFormData.endereco;
-      }
-      if (editFormData.documentUrl && editFormData.documentUrl.trim() !== '') {
-        updateData.documentUrl = editFormData.documentUrl;
-      }
+      await PetOwnerService.update(Number(selectedResponsavel.id), updateData);
       
-      await PetOwnerService.update(petOwner.userId, updateData);
       await loadResponsaveis();
       setIsEditModalOpen(false);
       setSelectedResponsavel(null);
-      alert('Responsável atualizado com sucesso!');
+      toast.success('Responsável atualizado com sucesso!');
     } catch (err: any) { 
-      alert(err.message); 
+      const message = err.response?.data?.message;
+      const displayMessage = Array.isArray(message) ? message[0] : (message || err.message);
+      toast.error(displayMessage);
     } finally { 
-      setLoading(false); 
+      setLoadingTable(false); 
     }
   };
 
-  // Handlers de Input Controlado
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const val = maskCPF(e.target.value);
     if (isEdit) setEditFormData(prev => prev ? { ...prev, cpf: val } : null);
     else setCreateFormData(prev => ({ ...prev, cpf: val }));
   };
-  
+   
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const val = maskPhone(e.target.value);
     if (isEdit) setEditFormData(prev => prev ? { ...prev, telefone: val } : null);
     else setCreateFormData(prev => ({ ...prev, telefone: val }));
   };
 
-  // --- COLUNAS ---
   const columns: ColumnDefinition<ResponsavelAdmUI>[] = [
     { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
     { header: 'CPF', cell: (item) => <span className="text-gray-600 font-mono text-xs">{item.cpf ? maskCPF(item.cpf) : '-'}</span> },
@@ -318,12 +265,11 @@ export default function PaginaGestaoResponsaveis() {
         columns={columns}
         searchPlaceholder="Buscar por nome, CPF ou email..."
         emptyMessage="Nenhum responsável encontrado."
-        isLoading={loading}
+        // 3. A tabela agora só reage ao loadingTable
+        isLoading={loadingTable}
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
-
-        // GRID VIEW
         renderGrid={(items) => (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map(resp => (
@@ -341,28 +287,35 @@ export default function PaginaGestaoResponsaveis() {
 
       {/* --- MODAL VIEW --- */}
       <ViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalhes do Responsável">
-        <div className="space-y-4">
-           <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
-             <div className="h-16 w-16 rounded-full flex items-center justify-center bg-blue-50 text-blue-600">
-               <User size={32}/>
+         {/* Opcional: Você pode usar loadingDetails aqui para mostrar um spinner dentro do modal se quiser */}
+         {loadingDetails ? (
+             <div className="flex justify-center py-8">
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
              </div>
-             <div>
-               <h3 className="text-lg font-bold text-gray-900">{selectedResponsavel?.nome}</h3>
-               <span className="inline-block px-2 py-0.5 rounded text-xs font-bold uppercase bg-blue-100 text-blue-700">Tutor</span>
-             </div>
-           </div>
-           
-           <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedResponsavel?.cpf ? maskCPF(selectedResponsavel.cpf) : '-'}</p></div>
-              <div><label className="text-xs font-bold text-gray-400 uppercase">NIS</label><p className="font-medium">{selectedResponsavel?.nis || '-'}</p></div>
-           </div>
-           <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedResponsavel?.telefone ? maskPhone(selectedResponsavel.telefone) : '-'}</p></div>
-              <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedResponsavel?.email || '-'}</p></div>
-           </div>
-           <div><label className="text-xs font-bold text-gray-400 uppercase">Endereço</label><p className="font-medium text-gray-900">{selectedResponsavel?.endereco || '-'}</p></div>
-           <div><label className="text-xs font-bold text-gray-400 uppercase">Quantidade de Animais</label><p className="font-medium text-blue-600 text-lg">{selectedResponsavel?.quantidadeAnimais || 0}</p></div>
-        </div>
+         ) : (
+            <div className="space-y-4">
+            <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+                <div className="h-16 w-16 rounded-full flex items-center justify-center bg-blue-50 text-blue-600">
+                <User size={32}/>
+                </div>
+                <div>
+                <h3 className="text-lg font-bold text-gray-900">{selectedResponsavel?.nome}</h3>
+                <span className="inline-block px-2 py-0.5 rounded text-xs font-bold uppercase bg-blue-100 text-blue-700">Tutor</span>
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedResponsavel?.cpf ? maskCPF(selectedResponsavel.cpf) : '-'}</p></div>
+                <div><label className="text-xs font-bold text-gray-400 uppercase">NIS</label><p className="font-medium">{selectedResponsavel?.nis || '-'}</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedResponsavel?.telefone ? maskPhone(selectedResponsavel.telefone) : '-'}</p></div>
+                <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedResponsavel?.email || '-'}</p></div>
+            </div>
+            <div><label className="text-xs font-bold text-gray-400 uppercase">Endereço</label><p className="font-medium text-gray-900">{selectedResponsavel?.endereco || '-'}</p></div>
+            <div><label className="text-xs font-bold text-gray-400 uppercase">Quantidade de Animais</label><p className="font-medium text-blue-600 text-lg">{selectedResponsavel?.quantidadeAnimais || 0}</p></div>
+            </div>
+         )}
       </ViewModal>
 
       {/* --- MODAL CADASTRO --- */}
@@ -373,14 +326,14 @@ export default function PaginaGestaoResponsaveis() {
         title="Novo Responsável" 
         saveText="Cadastrar"
       >
+        {/* Conteúdo do modal mantido igual */}
          <FormInput 
-           label="Nome Completo" 
+           label="Nome Completo *" 
            name="nome" 
            value={createFormData.nome} 
            onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} 
            required 
          />
-         
          <div className="grid grid-cols-2 gap-4">
             <FormInput 
               label="CPF *" 
@@ -397,7 +350,6 @@ export default function PaginaGestaoResponsaveis() {
               onChange={e => setCreateFormData({...createFormData, nis: e.target.value})} 
             />
          </div>
-
          <div className="grid grid-cols-2 gap-4">
             <FormInput 
               label="Telefone *" 
@@ -416,7 +368,6 @@ export default function PaginaGestaoResponsaveis() {
               required
             />
          </div>
-         
          <FormInput 
            label="Endereço Completo *" 
            name="endereco" 
@@ -425,7 +376,6 @@ export default function PaginaGestaoResponsaveis() {
            placeholder="Rua, número, bairro, cidade..."
            required
          />
-         
          <FormInput 
            label="URL do Documento (Opcional)" 
            name="documentUrl" 
@@ -433,7 +383,6 @@ export default function PaginaGestaoResponsaveis() {
            onChange={e => setCreateFormData({...createFormData, documentUrl: e.target.value})} 
            placeholder="https://..."
          />
-         
          <FormInput 
            label="Senha de Acesso *" 
            name="senha" 
@@ -452,13 +401,13 @@ export default function PaginaGestaoResponsaveis() {
         title="Editar Responsável" 
         saveText="Salvar"
       >
+        {/* Conteúdo do modal mantido igual */}
          <FormInput 
            label="Nome Completo" 
            name="nome" 
            value={editFormData?.nome || ''} 
            onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} 
          />
-         
          <div className="grid grid-cols-2 gap-4">
             <FormInput 
               label="CPF" 
@@ -471,10 +420,8 @@ export default function PaginaGestaoResponsaveis() {
               name="nis" 
               value={editFormData?.nis || ''} 
               onChange={e => setEditFormData(prev => prev ? {...prev, nis: e.target.value} : null)} 
-              disabled
             />
          </div>
-         
          <div className="grid grid-cols-2 gap-4">
             <FormInput 
               label="Telefone" 
@@ -490,21 +437,18 @@ export default function PaginaGestaoResponsaveis() {
               onChange={e => setEditFormData(prev => prev ? {...prev, email: e.target.value} : null)} 
             />
          </div>
-         
          <FormInput 
            label="Endereço" 
            name="endereco" 
            value={editFormData?.endereco || ''} 
            onChange={e => setEditFormData(prev => prev ? {...prev, endereco: e.target.value} : null)} 
          />
-         
          <FormInput 
            label="URL do Documento" 
            name="documentUrl" 
            value={editFormData?.documentUrl || ''} 
            onChange={e => setEditFormData(prev => prev ? {...prev, documentUrl: e.target.value} : null)} 
          />
-         
          <div className="pt-4 border-t border-gray-100 mt-2">
             <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
             <FormInput 

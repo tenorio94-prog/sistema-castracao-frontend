@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { GraduationCap } from 'lucide-react';
+import { toast } from 'sonner';
 
 import CrudHeader from '@/components/CRUD/CrudHeader';
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
@@ -9,47 +10,28 @@ import EstudanteCard, { EstudanteUI } from '@/components/CRUD/EstudanteCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
-import { maskCPF, maskPhone, validateCPF } from '@/lib/masks';
+import { maskCPF, maskPhone, unmask, validateCPF } from '@/lib/masks';
+import { UserService, User } from '@/services/user.service';
+import { CreateUserDto, Role } from '@/types/auth.types';
 
-// --- MOCK SERVICE (Simulação - Sem Instituição) ---
-const MOCK_DB: EstudanteUI[] = [
-  { id: 1, userId: 201, nome: 'Lucas Pereira', email: 'lucas.p@uni.edu.br', cpf: '111.222.333-44', telefone: '(81) 91111-2222', ativo: true },
-  { id: 2, userId: 202, nome: 'Fernanda Lima', email: 'fernanda.l@uni.edu.br', cpf: '222.333.444-55', telefone: '(81) 93333-4444', ativo: true },
-  { id: 3, userId: 203, nome: 'Ricardo Gomes', email: 'ricardo.g@uni.edu.br', cpf: '333.444.555-66', telefone: '(81) 95555-6666', ativo: false },
-];
-
-const MockStudentService = {
-  getAll: async (): Promise<EstudanteUI[]> => {
-    return new Promise((resolve) => setTimeout(() => resolve([...MOCK_DB]), 600));
-  },
-  create: async (data: any): Promise<EstudanteUI> => {
-    return new Promise((resolve) => setTimeout(() => resolve({
-      id: Math.random(),
-      userId: Math.random(),
-      nome: data.nome,
-      email: data.email,
-      cpf: data.cpf,
-      telefone: data.telefone,
-      ativo: true
-    }), 600));
-  },
-  update: async (id: number, data: any): Promise<void> => {
-    return new Promise((resolve) => setTimeout(() => resolve(), 600));
-  },
-  delete: async (id: number): Promise<void> => {
-    return new Promise((resolve) => setTimeout(() => resolve(), 600));
-  }
-};
-
+// --- TIPOS ---
 type EstudanteForm = {
   nome: string;
   email: string;
   cpf: string;
   telefone: string;
   senha: string;
+  matricula?: string; // Usaremos o campo CRMV do backend para armazenar a matrícula/código
 };
 
-const emptyForm: EstudanteForm = { nome: '', email: '', cpf: '', telefone: '', senha: '' };
+const emptyForm: EstudanteForm = { 
+  nome: '', 
+  email: '', 
+  cpf: '', 
+  telefone: '', 
+  senha: '', 
+  matricula: '' 
+};
 
 export default function PaginaEstudantes() {
   // --- ESTADOS ---
@@ -71,10 +53,32 @@ export default function PaginaEstudantes() {
     try {
       setLoading(true);
       setError(null);
-      const data = await MockStudentService.getAll();
+      
+      // 1. Busca todos os usuários
+      const allUsers = await UserService.getAll();
+      
+      // 2. Filtra apenas estudantes usando o método estático do serviço
+      const studentUsers = UserService.filterByRole(allUsers, Role.student);
+      
+      // 3. Mapeia para a UI
+      const data: EstudanteUI[] = studentUsers.map((user: User) => ({
+        id: user.id, // UI espera number aqui (conforme interface EstudanteCard)
+        userId: user.id,
+        nome: user.completeName,
+        email: user.email,
+        cpf: user.cpf,
+        telefone: user.phone,
+        // Se tiver registro na tabela Veterinarian, pegamos o status active, senão default true
+        ativo: user.veterinarian ? user.veterinarian.active : true,
+        // Usamos o campo CRMV para exibir matrícula/código se existir
+        matricula: user.veterinarian?.crmv || undefined
+      }));
+
       setEstudantes(data);
     } catch (err: any) {
-      setError('Erro ao carregar estudantes');
+      const msg = err.message || 'Erro ao carregar estudantes';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -83,55 +87,113 @@ export default function PaginaEstudantes() {
   useEffect(() => { loadEstudantes(); }, []);
 
   // --- HANDLERS ---
-  const handleView = (item: EstudanteUI) => { setSelectedEstudante(item); setIsViewModalOpen(true); };
+  const handleView = (item: EstudanteUI) => { 
+    setSelectedEstudante(item); 
+    setIsViewModalOpen(true); 
+  };
 
   const handleEdit = (item: EstudanteUI) => {
     setEditFormData({
-      nome: item.nome, email: item.email, cpf: maskCPF(item.cpf), telefone: maskPhone(item.telefone), senha: ''
+      nome: item.nome, 
+      email: item.email, 
+      cpf: maskCPF(item.cpf), 
+      telefone: maskPhone(item.telefone), 
+      senha: '',
+      matricula: item.matricula || ''
     });
-    setSelectedEstudante(item); setIsEditModalOpen(true);
+    setSelectedEstudante(item); 
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = async (item: EstudanteUI) => {
     if (!window.confirm(`Deletar estudante ${item.nome}?`)) return;
     try {
       setLoading(true); 
-      await MockStudentService.delete(item.userId); 
-      setEstudantes(prev => prev.filter(est => est.userId !== item.userId));
-    } catch (err: any) { alert('Erro ao deletar'); } finally { setLoading(false); }
+      await UserService.delete(item.userId); 
+      await loadEstudantes();
+      toast.success('Estudante deletado com sucesso!');
+    } catch (err: any) { 
+      toast.error(err.message || 'Erro ao deletar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      if (!validateCPF(createFormData.cpf)) { alert('CPF inválido'); setLoading(false); return; }
       
-      const newData = { ...createFormData };
-      const createdUser = await MockStudentService.create(newData);
-      setEstudantes(prev => [...prev, createdUser]);
+      if (!createFormData.nome?.trim()) { toast.error('Nome é obrigatório'); setLoading(false); return; }
+      if (!validateCPF(createFormData.cpf)) { toast.error('CPF inválido'); setLoading(false); return; }
+      if (!createFormData.senha || createFormData.senha.length < 6) { 
+        toast.error('Senha deve ter no mínimo 6 caracteres'); 
+        setLoading(false); 
+        return; 
+      }
       
-      setIsCreateModalOpen(false); setCreateFormData(emptyForm);
-      alert('Estudante cadastrado com sucesso!');
-    } catch (err: any) { alert('Erro ao cadastrar'); } finally { setLoading(false); }
+      const newUserDto: CreateUserDto = {
+        completeName: createFormData.nome,
+        email: createFormData.email,
+        password: createFormData.senha,
+        cpf: unmask(createFormData.cpf),
+        phone: unmask(createFormData.telefone),
+        role: Role.student,
+        // Opcional: passar matrícula como CRMV para registro interno
+        crmv: createFormData.matricula || undefined,
+        // Define especialidade como Estudante automaticamente no backend
+      };
+
+      await UserService.create(newUserDto);
+      
+      await loadEstudantes();
+      setIsCreateModalOpen(false); 
+      setCreateFormData(emptyForm);
+      toast.success('Estudante cadastrado com sucesso!');
+    } catch (err: any) { 
+      toast.error(err.message || 'Erro ao cadastrar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData || !selectedEstudante) return;
+    
     try {
       setLoading(true);
-      await MockStudentService.update(selectedEstudante.userId, editFormData);
       
-      setEstudantes(prev => prev.map(est => 
-        est.userId === selectedEstudante.userId 
-          ? { ...est, ...editFormData } 
-          : est
-      ));
+      if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
+        toast.error('CPF inválido');
+        setLoading(false);
+        return;
+      }
+
+      const updateData: any = {}; // Usando any para flexibilidade com campos extras do backend
       
-      setIsEditModalOpen(false); setSelectedEstudante(null);
-      alert('Estudante atualizado com sucesso!');
-    } catch (err: any) { alert('Erro ao atualizar'); } finally { setLoading(false); }
+      if (editFormData.nome !== selectedEstudante.nome) updateData.completeName = editFormData.nome;
+      if (editFormData.email !== selectedEstudante.email) updateData.email = editFormData.email;
+      if (unmask(editFormData.cpf) !== selectedEstudante.cpf) updateData.cpf = unmask(editFormData.cpf);
+      if (unmask(editFormData.telefone) !== selectedEstudante.telefone) updateData.phone = unmask(editFormData.telefone);
+      if (editFormData.senha) updateData.password = editFormData.senha;
+      
+      // Atualiza matrícula (mapeada para crmv no backend para estudantes)
+      if (editFormData.matricula !== selectedEstudante.matricula) {
+        updateData.crmv = editFormData.matricula;
+      }
+
+      await UserService.update(selectedEstudante.userId, updateData);
+      
+      await loadEstudantes();
+      setIsEditModalOpen(false); 
+      setSelectedEstudante(null);
+      toast.success('Estudante atualizado com sucesso!');
+    } catch (err: any) { 
+      toast.error(err.message || 'Erro ao atualizar'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   // Inputs Controlados
@@ -182,7 +244,6 @@ export default function PaginaEstudantes() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         
-        // Grid View
         renderGrid={(items) => (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map(estudante => (
@@ -214,7 +275,13 @@ export default function PaginaEstudantes() {
              <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedEstudante?.cpf ? maskCPF(selectedEstudante.cpf) : '-'}</p></div>
              <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedEstudante?.telefone ? maskPhone(selectedEstudante.telefone) : '-'}</p></div>
            </div>
-           <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedEstudante?.email}</p></div>
+           
+           <div className="grid grid-cols-2 gap-4">
+              <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedEstudante?.email}</p></div>
+              {selectedEstudante?.matricula && (
+                <div><label className="text-xs font-bold text-gray-400 uppercase">Matrícula (Interna)</label><p className="font-medium">{selectedEstudante.matricula}</p></div>
+              )}
+           </div>
            
            <div className="pt-3 border-t border-gray-100">
               <label className="text-xs font-bold text-gray-400 uppercase">Status</label>
@@ -229,10 +296,20 @@ export default function PaginaEstudantes() {
       <CadastroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateSave} title="Cadastrar Estudante" saveText="Cadastrar">
          <FormInput label="Nome Completo" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
          <FormInput label="Email" name="email" type="email" value={createFormData.email} onChange={e => setCreateFormData({...createFormData, email: e.target.value})} required />
+         
          <div className="grid grid-cols-2 gap-4">
             <FormInput label="CPF" name="cpf" value={createFormData.cpf} onChange={e => handleCPFChange(e, false)} placeholder="000.000.000-00" required />
             <FormInput label="Telefone" name="telefone" value={createFormData.telefone} onChange={e => handlePhoneChange(e, false)} placeholder="(00) 00000-0000" required />
          </div>
+         
+         <FormInput 
+           label="Matrícula / Código (Opcional)" 
+           name="matricula" 
+           value={createFormData.matricula || ''} 
+           onChange={e => setCreateFormData({...createFormData, matricula: e.target.value})} 
+           placeholder="Ex: 2023001"
+         />
+
          <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
       </CadastroModal>
 
@@ -240,10 +317,19 @@ export default function PaginaEstudantes() {
       <CadastroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Estudante" saveText="Salvar">
          <FormInput label="Nome Completo" name="nome" value={editFormData?.nome || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} />
          <FormInput label="Email" name="email" type="email" value={editFormData?.email || ''} onChange={e => setEditFormData(prev => prev ? {...prev, email: e.target.value} : null)} />
+         
          <div className="grid grid-cols-2 gap-4">
             <FormInput label="CPF" name="cpf" value={editFormData?.cpf || ''} onChange={e => handleCPFChange(e, true)} />
             <FormInput label="Telefone" name="telefone" value={editFormData?.telefone || ''} onChange={e => handlePhoneChange(e, true)} />
          </div>
+
+         <FormInput 
+           label="Matrícula / Código" 
+           name="matricula" 
+           value={editFormData?.matricula || ''} 
+           onChange={e => setEditFormData(prev => prev ? {...prev, matricula: e.target.value} : null)} 
+         />
+
          <div className="pt-4 border-t border-gray-100 mt-2">
             <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
             <FormInput label="Nova Senha" name="senha" type="password" value={editFormData?.senha || ''} onChange={e => setEditFormData(prev => prev ? {...prev, senha: e.target.value} : null)} />

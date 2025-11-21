@@ -1,8 +1,8 @@
-// app/adm/atendentes/page.tsx
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 import CrudHeader from '@/components/CRUD/CrudHeader';
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
@@ -57,23 +57,27 @@ export default function PaginaAtendentes() {
       // Buscar todos os usuários
       const allUsers = await UserService.getAll();
       
-      // Filtrar apenas atendentes (receptionist e semas)
-      const attendants = UserService.filterAttendants(allUsers);
+      // Filtrar apenas atendentes manualmente para evitar dependência de método estático novo
+      const attendants = allUsers.filter(user => 
+        user.role === Role.receptionist || user.role === Role.semas
+      );
       
       // Formatar para o formato da UI
       const formatados: AtendenteUI[] = attendants.map((user: User) => ({
-        id: user.id,
+        id: user.id, // Passando number direto, compatível com AtendenteUI
         userId: user.id,
         nome: user.completeName || 'Nome não informado',
         email: user.email || 'Email não informado',
         cpf: user.cpf || '',
         telefone: user.phone || '',
-        ativo: true, // Backend não tem campo active para users simples
+        ativo: true, 
       }));
       
       setAtendentes(formatados);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar atendentes');
+      const msg = err.message || 'Erro ao carregar atendentes';
+      setError(msg);
+      toast.error(msg);
       console.error('Erro ao carregar atendentes:', err);
     } finally {
       setLoading(false);
@@ -94,7 +98,7 @@ export default function PaginaAtendentes() {
       email: item.email, 
       cpf: maskCPF(item.cpf), 
       telefone: maskPhone(item.telefone),
-      role: 'receptionist',
+      role: 'receptionist', // Default, pode ser melhorado se tivermos essa info no UI
       senha: ''
     });
     setSelectedAtendente(item); 
@@ -107,9 +111,9 @@ export default function PaginaAtendentes() {
       setLoading(true); 
       await UserService.delete(item.userId); 
       await loadAtendentes();
-      alert('Atendente deletado com sucesso!');
+      toast.success('Atendente deletado com sucesso!');
     } catch (err: any) { 
-      alert(err.message || 'Erro ao deletar'); 
+      toast.error(err.message || 'Erro ao deletar'); 
     } finally { 
       setLoading(false); 
     }
@@ -121,47 +125,73 @@ export default function PaginaAtendentes() {
       setLoading(true);
       
       // Validações
-      if (!validateCPF(createFormData.cpf)) { 
-        alert('CPF inválido'); 
-        setLoading(false); 
-        return; 
+      if (!createFormData.nome?.trim()) {
+        toast.error('Nome completo é obrigatório');
+        setLoading(false);
+        return;
       }
-      
-      if (!createFormData.senha || createFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
+
+      if (!createFormData.email?.trim()) {
+        toast.error('Email é obrigatório');
         setLoading(false);
         return;
       }
       
-      // Determinar a role correta - enviar o valor STRING direto
-      const selectedRole = createFormData.role; // 'receptionist' ou 'semas'
+      if (!validateCPF(createFormData.cpf)) { 
+        toast.error('CPF inválido'); 
+        setLoading(false); 
+        return; 
+      }
+
+      if (!createFormData.telefone?.trim()) {
+        toast.error('Telefone é obrigatório');
+        setLoading(false);
+        return;
+      }
       
-      // Criar via auth/register
-      const createUserDto = {
-        completeName: createFormData.nome,
-        email: createFormData.email,
+      if (!createFormData.senha || createFormData.senha.length < 6) {
+        toast.error('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
+      
+      // Determinar a role correta usando o Enum
+      const selectedRole = createFormData.role === 'semas' ? Role.semas : Role.receptionist;
+      
+      const createUserDto: CreateUserDto = {
+        completeName: createFormData.nome.trim(),
+        email: createFormData.email.trim(),
         password: createFormData.senha,
         cpf: unmask(createFormData.cpf),
         phone: unmask(createFormData.telefone),
-        role: selectedRole, // Enviar como string direto
+        role: selectedRole, 
       };
       
-      console.log('📤 Enviando dados para registro:', JSON.stringify(createUserDto, null, 2));
-      console.log('📤 Tipo da role:', typeof selectedRole, '| Valor:', selectedRole);
+      console.log('📤 Criando atendente via /auth/register:', JSON.stringify(createUserDto, null, 2));
       
-      const result = await AuthService.register(createUserDto as CreateUserDto);
-      console.log('✅ Resultado do registro:', result);
+      // Usar AuthService.register ao invés de UserService.create
+      await AuthService.register(createUserDto);
       
       await loadAtendentes();
       setIsCreateModalOpen(false);
       setCreateFormData(emptyForm);
-      alert('Atendente cadastrado com sucesso!');
+      toast.success('Atendente cadastrado com sucesso!');
     } catch (err: any) {
-      console.error('❌ Erro detalhado:', err);
-      console.error('❌ Response completo:', err.response);
-      console.error('❌ Response data:', err.response?.data);
-      console.error('❌ Response status:', err.response?.status);
-      alert(err.message || 'Erro ao cadastrar'); 
+      console.error('❌ Erro ao criar atendente:', err);
+      console.error('❌ Response:', err.response?.data);
+      
+      const message = err.response?.data?.message || err.message;
+      
+      // Tratamento de erros específicos
+      if (message?.includes('Email já está em uso') || message?.includes('email')) {
+        toast.error('Este email já está cadastrado no sistema');
+      } else if (message?.includes('CPF já está em uso') || message?.includes('cpf')) {
+        toast.error('Este CPF já está cadastrado no sistema');
+      } else if (message?.includes('500') || message?.includes('Internal server error')) {
+        toast.error('Erro no servidor. Verifique se o email ou CPF já existem.');
+      } else {
+        toast.error(`Erro ao cadastrar: ${message}`); 
+      }
     } finally { 
       setLoading(false); 
     }
@@ -174,20 +204,18 @@ export default function PaginaAtendentes() {
     try {
       setLoading(true);
       
-      // Validações
       if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
-        alert('CPF inválido');
+        toast.error('CPF inválido');
         setLoading(false);
         return;
       }
       
       if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
+        toast.error('A senha deve ter pelo menos 6 caracteres');
         setLoading(false);
         return;
       }
       
-      // Montar objeto apenas com campos modificados
       const updateData: any = {};
       
       if (editFormData.nome && editFormData.nome !== selectedAtendente.nome) {
@@ -210,9 +238,9 @@ export default function PaginaAtendentes() {
       await loadAtendentes();
       setIsEditModalOpen(false);
       setSelectedAtendente(null);
-      alert('Atendente atualizado com sucesso!');
+      toast.success('Atendente atualizado com sucesso!');
     } catch (err: any) { 
-      alert(err.message || 'Erro ao atualizar'); 
+      toast.error(err.message || 'Erro ao atualizar'); 
     } finally { 
       setLoading(false); 
     }
@@ -235,7 +263,7 @@ export default function PaginaAtendentes() {
   const columns: ColumnDefinition<AtendenteUI>[] = [
     { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
     { header: 'Email', cell: (item) => <span className="text-gray-600">{item.email}</span> },
-    { header: 'CPF', cell: (item) => <span className="text-gray-600 font-mono">{maskCPF(item.cpf)}</span> },
+    { header: 'CPF', cell: (item) => <span className="text-gray-600 font-mono text-xs">{maskCPF(item.cpf)}</span> },
     { header: 'Telefone', cell: (item) => <span>{item.telefone ? maskPhone(item.telefone) : '-'}</span> },
     { header: 'Status', cell: (item) => (
         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${item.ativo ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
@@ -267,7 +295,6 @@ export default function PaginaAtendentes() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         
-        // Grid View (Usando o componente que criamos)
         renderGrid={(items) => (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map(atendente => (
