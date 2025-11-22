@@ -10,6 +10,9 @@ import {
   Role 
 } from '@/types/auth.types';
 
+// Re-exportar Role para facilitar importação
+export { Role } from '@/types/auth.types';
+
 /**
  * Decodifica o JWT token para extrair as informações do usuário
  */

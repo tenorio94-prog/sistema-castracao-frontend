@@ -3,15 +3,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, Dog, Plus, Search, Users, Building2 } from 'lucide-react';
+import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import ResponsavelCard, { Responsavel } from '@/components/AtendenteComponents/ResponsavelCard';
 import DetalhesModal from '@/components/modals/DetalhesModal'; 
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput'; 
 import TipoResponsavelRadio from '@/components/forms/TipoResponsavelRadio';
+import { PetOwnerService } from '@/services/petowner.service';
+import { AuthService, Role } from '@/services/auth.service';
+import { maskCPF, maskPhone, validateCPF } from '@/lib/masks';
 
 // --- TIPOS ---
-type ResponsavelForm = Omit<Responsavel, 'id' | 'animais'>;
+type ResponsavelForm = {
+  tipo: 'PF' | 'ONG';
+  nome: string;
+  cpf: string;
+  nis: string;
+  cnpj: string;
+  telefone: string;
+  senha: string;
+  email: string;
+  endereco: string;
+};
 
 const emptyForm: ResponsavelForm = { 
   tipo: 'PF', 
@@ -24,12 +38,6 @@ const emptyForm: ResponsavelForm = {
   email: '',
   endereco: ''
 };
-
-// --- DADOS MOCADOS ---
-const mockResponsaveis: Responsavel[] = [
-  { id: '1', tipo: 'PF', nome: 'Ana Silva', cpf: '123.456.789-00', nis: '123.456.789-00', telefone: '(81) 98765-4321', email: 'ana.silva@gmail.com', endereco: 'Rua das Flores, 123 - Recife/PE', animais: ['Rex', 'Mel'], senha: '123' },
-  { id: '2', tipo: 'ONG', nome: 'Abrigo Esperança', cnpj: '987.654.321/0001-00', telefone: '(81) 91234-5678', email: 'contato@abrigo.org', endereco: 'Avenida Boa Viagem, 456 - Recife/PE', animais: ['Thor', 'Bolinha'], senha: '456' },
-];
 
 // Sub-componente para modal
 function DetalheItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) {
@@ -47,15 +55,49 @@ function DetalheItem({ icon, label, value }: { icon: React.ReactNode, label: str
 export default function PaginaResponsaveis() {
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
   
-  const [masterResponsaveis, setMasterResponsaveis] = useState<Responsavel[]>(mockResponsaveis);
-  const [responsaveisFiltrados, setResponsaveisFiltrados] = useState<Responsavel[]>(mockResponsaveis);
+  const [masterResponsaveis, setMasterResponsaveis] = useState<Responsavel[]>([]);
+  const [responsaveisFiltrados, setResponsaveisFiltrados] = useState<Responsavel[]>([]);
   
   const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
   const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
+
+  // Buscar responsáveis do backend
+  const fetchResponsaveis = async () => {
+    setLoading(true);
+    try {
+      const data = await PetOwnerService.getAll();
+      const responsaveisUI: Responsavel[] = data.map(owner => {
+        const isSemas = owner.user?.role === Role.semas;
+        return {
+          id: owner.id.toString(),
+          tipo: isSemas ? 'ONG' : 'PF',
+          nome: owner.user?.completeName || 'N/A',
+          cpf: owner.user?.cpf || 'N/A',
+          nis: owner.nis || '',
+          cnpj: isSemas ? owner.user?.cpf : '',
+          telefone: owner.user?.phone || 'N/A',
+          email: owner.user?.email || 'N/A',
+          endereco: owner.fullAddress || 'N/A',
+          animais: [], // backend não retorna lista de nomes de animais facilmente
+          senha: '',
+        };
+      });
+      setMasterResponsaveis(responsaveisUI);
+      setResponsaveisFiltrados(responsaveisUI);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao carregar responsáveis.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchResponsaveis(); }, []);
 
   // useEffect para filtragem
   useEffect(() => {
@@ -95,15 +137,52 @@ export default function PaginaResponsaveis() {
   const handleCloseCreate = () => { setIsCreateModalOpen(false); setCreateFormData(emptyForm); };
 
   const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    const novoResponsavel: Responsavel = { 
-      ...createFormData, 
-      id: Math.random().toString(),
-      animais: [] 
-    }; 
-    setMasterResponsaveis(prev => [novoResponsavel, ...prev]); 
-    handleCloseCreate(); 
-    alert('Responsável cadastrado(a)!');
+    e.preventDefault();
+    setLoadingSubmit(true);
+    
+    try {
+      // Validações
+      if (!createFormData.nome || !createFormData.email || !createFormData.telefone || !createFormData.senha) {
+        toast.warning('Preencha todos os campos obrigatórios.');
+        setLoadingSubmit(false);
+        return;
+      }
+
+      if (createFormData.tipo === 'PF') {
+        if (!createFormData.cpf || !validateCPF(createFormData.cpf)) {
+          toast.warning('CPF inválido.');
+          setLoadingSubmit(false);
+          return;
+        }
+      }
+
+      const role = createFormData.tipo === 'ONG' ? Role.semas : Role.petOwner;
+
+      // Criar usuário (backend cria automaticamente o PetOwner para role petOwner/semas)
+      await AuthService.register({
+        completeName: createFormData.nome,
+        cpf: createFormData.cpf.replace(/\D/g, ''),
+        phone: createFormData.telefone.replace(/\D/g, ''),
+        email: createFormData.email,
+        password: createFormData.senha,
+        role: role,
+        address: createFormData.endereco || '',
+        nis: createFormData.nis || undefined,
+      });
+
+      toast.success('Responsável cadastrado com sucesso!');
+      await fetchResponsaveis();
+      handleCloseCreate();
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        toast.error('CPF ou e-mail já cadastrado.');
+      } else {
+        const msg = error.response?.data?.message || 'Erro ao cadastrar responsável.';
+        toast.error(msg);
+      }
+    } finally {
+      setLoadingSubmit(false);
+    }
   };
   
   // Handlers Detalhes
@@ -218,7 +297,7 @@ export default function PaginaResponsaveis() {
         onClose={handleCloseCreate}
         onSubmit={handleCreateSave}
         title="Cadastrar Responsável"
-        saveText="Salvar Cadastro"
+        saveText={loadingSubmit ? "Cadastrando..." : "Salvar Cadastro"}
       >
         <TipoResponsavelRadio
           tipo={createFormData.tipo}
@@ -239,14 +318,14 @@ export default function PaginaResponsaveis() {
               label="CPF"
               name="cpf"
               placeholder="000.000.000-00"
-              value={createFormData.cpf || ''}
+              value={maskCPF(createFormData.cpf || '')}
               onChange={handleFormChange}
             />
              <FormInput
               label="Telefone"
               name="telefone"
               placeholder="(00) 00000-0000"
-              value={createFormData.telefone || ''}
+              value={maskPhone(createFormData.telefone || '')}
               onChange={handleFormChange}
             />
           </div>
@@ -265,7 +344,7 @@ export default function PaginaResponsaveis() {
               label="Telefone"
               name="telefone"
               placeholder="(00) 00000-0000"
-              value={createFormData.telefone || ''}
+              value={maskPhone(createFormData.telefone || '')}
               onChange={handleFormChange}
             />
           </div>
