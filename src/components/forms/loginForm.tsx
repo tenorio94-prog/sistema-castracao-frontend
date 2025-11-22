@@ -33,6 +33,34 @@ export default function LoginForm() {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault(); 
+        
+        // Validações básicas
+        if (!email || !email.trim()) {
+            toast.error('Email obrigatório', {
+                description: 'Por favor, informe seu email.',
+                duration: 3000,
+            });
+            return;
+        }
+
+        if (!password || !password.trim()) {
+            toast.error('Senha obrigatória', {
+                description: 'Por favor, informe sua senha.',
+                duration: 3000,
+            });
+            return;
+        }
+
+        // Validação de formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            toast.error('Email inválido', {
+                description: 'Por favor, informe um email válido.',
+                duration: 3000,
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -62,6 +90,10 @@ export default function LoginForm() {
                 duration: 2000,
             });
 
+            // Limpar o formulário
+            setEmail('');
+            setPassword('');
+
             // Usar window.location.href para garantir o redirecionamento
             setTimeout(() => {
                 console.log('🚀 Executando redirecionamento...');
@@ -69,9 +101,9 @@ export default function LoginForm() {
             }, 1000);
 
         } catch (err: any) {
-            console.error('Erro no login:', err);
+            console.error('❌ Erro no login:', err);
             
-            // Toast de erro apenas para credenciais inválidas
+            // Toast de erro específico baseado no tipo de erro
             if (err.message.includes('credenciais') || err.message.includes('senha') || err.message.includes('incorretos')) {
                 toast.error('Credenciais inválidas', {
                     description: 'Email ou senha incorretos. Verifique e tente novamente.',
@@ -81,6 +113,11 @@ export default function LoginForm() {
                 toast.error('Erro de conexão', {
                     description: 'Verifique sua internet e tente novamente.',
                     duration: 4000,
+                });
+            } else if (err.message.includes('servidor') || err.message.includes('timeout')) {
+                toast.error('Servidor indisponível', {
+                    description: 'O servidor pode estar iniciando. Aguarde 30 segundos e tente novamente.',
+                    duration: 5000,
                 });
             } else {
                 toast.error('Erro ao fazer login', {

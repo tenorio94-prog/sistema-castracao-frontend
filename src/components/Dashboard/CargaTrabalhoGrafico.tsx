@@ -11,14 +11,25 @@ import {
   CartesianGrid 
 } from 'recharts';
 
-const data = [
+// Dados padrão caso não sejam fornecidos
+const defaultData = [
   { name: 'Dra. Cecília', Consultas: 45, Cirurgias: 25 },
   { name: 'Dr. Antônio', Consultas: 42, Cirurgias: 24 },
   { name: 'Dr. Carlos',  Consultas: 44, Cirurgias: 25 },
   { name: 'Dr. João',    Consultas: 46, Cirurgias: 26 },
 ];
 
-export default function CargaTrabalhoChart() {
+type ChartDataItem = {
+  name: string;
+  Consultas: number;
+  Cirurgias: number;
+};
+
+type CargaTrabalhoChartProps = {
+  data?: ChartDataItem[];
+};
+
+export default function CargaTrabalhoChart({ data = defaultData }: CargaTrabalhoChartProps) {
   return (
     // Removemos o container com bg-white e shadow daqui.
     // O gráfico agora ocupa 100% do espaço que o pai der a ele.

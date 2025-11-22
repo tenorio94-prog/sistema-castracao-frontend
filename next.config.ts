@@ -1,18 +1,21 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
-  // output: 'standalone',
-  // reactStrictMode: true,
-  // // Adiciona configuração específica para manipulação de rotas
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/adm/:path*',
-  //       destination: '/adm/:path*',
-  //     },
-  //   ];
-  // },
+  // Define o diretório raiz do projeto para evitar conflitos com múltiplos lockfiles
+  outputFileTracingRoot: path.join(__dirname),
+  reactStrictMode: true,
+  
+  // Configurações de imagem (se necessário no futuro)
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

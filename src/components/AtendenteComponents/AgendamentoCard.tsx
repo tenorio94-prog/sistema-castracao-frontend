@@ -30,13 +30,18 @@ export type Responsavel = {
 export type Agendamento = {
   id: number;
   petName: string;
-  status: 'Pendente' | 'Concluído' | string;
+  status: 'Pendente' | 'Concluído' | 'Agendado' | 'Confirmado' | 'Cancelado' | 'Ausente' | string;
   data: string;
   hora: string; 
   tipo: string;
   observacoes?: string;
   pet: Pet;
   responsavel: Responsavel;
+  backendId?: number;
+  startTime?: string;
+  endTime?: string;
+  backendStatus?: string;
+  backendServiceType?: string;
 };
 
 interface AgendamentoCardProps {
