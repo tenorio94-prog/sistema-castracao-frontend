@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import UserProfile, { ProfileData } from '@/components/Perfil /UserProfile';
+import UserProfile, { ProfileData } from '@/components/Perfil/UserProfile';
 
 // Dados Mockados (Em produção viria do UserService.getMe())
 const mockAdminData: ProfileData = {
