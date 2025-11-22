@@ -1,169 +1,169 @@
-// app/responsavel/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import CardBaseDash from '@/components/Dashboard/CardBaseDash';
-import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamento';
-import { Dog, Calendar, Zap, Plus, Activity } from 'lucide-react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import AgendamentoCard, { Agendamento, Pet, Responsavel } from '@/components/AtendenteComponents/AgendamentoCard';
+import { Dog, Calendar, Plus, Zap, Bell, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
-// ---------- Mocks ----------
-const mockUserName = 'Ana Paula';
-const mockPet: Pet = { 
-  id: 101, 
-  name: 'Rex', 
-  species: 'Cachorro', 
-  breed: 'Labrador', 
-  gender: 'Macho', 
-  weight: '13kg', 
-  age: '3 anos', 
-  ownerName: mockUserName 
-};
+import CardBaseDash from '@/components/Dashboard/CardBaseDash';
+import NovaConsultaModal from '@/components/ResponsavelComponents/NovaConsulta';
+import DetalhesConsultaModal, { DetalhesData } from '@/components/ResponsavelComponents/DetalhesConsulta';
+// IMPORTANTE: Usando o mesmo card da página de Consultas
+import ConsultaCard, { ConsultaResponsavelUI } from '@/components/ResponsavelComponents/CardConsulta';
+import { maskCPF, maskPhone } from '@/lib/masks';
 
-const mockResponsavel: Responsavel = { 
-  id: 'r1', 
-  tipo: 'PF', 
-  nome: mockUserName, 
-  cpf: '111.222.333-44', 
-  telefone: '(81) 99999-1111', 
-  email: 'ana@email.com', 
-  senha: '123', 
-  animais: ['Rex', 'Mel'] 
-};
-
-const mockProximasConsultas: Agendamento[] = [
-  { id: 1, petName: 'Rex', status: 'Pendente', data: '2025-11-20', hora: '14:30', tipo: 'Consulta Rotina', pet: mockPet, responsavel: mockResponsavel, observacoes: 'Vacinação anual' },
-  { id: 2, petName: 'Mel', status: 'Pendente', data: '2025-12-05', hora: '10:00', tipo: 'Castração', pet: mockPet, responsavel: mockResponsavel, observacoes: 'Cirurgia eletiva' },
+// Mocks (Adaptados para a interface ConsultaResponsavelUI)
+const mockAppointments: ConsultaResponsavelUI[] = [
+  {
+    id: '1', 
+    title: 'Primeira Consulta',
+    petName: 'Rex', 
+    status: 'Concluído', 
+    date: '14/01/2026', 
+    time: '14:00',
+    veterinarian: 'Dra. Maria Silva',
+    clinic: 'Unidade Central'
+  },
+  {
+    id: '2', 
+    title: 'Castração',
+    petName: 'Mel', 
+    status: 'Agendado', 
+    date: '01/02/2026', 
+    time: '09:30',
+    veterinarian: 'Dr. João Costa',
+    clinic: 'Unidade Boa Viagem'
+  }
 ];
-// ----------------------------
+
+const mockNotifications = [
+  { id: 1, title: 'Rex está pronto para castrar!', desc: 'Os exames foram aprovados. Agende a cirurgia agora mesmo.', type: 'success' },
+  { id: 2, title: 'Atualize o peso de Mel', desc: 'Para garantir a dosagem correta na próxima consulta.', type: 'info' },
+];
+
+// Mock Detalhes Completo (Para o Modal)
+const mockFullDetails: DetalhesData = {
+  id: 1,
+  protocolo: '#123456',
+  status: 'Concluído',
+  responsavel: { nome: 'Ana Paula', cpf: '123.456.789-00', telefone: '(81) 98888-7777', email: 'ana@email.com' },
+  paciente: { nome: 'Rex', especie: 'Cachorro', raca: 'Pastor Alemão', sexo: 'Macho', idade: '5 anos', peso: '30kg' },
+  servico: { procedimento: 'Primeira Consulta', data: '14/01/2026', horario: '14:00', observacoes: 'Animal clinicamente saudável.' }
+};
+
+// Componente Local de Notificação
+const NotificationItem = ({ title, desc, type }: { title: string, desc: string, type: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const isSuccess = type === 'success';
+  return (
+    <div className="border border-gray-100 rounded-xl bg-white overflow-hidden transition-all">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${isSuccess ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}><Bell size={18} /></div>
+          <div><h4 className="font-bold text-gray-800 text-sm">{title}</h4>{!isOpen && <p className="text-xs text-gray-500 truncate max-w-[200px]">{desc}</p>}</div>
+        </div>
+        {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+      </button>
+      {isOpen && <div className="px-4 pb-4 pt-0 text-sm text-gray-600 border-t border-gray-50 bg-gray-50/30"><div className="mt-3">{desc}</div></div>}
+    </div>
+  );
+};
 
 export default function ResponsavelDashboardPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockProximasConsultas);
+  const [isNewConsultModalOpen, setIsNewConsultModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedDetails, setSelectedDetails] = useState<DetalhesData | null>(null);
 
-  // Estados dos modais
-  const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
-  const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
-
-  // Loading inicial simulado
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 800);
-  }, []);
-
-  // Handlers
-  const handleVerDetalhes = (agendamento: Agendamento) => {
-    setSelectedAgendamento(agendamento);
-    setIsModalDetalhesOpen(true);
+  const handleOpenDetails = (consulta: ConsultaResponsavelUI) => {
+    // Em produção, você buscaria os dados completos pelo ID
+    // Aqui usamos o mock estático para demonstração visual
+    setSelectedDetails({ ...mockFullDetails, status: consulta.status, servico: { ...mockFullDetails.servico, procedimento: consulta.title } });
+    setIsDetailsModalOpen(true);
   };
 
-  const handleCloseDetalhes = () => {
-    setIsModalDetalhesOpen(false);
-    setSelectedAgendamento(null);
+  const handleSaveConsulta = (data: any) => {
+    alert(`Solicitação enviada para ${data.animal}!`);
+    setIsNewConsultModalOpen(false);
   };
-
-  const handleNovaConsulta = () => {
-    router.push('/responsavel/agendar');
-  };
-
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
-          <p className="text-sm text-gray-500 font-medium">Carregando painel...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Cabeçalho e Ação Principal */}
+    <div className="space-y-8">
+      
+      {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
-        <PageHeader
-          title={`Olá, ${mockUserName.split(' ')[0]}`}
-          description="Gerencie a saúde dos seus pets em um só lugar."
-        />
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+            Bem vindo(a), <span className="text-green-600">Ana!</span>
+          </h1>
+          <p className="text-gray-500 mt-1">Gerencie a saúde dos seus pets em um só lugar.</p>
+        </div>
+        <div className="hidden md:block text-sm text-gray-400">
+           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardBaseDash title="Meus Animais" value={3} subtitle="Pets cadastrados" icon={Dog} color="green" />
+        <CardBaseDash title="Consultas" value={mockAppointments.length} subtitle="Agendamentos futuros" icon={Calendar} color="blue" />
         
-        {/* Botão de Ação Estilizado (igual ao do Atendente) */}
-        <button
-          onClick={handleNovaConsulta}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium shadow-lg shadow-gray-200 hover:bg-gray-800 hover:shadow-xl transition-all transform active:scale-95"
-        >
-          <Plus size={16} />
-          <span>Solicitar Consulta</span>
+        {/* Card Ação Rápida */}
+        <button onClick={() => setIsNewConsultModalOpen(true)} className="group flex flex-col justify-between bg-white p-6 rounded-2xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all text-left">
+          <div className="flex justify-between items-start w-full">
+            <div><p className="text-sm font-medium text-gray-500">Ações Rápidas</p><h3 className="text-xl font-bold text-gray-900 mt-1 group-hover:text-green-700">Nova Consulta</h3></div>
+            <div className="p-3 rounded-xl bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors"><Plus size={22} strokeWidth={2.5} /></div>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs font-bold text-green-600 uppercase tracking-wide"><Zap size={14} /><span>Solicitar Agora</span></div>
         </button>
       </div>
 
-      {/* Indicadores (Cards Renovados) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CardBaseDash
-          title="Meus Pets"
-          value={mockResponsavel.animais.length}
-          subtitle="Animais cadastrados"
-          icon={Dog} // Passando a referência do componente, não o JSX
-          color="indigo"
-        />
-        <CardBaseDash
-          title="Consultas Futuras"
-          value={agendamentos.length}
-          subtitle="Agendamentos confirmados"
-          icon={Calendar}
-          color="blue"
-          trend="Próxima: 20/11"
-        />
-        <CardBaseDash
-          title="Status da Conta"
-          value="Ativo"
-          subtitle="Tudo certo com seu cadastro"
-          icon={Activity} // Troquei Zap por Activity para ficar mais profissional
-          color="green"
-        />
-      </section>
-
-      {/* Lista de Próximas Consultas */}
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 tracking-tight">Próximas Consultas</h2>
-            <p className="text-sm text-gray-500">Acompanhe os agendamentos dos seus animais.</p>
+      {/* Conteúdo */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Próximas Consultas (Usando ConsultaCard) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Calendar className="text-green-600" size={20} />
+              Próximas Consultas
+            </h2>
+            <button onClick={() => router.push('/responsavel/consultas')} className="text-sm text-green-600 hover:underline font-medium">Ver todas</button>
+          </div>
+          <div className="space-y-3">
+            {mockAppointments.map(appt => (
+              <ConsultaCard 
+                key={appt.id} 
+                consulta={appt} 
+                onDetalhes={handleOpenDetails} 
+              />
+            ))}
           </div>
         </div>
 
-        <div className="space-y-3">
-          {agendamentos.length > 0 ? (
-            agendamentos.map(ag => (
-              <AgendamentoCard
-                key={ag.id}
-                agendamento={ag}
-                onVerDetalhes={handleVerDetalhes}
-              />
-            ))
-          ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              <p className="text-gray-500 font-medium">Nenhuma consulta agendada</p>
-              <button 
-                onClick={handleNovaConsulta}
-                className="text-sm text-blue-600 hover:underline mt-2"
-              >
-                Agendar agora
-              </button>
-            </div>
-          )}
+        {/* Notificações */}
+        <div className="space-y-6">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Bell className="text-amber-500" size={20} />Notificações</h2>
+          <div className="space-y-3">
+            {mockNotifications.map(notif => (
+              <NotificationItem key={notif.id} title={notif.title} desc={notif.desc} type={notif.type} />
+            ))}
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Modal de Detalhes */}
-      <ModalDetalhesAgendamento
-        isOpen={isModalDetalhesOpen}
-        onClose={handleCloseDetalhes}
-        agendamento={selectedAgendamento}
-        // Responsável não faz Check-in, então passamos funções vazias ou alertas
-        onCheckIn={() => {}} 
-        onCancelAgendamento={() => alert('Entre em contato com a clínica para cancelar.')}
+      {/* Modais */}
+      <NovaConsultaModal 
+        isOpen={isNewConsultModalOpen} 
+        onClose={() => setIsNewConsultModalOpen(false)} 
+        onSave={handleSaveConsulta} 
+      />
+      
+      <DetalhesConsultaModal 
+        isOpen={isDetailsModalOpen} 
+        onClose={() => setIsDetailsModalOpen(false)} 
+        data={selectedDetails} 
+        onCancel={() => setIsDetailsModalOpen(false)} 
+        onConfirm={() => setIsDetailsModalOpen(false)} 
       />
     </div>
   );

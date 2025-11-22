@@ -1,85 +1,119 @@
-import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarGroup,         
-  SidebarGroupLabel,    
-} from "@/components/ui/sidebar";
-// import Link from "next/link"; 
+"use client";
+
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { 
-  HomeIcon, 
-  Calendar,
-  SearchIcon,
-  StethoscopeIcon,
-  SyringeIcon,
-  ClipboardListIcon,
-  BeakerIcon,
-  LayoutDashboardIcon
+  LayoutDashboard, 
+  CalendarDays, 
+  Search, 
+  Stethoscope, 
+  Syringe, 
+  ClipboardList, 
+  FlaskConical 
 } from "lucide-react";
 
-// --- Seção 1: Menu Principal ---
-// Alinhado com a hierarquia da imagem: Início é o primeiro botão após o Dashboard
-const menuPrincipalLinks = [
-  // Assumimos que /medico é a rota da Dashboard
-  { href: "/medico", icon: <LayoutDashboardIcon/>, label: "Dashboard" }, 
-  
-  // Mapeamos para a pasta 'atendimentos' (sua pasta de destino)
-  { href: "/medico/atendimentos", icon: <Calendar/>, label: "Atendimentos" }, 
-  
-  // Mapeamos para a pasta 'prontuarios'
-  { href: "/medico/prontuarios", icon: <SearchIcon/>, label: "Buscar Prontuários" },
-];
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
-// --- Seção 2: Fichas e Registros ---
-// Alinhado com as pastas do seu sistema:
-const fichasLinks = [
-  { href: "/medico/fichas-clinicas", icon: <StethoscopeIcon/>, label: "Fichas Clínicas" },
-  { href: "/medico/fichas-cirurgicas", icon: <SyringeIcon/>, label: "Fichas Cirúrgicas" },
-  { href: "/medico/fichas-anestesicas", icon: <ClipboardListIcon/>, label: "Fichas Anestésicas" },
-  { href: "/medico/exames", icon: <BeakerIcon/>, label: "Exames" }, // Assumimos que a pasta 'exames' existe
-];
-
-/**
- * Componente MedicoSidebarButtons Padronizado e com links completos.
- * CORREÇÃO: Usando <a> tag em vez de Next Link.
- */
 export default function MedicoSidebarButtons() {
+  const pathname = usePathname();
+
+  // Normaliza a rota para comparação
+  const normalizedPath = pathname.endsWith('/') && pathname.length > 1 
+    ? pathname.slice(0, -1) 
+    : pathname;
+
+  // Grupo 1: Principal
+  const menuPrincipal = [
+    { 
+      href: "/medico", 
+      icon: LayoutDashboard, 
+      label: "Dashboard",
+      active: normalizedPath === "/medico" 
+    },
+    { 
+      href: "/medico/atendimentos", 
+      icon: CalendarDays, 
+      label: "Meus Atendimentos",
+      active: normalizedPath.startsWith("/medico/atendimentos")
+    },
+  ];
+
+  // Grupo 2: Clínico
+  const menuClinico = [
+    { 
+      href: "/medico/prontuarios", 
+      icon: Search, 
+      label: "Buscar Prontuário",
+      active: normalizedPath.startsWith("/medico/prontuarios")
+    },
+    { 
+      href: "/medico/fichas-clinicas", 
+      icon: Stethoscope, 
+      label: "Fichas Clínicas",
+      active: normalizedPath.startsWith("/medico/fichas-clinicas")
+    },
+    { 
+      href: "/medico/fichas-cirurgicas", 
+      icon: Syringe, 
+      label: "Fichas Cirúrgicas",
+      active: normalizedPath.startsWith("/medico/fichas-cirurgicas")
+    },
+    { 
+      href: "/medico/fichas-anestesicas", 
+      icon: ClipboardList, 
+      label: "Fichas Anestésicas",
+      active: normalizedPath.startsWith("/medico/fichas-anestesicas")
+    },
+    { 
+      href: "/medico/exames", 
+      icon: FlaskConical, 
+      label: "Exames",
+      active: normalizedPath.startsWith("/medico/exames")
+    },
+  ];
+
   return (
     <>
-      {/* --- GRUPO: Menu Principal --- */}
-      <SidebarGroup>
-        <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+      <SidebarGroup className="group-data-[collapsible=icon]:py-0">
+        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Menu Principal</SidebarGroupLabel>
         <SidebarMenu>
-          {menuPrincipalLinks.map((link) => (
-            <SidebarMenuItem key={link.href}>
-              <SidebarMenuButton asChild>
-                <a 
-                  href={link.href}
-                  className="text-base" 
-                >
-                  {link.icon}
-                  <span>{link.label}</span>
-                </a>
+          {menuPrincipal.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton 
+                asChild 
+                isActive={item.active}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarGroup>
 
-      {/* --- GRUPO: Fichas e Registros --- */}
-      <SidebarGroup>
-        <SidebarGroupLabel>Fichas e Registros</SidebarGroupLabel>
+      <SidebarGroup className="group-data-[collapsible=icon]:py-0">
+        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Prontuários & Fichas</SidebarGroupLabel>
         <SidebarMenu>
-          {fichasLinks.map((link) => (
-            <SidebarMenuItem key={link.href}>
-              <SidebarMenuButton asChild>
-                <a 
-                  href={link.href}
-                  className="text-base" 
-                >
-                  {link.icon}
-                  <span>{link.label}</span>
-                </a>
+          {menuClinico.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton 
+                asChild 
+                isActive={item.active}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
