@@ -11,7 +11,8 @@ import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
 import { maskCPF, maskPhone, unmask, validateCPF } from '@/lib/masks';
-import { UserService, User } from '@/services/user.service';
+import { StudentService, Student } from '@/services/student.service';
+import { AuthService } from '@/services/auth.service';
 import { CreateUserDto, Role } from '@/types/auth.types';
 
 // --- TIPOS ---
@@ -54,29 +55,36 @@ export default function PaginaEstudantes() {
       setLoading(true);
       setError(null);
       
-      // 1. Busca todos os usuários
-      const allUsers = await UserService.getAll();
+      console.log('🔍 Carregando lista de estudantes...');
       
-      // 2. Filtra apenas estudantes usando o método estático do serviço
-      const studentUsers = UserService.filterByRole(allUsers, Role.student);
+      // Busca todos os estudantes usando o endpoint específico
+      const students = await StudentService.getAll();
       
-      // 3. Mapeia para a UI
-      const data: EstudanteUI[] = studentUsers.map((user: User) => ({
-        id: user.id, // UI espera number aqui (conforme interface EstudanteCard)
-        userId: user.id,
-        nome: user.completeName,
-        email: user.email,
-        cpf: user.cpf,
-        telefone: user.phone,
-        // Se tiver registro na tabela Veterinarian, pegamos o status active, senão default true
-        ativo: user.veterinarian ? user.veterinarian.active : true,
-        // Usamos o campo CRMV para exibir matrícula/código se existir
-        matricula: user.veterinarian?.crmv || undefined
-      }));
+      console.log('✅ Estudantes recebidos do backend:', students);
+      
+      // Mapeia para a UI
+      const data: EstudanteUI[] = students.map((student: Student) => {
+        if (!student.userId) {
+          console.warn('⚠️ Estudante sem userId:', student);
+        }
+        
+        return {
+          id: student.id,
+          userId: student.userId,
+          nome: student.user.completeName,
+          email: student.user.email,
+          cpf: student.user.cpf,
+          telefone: student.user.phone,
+          ativo: student.active,
+          matricula: student.enrollment || undefined
+        };
+      });
 
+      console.log('✅ Estudantes mapeados para UI:', data);
       setEstudantes(data);
     } catch (err: any) {
       const msg = err.message || 'Erro ao carregar estudantes';
+      console.error('❌ Erro ao carregar estudantes:', err);
       setError(msg);
       toast.error(msg);
     } finally {
@@ -93,6 +101,13 @@ export default function PaginaEstudantes() {
   };
 
   const handleEdit = (item: EstudanteUI) => {
+    console.log('🖊️ Abrindo modal de edição para:', {
+      estudante: item,
+      userId: item.userId,
+      id: item.id,
+      nome: item.nome
+    });
+    
     setEditFormData({
       nome: item.nome, 
       email: item.email, 
@@ -109,8 +124,11 @@ export default function PaginaEstudantes() {
     if (!window.confirm(`Deletar estudante ${item.nome}?`)) return;
     try {
       setLoading(true); 
-      await UserService.delete(item.userId); 
-      await loadEstudantes();
+      await StudentService.delete(item.userId); 
+      
+      // Remove apenas o estudante deletado da lista (sem recarregar)
+      setEstudantes(prev => prev.filter(est => est.userId !== item.userId));
+      
       toast.success('Estudante deletado com sucesso!');
     } catch (err: any) { 
       toast.error(err.message || 'Erro ao deletar'); 
@@ -124,34 +142,86 @@ export default function PaginaEstudantes() {
     try {
       setLoading(true);
       
-      if (!createFormData.nome?.trim()) { toast.error('Nome é obrigatório'); setLoading(false); return; }
-      if (!validateCPF(createFormData.cpf)) { toast.error('CPF inválido'); setLoading(false); return; }
+      // Validações
+      if (!createFormData.nome?.trim()) { 
+        toast.error('Nome é obrigatório'); 
+        setLoading(false); 
+        return; 
+      }
+      
+      if (!createFormData.email?.trim()) { 
+        toast.error('Email é obrigatório'); 
+        setLoading(false); 
+        return; 
+      }
+      
+      if (!validateCPF(createFormData.cpf)) { 
+        toast.error('CPF inválido'); 
+        setLoading(false); 
+        return; 
+      }
+      
       if (!createFormData.senha || createFormData.senha.length < 6) { 
         toast.error('Senha deve ter no mínimo 6 caracteres'); 
         setLoading(false); 
         return; 
       }
       
-      const newUserDto: CreateUserDto = {
-        completeName: createFormData.nome,
-        email: createFormData.email,
+      if (!createFormData.matricula?.trim()) { 
+        toast.error('Matrícula é obrigatória para estudantes'); 
+        setLoading(false); 
+        return; 
+      }
+      
+      // Cria o DTO com enrollment (matrícula)
+      const createUserDto: CreateUserDto = {
+        completeName: createFormData.nome.trim(),
+        email: createFormData.email.trim(),
         password: createFormData.senha,
         cpf: unmask(createFormData.cpf),
         phone: unmask(createFormData.telefone),
         role: Role.student,
-        // Opcional: passar matrícula como CRMV para registro interno
-        crmv: createFormData.matricula || undefined,
-        // Define especialidade como Estudante automaticamente no backend
+        enrollment: createFormData.matricula.trim(),
+        specialty: 'Estudante',
       };
 
-      await UserService.create(newUserDto);
+      // Usa AuthService.register que cria User + Veterinarian automaticamente
+      const response = await AuthService.register(createUserDto);
       
-      await loadEstudantes();
+      // Busca o estudante recém-criado (response.id pode ser string, converte para number)
+      const userId = typeof response.id === 'string' ? parseInt(response.id) : response.id;
+      const novoEstudante = await StudentService.getById(userId);
+      
+      // Adiciona o novo estudante à lista (sem recarregar tudo)
+      const estudanteUI: EstudanteUI = {
+        id: novoEstudante.id,
+        userId: novoEstudante.userId,
+        nome: novoEstudante.user.completeName,
+        email: novoEstudante.user.email,
+        cpf: novoEstudante.user.cpf,
+        telefone: novoEstudante.user.phone,
+        ativo: novoEstudante.active,
+        matricula: novoEstudante.enrollment || undefined
+      };
+      
+      setEstudantes(prev => [...prev, estudanteUI]);
+      
       setIsCreateModalOpen(false); 
       setCreateFormData(emptyForm);
       toast.success('Estudante cadastrado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao cadastrar'); 
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao cadastrar estudante';
+      
+      // Tratamento de erros específicos
+      if (errorMessage.includes('Email já cadastrado') || errorMessage.includes('email')) {
+        toast.error('Este email já está em uso');
+      } else if (errorMessage.includes('CPF já cadastrado') || errorMessage.includes('CPF')) {
+        toast.error('Este CPF já está cadastrado');
+      } else if (errorMessage.includes('Matrícula') || errorMessage.includes('enrollment')) {
+        toast.error('Matrícula é obrigatória para estudantes');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally { 
       setLoading(false); 
     }
@@ -164,33 +234,102 @@ export default function PaginaEstudantes() {
     try {
       setLoading(true);
       
+      console.log('📝 Iniciando edição de estudante:', {
+        userId: selectedEstudante.userId,
+        nome: selectedEstudante.nome,
+        formData: editFormData
+      });
+      
+      // Validações
       if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
         toast.error('CPF inválido');
         setLoading(false);
         return;
       }
-
-      const updateData: any = {}; // Usando any para flexibilidade com campos extras do backend
       
-      if (editFormData.nome !== selectedEstudante.nome) updateData.completeName = editFormData.nome;
-      if (editFormData.email !== selectedEstudante.email) updateData.email = editFormData.email;
-      if (unmask(editFormData.cpf) !== selectedEstudante.cpf) updateData.cpf = unmask(editFormData.cpf);
-      if (unmask(editFormData.telefone) !== selectedEstudante.telefone) updateData.phone = unmask(editFormData.telefone);
-      if (editFormData.senha) updateData.password = editFormData.senha;
-      
-      // Atualiza matrícula (mapeada para crmv no backend para estudantes)
-      if (editFormData.matricula !== selectedEstudante.matricula) {
-        updateData.crmv = editFormData.matricula;
+      if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
+        toast.error('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
       }
 
-      await UserService.update(selectedEstudante.userId, updateData);
+      const updateData: any = {};
       
-      await loadEstudantes();
+      // Campos do User
+      if (editFormData.nome?.trim() && editFormData.nome !== selectedEstudante.nome) {
+        updateData.completeName = editFormData.nome.trim();
+      }
+      if (editFormData.email && editFormData.email !== selectedEstudante.email) {
+        updateData.email = editFormData.email;
+      }
+      if (editFormData.cpf && unmask(editFormData.cpf) !== selectedEstudante.cpf) {
+        updateData.cpf = unmask(editFormData.cpf);
+      }
+      if (editFormData.telefone && unmask(editFormData.telefone) !== selectedEstudante.telefone) {
+        updateData.phone = unmask(editFormData.telefone);
+      }
+      if (editFormData.senha?.trim()) {
+        updateData.password = editFormData.senha;
+      }
+      
+      // Campos do Veterinarian (enrollment)
+      if (editFormData.matricula !== selectedEstudante.matricula) {
+        updateData.enrollment = editFormData.matricula?.trim() || undefined;
+      }
+
+      // Se não houver mudanças, não faz requisição
+      if (Object.keys(updateData).length === 0) {
+        toast.info('Nenhuma alteração detectada');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📤 Enviando atualização:', {
+        userId: selectedEstudante.userId,
+        updateData
+      });
+
+      const estudanteAtualizado = await StudentService.update(selectedEstudante.userId, updateData);
+      
+      // Atualiza apenas o estudante modificado na lista (sem recarregar tudo)
+      setEstudantes(prev => prev.map(est => 
+        est.userId === selectedEstudante.userId 
+          ? {
+              id: estudanteAtualizado.id,
+              userId: estudanteAtualizado.userId,
+              nome: estudanteAtualizado.user.completeName,
+              email: estudanteAtualizado.user.email,
+              cpf: estudanteAtualizado.user.cpf,
+              telefone: estudanteAtualizado.user.phone,
+              ativo: estudanteAtualizado.active,
+              matricula: estudanteAtualizado.enrollment || undefined
+            }
+          : est
+      ));
+      
       setIsEditModalOpen(false); 
       setSelectedEstudante(null);
+      setEditFormData(null);
       toast.success('Estudante atualizado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao atualizar'); 
+    } catch (err: any) {
+      console.error('❌ Erro ao atualizar estudante:', err);
+      
+      const errorMessage = err.message || 'Erro ao atualizar estudante';
+      
+      // Tratamento de erros específicos
+      if (errorMessage.includes('não encontrado') || errorMessage.includes('404')) {
+        toast.error('Estudante não encontrado. Pode ter sido deletado. Atualizando lista...');
+        await loadEstudantes();
+        setIsEditModalOpen(false);
+        setSelectedEstudante(null);
+        setEditFormData(null);
+      } else if (errorMessage.includes('Email') || errorMessage.includes('email')) {
+        toast.error('Este email já está em uso por outro usuário');
+      } else if (errorMessage.includes('CPF')) {
+        toast.error('Este CPF já está cadastrado para outro usuário');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally { 
       setLoading(false); 
     }
@@ -303,11 +442,12 @@ export default function PaginaEstudantes() {
          </div>
          
          <FormInput 
-           label="Matrícula / Código (Opcional)" 
+           label="Matrícula / Código" 
            name="matricula" 
            value={createFormData.matricula || ''} 
            onChange={e => setCreateFormData({...createFormData, matricula: e.target.value})} 
            placeholder="Ex: 2023001"
+           required
          />
 
          <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />

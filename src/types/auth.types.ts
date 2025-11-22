@@ -57,6 +57,9 @@ export interface CreateUserDto {
   crmv?: string;      // Required for veterinarian
   specialty?: string; // Optional specialty for veterinarian
   
+  // Campos específicos para student
+  enrollment?: string; // Required for student (matrícula)
+  
   // Campos específicos para petOwner
   address?: string;       // Required for petOwner (backend converte para fullAddress)
   nis?: string;           // Optional for petOwner

@@ -20,6 +20,7 @@ import {
 } from '@/services/appointment.service';
 import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 import { PetOwnerService } from '@/services/petowner.service';
+import { UserService } from '@/services/user.service';
 
 // --- TIPOS E CONSTANTES ---
 
@@ -64,6 +65,9 @@ export default function PaginaAgendamentosAdm() {
   
   const [masterAgendamentos, setMasterAgendamentos] = useState<Agendamento[]>([]);
   const [animaisDisponiveis, setAnimaisDisponiveis] = useState<AnimalOption[]>([]);
+  
+  // Cache de usuários para evitar requisições duplicadas
+  const [usersCache, setUsersCache] = useState<Map<number, { completeName: string }>>(new Map());
   
   const [loading, setLoading] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -140,13 +144,65 @@ export default function PaginaAgendamentosAdm() {
   const fetchAnimais = async () => {
     try {
       const animais = await AnimalService.getAll();
-      const opcoes: AnimalOption[] = animais.map(a => ({
-        id: a.id,
-        name: a.name || 'Sem nome',
-        petOwnerId: a.petOwnerId,
-        ownerName: a.petOwner?.user?.completeName || 'Tutor Desconhecido',
-        species: a.species
-      }));
+      
+      // Coletar userIds únicos que precisam ser buscados
+      const userIdsToFetch = new Set<number>();
+      const newCache = new Map(usersCache);
+      
+      animais.forEach(animal => {
+        if (animal.petOwner?.userId) {
+          // Se não tem user aninhado e não está no cache, adiciona para buscar
+          if (!animal.petOwner.user && !newCache.has(animal.petOwner.userId)) {
+            userIdsToFetch.add(animal.petOwner.userId);
+          }
+        }
+      });
+      
+      // Buscar usuários em paralelo
+      if (userIdsToFetch.size > 0) {
+        console.log(`🔍 Buscando dados de ${userIdsToFetch.size} tutores via UserService...`);
+        const userPromises = Array.from(userIdsToFetch).map(userId => 
+          UserService.getById(userId)
+            .then(user => ({ userId, completeName: user.completeName }))
+            .catch(err => {
+              console.error(`Erro ao buscar usuário ${userId}:`, err);
+              return { userId, completeName: 'Erro ao carregar' };
+            })
+        );
+        
+        const users = await Promise.all(userPromises);
+        users.forEach(({ userId, completeName }) => {
+          newCache.set(userId, { completeName });
+        });
+        
+        setUsersCache(newCache);
+        console.log('✅ Cache de tutores atualizado:', newCache.size, 'entradas');
+      }
+      
+      // Formatar opções com dados do cache ou do backend
+      const opcoes: AnimalOption[] = animais.map(a => {
+        let ownerName = 'Tutor Desconhecido';
+        
+        if (a.petOwner) {
+          // Prioridade 1: Dados aninhados do backend
+          if (a.petOwner.user?.completeName) {
+            ownerName = a.petOwner.user.completeName;
+          }
+          // Prioridade 2: Cache local
+          else if (a.petOwner.userId && newCache.has(a.petOwner.userId)) {
+            ownerName = newCache.get(a.petOwner.userId)!.completeName;
+          }
+        }
+        
+        return {
+          id: a.id,
+          name: a.name || 'Sem nome',
+          petOwnerId: a.petOwnerId,
+          ownerName,
+          species: a.species
+        };
+      });
+      
       setAnimaisDisponiveis(opcoes);
     } catch (error) {
       console.error('Erro ao carregar animais:', error);
