@@ -1,208 +1,288 @@
-"use client"; 
+"use client";
+
+import React, { useEffect, useState, useMemo } from 'react';
+import { Stethoscope, Syringe, Activity } from 'lucide-react'; // Ícones para filtros
 
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
 import CrudHeader from '@/components/CRUD/CrudHeader';
-import React, { useEffect, useState } from 'react';
+import MedicoCard, { MedicoUI } from '@/components/CRUD/MedicoCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
-import FormInput from '@/components/forms/FormInput'; 
+import FormInput from '@/components/forms/FormInput';
+import { VeterinarianService, Veterinarian, UpdateVeterinarianData } from '@/services/veterinarian.service';
+import { AuthService } from '@/services/auth.service';
+import { CreateUserDto, Role } from '@/types/auth.types';
+import { maskCPF, maskPhone, unmask, validateCPF, validatePhone } from '@/lib/masks';
 
-type Medico = {
-  id: string;
+type MedicoForm = {
   nome: string;
+  email: string;
+  cpf: string;
+  telefone: string;
   crmv: string;
   especialidade: string;
-  senha: string; 
+  senha: string;
 };
 
-type MedicoForm = Omit<Medico, 'id'>;
-const emptyForm: MedicoForm = { nome: '', crmv: '', especialidade: '', senha: ''};
-
-async function fetchMedicos(): Promise<Medico[]> {
-  try {
-    // Simulação de dados:
-    return [
-      { id: '1', nome: 'Dra. Cecília', crmv: 'CRMV-PE 1546', especialidade: 'Cirurgia Veterinária', senha: 'senha1' },
-      { id: '2', nome: 'Dr. Carlos', crmv: 'CRMV-PE 6532', especialidade: 'Anestesiologia', senha: 'senha2' },
-      { id: '3', nome: 'Dr. Roberto Santos', crmv: 'CRMV-PE 8548', especialidade: 'Clínica Geral', senha: 'senha3' },
-    ];
-  } catch (error) {
-    console.error(error);
-    return []; 
-  }
-}
-
+const emptyForm: MedicoForm = {
+  nome: '', email: '', cpf: '', telefone: '', crmv: '', especialidade: '', senha: '',
+};
 
 export default function PaginaMedicos() {
-  const [medicos, setMedicos] = useState<Medico[]>([]);
+  // --- ESTADOS ---
+  const [medicos, setMedicos] = useState<MedicoUI[]>([]);
+  
+  // Filtros
+  const [filterSurgery, setFilterSurgery] = useState(false);
+  const [filterGeneral, setFilterGeneral] = useState(false);
+
+  // Modais
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedMedico, setSelectedMedico] = useState<Medico | null>(null);
-  const [createFormData, setCreateFormData] = useState<MedicoForm>(emptyForm);
-  const [editFormData, setEditFormData] = useState<Medico | null>(null);
-
   
-  useEffect(() => {
-    fetchMedicos().then(data => setMedicos(data));
-  }, []);
+  const [selectedMedico, setSelectedMedico] = useState<MedicoUI | null>(null);
+  const [createFormData, setCreateFormData] = useState<MedicoForm>(emptyForm);
+  const [editFormData, setEditFormData] = useState<MedicoForm | null>(null);
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const columns: ColumnDefinition<Medico>[] = [
-    { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
-    { header: 'CRMV', cell: (item) => <span>{item.crmv}</span> },
-    { header: 'Especialidade', cell: (item) => <span>{item.especialidade}</span> },
-  ];
+  // --- LOADERS ---
+  const loadMedicos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await VeterinarianService.getAll();
+      
+      const medicosFormatados: MedicoUI[] = data.map((vet: Veterinarian) => ({
+        id: vet.id,
+        userId: vet.userId,
+        nome: vet.user?.completeName || 'Nome não informado',
+        email: vet.user?.email || 'Email não informado',
+        cpf: vet.user?.cpf || '',
+        telefone: vet.user?.phone || '',
+        crmv: vet.crmv || '',
+        especialidade: vet.specialty || 'Clínica Geral', // Default se vazio
+        ativo: vet.active,
+      }));
 
-  // Funções de Ação 
-  const handleView = (medico: Medico) => {
-    setSelectedMedico(medico);
-    setIsViewModalOpen(true);
-  };
-
-  const handleEdit = (medico: Medico) => {
-    setEditFormData(medico);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDelete = async (medico: Medico) => {
-    if (!window.confirm(`Tem certeza que deseja deletar ${medico.nome}?`)) {
-      return;
+      setMedicos(medicosFormatados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar médicos');
+    } finally {
+      setLoading(false);
     }
-    setMedicos(medicos.filter(m => m.id !== medico.id));
-    alert('Médico deletado com sucesso!');
   };
 
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm); 
-    setIsCreateModalOpen(true);
+  useEffect(() => { loadMedicos(); }, []);
+
+  // --- FILTRAGEM ---
+  const filteredMedicos = useMemo(() => {
+    return medicos.filter(medico => {
+      const especialidade = medico.especialidade.toLowerCase();
+      
+      // Lógica: Se nenhum filtro ativo, mostra todos. Se algum ativo, filtra por ele.
+      let match = true;
+      
+      if (filterSurgery || filterGeneral) {
+        const isCirurgia = especialidade.includes('cirurgia');
+        const isClinica = especialidade.includes('clínica') || especialidade.includes('clinica') || especialidade.includes('geral');
+        
+        match = false; // Reseta para false e verifica qual botão está ativo
+        if (filterSurgery && isCirurgia) match = true;
+        if (filterGeneral && isClinica) match = true;
+      }
+
+      return match;
+    });
+  }, [medicos, filterSurgery, filterGeneral]);
+
+  // --- HANDLERS ---
+  const handleView = (medico: MedicoUI) => { setSelectedMedico(medico); setIsViewModalOpen(true); };
+  
+  const handleEdit = (medico: MedicoUI) => {
+    setEditFormData({
+      nome: medico.nome, email: medico.email, cpf: maskCPF(medico.cpf), telefone: maskPhone(medico.telefone),
+      crmv: medico.crmv, especialidade: medico.especialidade, senha: '',
+    });
+    setSelectedMedico(medico); setIsEditModalOpen(true);
   };
+
+  const handleDelete = async (medico: MedicoUI) => {
+    if (!window.confirm(`Deletar ${medico.nome}?`)) return;
+    try {
+      setLoading(true); await VeterinarianService.delete(medico.userId); await loadMedicos();
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+  };
+
+  const handleOpenCreate = () => { setCreateFormData(emptyForm); setIsCreateModalOpen(true); };
 
   const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    console.log("Criando médico com:", createFormData);
-    const novoMedico = { ...createFormData, id: Math.random().toString() }; 
-    setMedicos([...medicos, novoMedico]); 
-    setIsCreateModalOpen(false); 
-    alert('Médico cadastrado!');
+    e.preventDefault();
+    try {
+      setLoading(true);
+      // Validações simplificadas (adicione as suas completas aqui)
+      if (!validateCPF(createFormData.cpf)) { alert('CPF inválido'); setLoading(false); return; }
+      
+      const createUserDto: CreateUserDto = {
+        completeName: createFormData.nome, email: createFormData.email, password: createFormData.senha,
+        cpf: unmask(createFormData.cpf), phone: unmask(createFormData.telefone), role: Role.veterinarian,
+        crmv: createFormData.crmv, specialty: createFormData.especialidade || undefined,
+      };
+      await AuthService.register(createUserDto);
+      await loadMedicos(); setIsCreateModalOpen(false); setCreateFormData(emptyForm);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFormData) return; 
-    console.log("Salvando edição:", editFormData);
-    setMedicos(medicos.map(m => m.id === editFormData.id ? editFormData : m));
-    setIsEditModalOpen(false);
+    if (!editFormData || !selectedMedico) return;
+    try {
+      setLoading(true);
+      const updateData: UpdateVeterinarianData = {
+        completeName: editFormData.nome, email: editFormData.email, cpf: unmask(editFormData.cpf),
+        phone: unmask(editFormData.telefone), crmv: editFormData.crmv, specialty: editFormData.especialidade || undefined,
+      };
+      if (editFormData.senha) updateData.password = editFormData.senha;
+      
+      await VeterinarianService.update(selectedMedico.userId, updateData);
+      await loadMedicos(); setIsEditModalOpen(false); setSelectedMedico(null);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
+  // Handlers de Input Controlado
+  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const val = maskCPF(e.target.value);
+    if (isEdit) setEditFormData(prev => prev ? { ...prev, cpf: val } : null);
+    else setCreateFormData(prev => ({ ...prev, cpf: val }));
+  };
+  
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const val = maskPhone(e.target.value);
+    if (isEdit) setEditFormData(prev => prev ? { ...prev, telefone: val } : null);
+    else setCreateFormData(prev => ({ ...prev, telefone: val }));
+  };
+
+  // --- DEFINIÇÃO DAS COLUNAS ---
+  const columns: ColumnDefinition<MedicoUI>[] = [
+    { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
+    { header: 'CRMV', cell: (item) => <span className="font-mono bg-gray-50 px-2 py-0.5 rounded text-gray-700">{item.crmv}</span> },
+    { header: 'Especialidade', cell: (item) => <span className="text-blue-600 font-medium">{item.especialidade}</span> },
+    { header: 'Telefone', cell: (item) => <span className="text-gray-600">{item.telefone ? maskPhone(item.telefone) : '-'}</span> },
+    { header: 'Status', cell: (item) => (
+        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${item.ativo ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+          {item.ativo ? 'Ativo' : 'Inativo'}
+        </span>
+      ) 
+    },
+  ];
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-7xl mx-auto">
       
       <CrudHeader
-        title="Gerenciar Médicos"
+        title="Gestão de Médicos"
+        description="Administre o corpo clínico, especialidades e permissões."
         buttonText="Cadastrar Médico"
         onButtonClick={handleOpenCreate} 
       />
+
+      {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
       
-      <CrudDisplay<Medico>
+      <CrudDisplay<MedicoUI>
         data={medicos}
         columns={columns}
-        searchPlaceholder="Buscar por nome ou CRMV..."
+        searchPlaceholder="Buscar por nome, CRMV ou especialidade..."
+        emptyMessage="Nenhum médico encontrado com os filtros atuais."
+        isLoading={loading}
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        
+        // FILTROS EXTRAS
+        extraFilters={
+          <>
+             <button onClick={() => setFilterSurgery(!filterSurgery)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterSurgery ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <Activity size={16} /> Cirurgia
+              </button>
+              <button onClick={() => setFilterGeneral(!filterGeneral)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterGeneral ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <Stethoscope size={16} /> Clínica Geral
+              </button>
+          </>
+        }
+
+        // GRID VIEW
+        renderGrid={(items) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map(medico => (
+              <MedicoCard 
+                key={medico.id} 
+                medico={medico} 
+                onView={handleView} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete} 
+              />
+            ))}
+          </div>
+        )}
       />
       
-      {/* Modal de Visualização */}
-      <ViewModal
-        isOpen={isViewModalOpen && !!selectedMedico}
-        onClose={() => setIsViewModalOpen(false)}
-        title="Detalhes do Médico"
-      >
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Nome:</label>
-          <p className="text-gray-800">{selectedMedico?.nome}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">CRMV:</label>
-          <p className="text-gray-800">{selectedMedico?.crmv}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Especialidade:</label>
-          <p className="text-gray-800">{selectedMedico?.especialidade}</p>
+      {/* --- MODAL VIEW --- */}
+      <ViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title={`Perfil: ${selectedMedico?.nome}`}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+             <div className="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+               <Stethoscope size={32} />
+             </div>
+             <div>
+               <h3 className="text-lg font-bold text-gray-900">{selectedMedico?.nome}</h3>
+               <p className="text-sm text-gray-500">{selectedMedico?.especialidade}</p>
+             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+             <div><label className="text-xs font-bold text-gray-400 uppercase">CRMV</label><p className="font-medium">{selectedMedico?.crmv}</p></div>
+             <div><label className="text-xs font-bold text-gray-400 uppercase">Status</label><p className={`font-medium ${selectedMedico?.ativo ? 'text-green-600' : 'text-red-600'}`}>{selectedMedico?.ativo ? 'Ativo' : 'Inativo'}</p></div>
+             <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedMedico?.cpf ? maskCPF(selectedMedico.cpf) : '-'}</p></div>
+             <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedMedico?.telefone ? maskPhone(selectedMedico.telefone) : '-'}</p></div>
+          </div>
+          <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium text-gray-900">{selectedMedico?.email}</p></div>
         </div>
       </ViewModal>
 
-      {/* Modal de Edição (Usando CadastroModal) */}
-      <CadastroModal
-        isOpen={isEditModalOpen && !!editFormData}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleEditSave}
-        title="Editar Médico"
-        saveText="Salvar Alterações"
-      >
-        <FormInput
-          label="Nome:"
-          name="nome"
-          value={editFormData?.nome || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, nome: e.target.value } : null)}
-        />
-        <FormInput
-          label="CRMV:"
-          name="crmv"
-          value={editFormData?.crmv || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, crmv: e.target.value } : null)}
-        />
-        <FormInput
-          label="Especialidade:"
-          name="especialidade"
-          value={editFormData?.especialidade || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, especialidade: e.target.value } : null)}
-        />
-        <FormInput
-          label="Senha:"
-          name="senha"
-          type="password" 
-          placeholder="Deixe em branco para não alterar"
-          value={editFormData?.senha || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
-        />
+      {/* --- MODAL CREATE --- */}
+      <CadastroModal isOpen={isCreateModalOpen} onClose={() => {setIsCreateModalOpen(false); setCreateFormData(emptyForm);}} onSubmit={handleCreateSave} title="Novo Médico" saveText="Cadastrar">
+        <FormInput label="Nome Completo" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
+        <FormInput label="Email" name="email" type="email" value={createFormData.email} onChange={e => setCreateFormData({...createFormData, email: e.target.value})} required />
+        <div className="grid grid-cols-2 gap-4">
+           <FormInput label="CPF" name="cpf" value={createFormData.cpf} onChange={e => handleCPFChange(e, false)} placeholder="000.000.000-00" required />
+           <FormInput label="Telefone" name="telefone" value={createFormData.telefone} onChange={e => handlePhoneChange(e, false)} placeholder="(00) 00000-0000" required />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+           <FormInput label="CRMV" name="crmv" value={createFormData.crmv} onChange={e => setCreateFormData({...createFormData, crmv: e.target.value})} required />
+           <FormInput label="Especialidade" name="especialidade" value={createFormData.especialidade} onChange={e => setCreateFormData({...createFormData, especialidade: e.target.value})} placeholder="Ex: Cirurgia" />
+        </div>
+        <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
       </CadastroModal>
 
-      {/* Modal de Cadastro (Usando CadastroModal) */}
-      <CadastroModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateSave}
-        title="Cadastrar Novo Médico"
-        saveText="Cadastrar"
-      >
-        <FormInput
-          label="Nome:"
-          name="nome"
-          value={createFormData.nome}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, nome: e.target.value }))}
-        />
-        <FormInput
-          label="CRMV:"
-          name="crmv"
-          value={createFormData.crmv}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, crmv: e.target.value }))}
-        />
-        <FormInput
-          label="Especialidade:"
-          name="especialidade"
-          value={createFormData.especialidade}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, especialidade: e.target.value }))}
-        />
-        <FormInput
-          label="Senha:"
-          name="senha"
-          type="password"
-          value={createFormData.senha}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
-        />
-      </CadastroModal> 
+      {/* --- MODAL EDIT --- */}
+      <CadastroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Médico" saveText="Salvar">
+        <FormInput label="Nome Completo" name="nome" value={editFormData?.nome || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} />
+        <FormInput label="Email" name="email" type="email" value={editFormData?.email || ''} onChange={e => setEditFormData(prev => prev ? {...prev, email: e.target.value} : null)} />
+        <div className="grid grid-cols-2 gap-4">
+           <FormInput label="CPF" name="cpf" value={editFormData?.cpf || ''} onChange={e => handleCPFChange(e, true)} />
+           <FormInput label="Telefone" name="telefone" value={editFormData?.telefone || ''} onChange={e => handlePhoneChange(e, true)} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+           <FormInput label="CRMV" name="crmv" value={editFormData?.crmv || ''} onChange={e => setEditFormData(prev => prev ? {...prev, crmv: e.target.value} : null)} />
+           <FormInput label="Especialidade" name="especialidade" value={editFormData?.especialidade || ''} onChange={e => setEditFormData(prev => prev ? {...prev, especialidade: e.target.value} : null)} />
+        </div>
+        <div className="pt-4 border-t border-gray-100 mt-2">
+          <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
+          <FormInput label="Nova Senha" name="senha" type="password" value={editFormData?.senha || ''} onChange={e => setEditFormData(prev => prev ? {...prev, senha: e.target.value} : null)} />
+        </div>
+      </CadastroModal>
+
     </div>
   );
 }

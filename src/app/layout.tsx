@@ -1,6 +1,7 @@
 // app/layout.tsx
 
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -17,6 +18,7 @@ export default function RootLayout({
           Sem ela, seu site ficará em branco.
         */}
         {children}
+        <Toaster />
       </body>
     </html>
   );

@@ -1,44 +1,124 @@
-// Localização: components/Sidebars/MedicoSidebarButtons.tsx
+"use client";
 
-import SidebarButton from "@/components/Buttons/SidebarButton";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { 
-  LayoutDashboardIcon, 
-  Calendar,
-  DogIcon,
-  SheetIcon // Exemplo de ícone para prontuário
-  // Adicione outros ícones necessários da 'lucide-react'
+  LayoutDashboard, 
+  CalendarDays, 
+  Search, 
+  Stethoscope, 
+  Syringe, 
+  ClipboardList, 
+  FlaskConical 
 } from "lucide-react";
 
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+
 export default function MedicoSidebarButtons() {
+  const pathname = usePathname();
+
+  // Normaliza a rota para comparação
+  const normalizedPath = pathname.endsWith('/') && pathname.length > 1 
+    ? pathname.slice(0, -1) 
+    : pathname;
+
+  // Grupo 1: Principal
+  const menuPrincipal = [
+    { 
+      href: "/medico", 
+      icon: LayoutDashboard, 
+      label: "Dashboard",
+      active: normalizedPath === "/medico" 
+    },
+    { 
+      href: "/medico/atendimentos", 
+      icon: CalendarDays, 
+      label: "Meus Atendimentos",
+      active: normalizedPath.startsWith("/medico/atendimentos")
+    },
+  ];
+
+  // Grupo 2: Clínico
+  const menuClinico = [
+    { 
+      href: "/medico/prontuarios", 
+      icon: Search, 
+      label: "Buscar Prontuário",
+      active: normalizedPath.startsWith("/medico/prontuarios")
+    },
+    { 
+      href: "/medico/fichas-clinicas", 
+      icon: Stethoscope, 
+      label: "Fichas Clínicas",
+      active: normalizedPath.startsWith("/medico/fichas-clinicas")
+    },
+    { 
+      href: "/medico/fichas-cirurgicas", 
+      icon: Syringe, 
+      label: "Fichas Cirúrgicas",
+      active: normalizedPath.startsWith("/medico/fichas-cirurgicas")
+    },
+    { 
+      href: "/medico/fichas-anestesicas", 
+      icon: ClipboardList, 
+      label: "Fichas Anestésicas",
+      active: normalizedPath.startsWith("/medico/fichas-anestesicas")
+    },
+    { 
+      href: "/medico/exames", 
+      icon: FlaskConical, 
+      label: "Exames",
+      active: normalizedPath.startsWith("/medico/exames")
+    },
+  ];
+
   return (
-    <nav className = "gap-2 flex flex-col">
-      {/* Exemplo de botões para o Médico */}
+    <>
+      <SidebarGroup className="group-data-[collapsible=icon]:py-0">
+        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Menu Principal</SidebarGroupLabel>
+        <SidebarMenu>
+          {menuPrincipal.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton 
+                asChild 
+                isActive={item.active}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
 
-      <SidebarButton
-        href= "/medico"
-        icon = {<LayoutDashboardIcon/>}
-        label= "Dashboard"
-      />
-
-      <SidebarButton 
-        href= "/medico/agenda"
-        icon = {<Calendar/>}
-        label= "Minha Agenda"
-      />
-
-      <SidebarButton 
-        href= "/medico/pacientes"
-        icon = {<DogIcon/>}
-        label= "Pacientes"
-      />
-
-      <SidebarButton 
-        href= "/medico/prontuarios"
-        icon = {<SheetIcon/>}
-        label= "Prontuários"
-      />
-
-      {/* Adicione mais botões aqui */}
-    </nav>
+      <SidebarGroup className="group-data-[collapsible=icon]:py-0">
+        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Prontuários & Fichas</SidebarGroupLabel>
+        <SidebarMenu>
+          {menuClinico.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton 
+                asChild 
+                isActive={item.active}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    </>
   );
 }

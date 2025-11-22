@@ -1,413 +1,325 @@
-"use client"; 
+﻿"use client";
 
-import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
+import React, { useEffect, useState, useMemo } from 'react';
+import { User, Building2 } from 'lucide-react';
+
 import CrudHeader from '@/components/CRUD/CrudHeader';
-import React, { useEffect, useState } from 'react';
+import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
+// IMPORTAÇÃO ATUALIZADA
+import ResponsavelCardAdm, { ResponsavelAdmUI } from '@/components/CRUD/ResponsavelAdmCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
-import FormInput from '@/components/forms/FormInput'; 
+import FormInput from '@/components/forms/FormInput';
+import { PetOwnerService, PetOwner, CreatePetOwnerData, UpdatePetOwnerData } from '@/services/petowner.service';
 
-// 1. Definição de Tipos (com 'senha' e 'telefone' para ambos)
-type Responsavel = {
-  id: string;
-  tipo: 'PF' | 'ONG';
+// --- CONSTANTES E TIPOS ---
+const TYPE_MAP = { 'INDIVIDUAL': 'Pessoa Física', 'NGO': 'ONG' } as const;
+const TYPE_REVERSE_MAP = { 'Pessoa Física': 'INDIVIDUAL', 'ONG': 'NGO' } as const;
+
+type TipoResponsavel = 'Pessoa Física' | 'ONG';
+
+// Usando a tipagem do novo componente
+type Responsavel = ResponsavelAdmUI;
+
+type ResponsavelForm = {
   nome: string;
-  cpf?: string;
-  nis?: string;
-  cnpj?: string;
-  telefone?: string; // <-- Agora usado por PF e ONG
-  animais: string[]; 
-  senha: string;     // <-- Adicionado
+  tipo: TipoResponsavel;
+  cpf: string;
+  nis: string;
+  cnpj: string;
+  telefone: string;
+  email: string;
+  endereco: string;
+  senha: string;
 };
 
-// Formulário agora inclui 'senha'
-type ResponsavelForm = Omit<Responsavel, 'id' | 'animais'>;
-
-const emptyForm: ResponsavelForm = { 
-  tipo: 'PF', 
-  nome: '', 
-  cpf: '', 
-  nis: '',
-  cnpj: '',
-  telefone: '',
-  senha: '' // <-- Adicionado
+const emptyForm: ResponsavelForm = {
+  nome: '', tipo: 'Pessoa Física', cpf: '', nis: '', cnpj: '', telefone: '', email: '', endereco: '', senha: '',
 };
 
+const TipoBadge: React.FC<{ tipo: TipoResponsavel }> = ({ tipo }) => {
+  const isPF = tipo === 'Pessoa Física';
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${isPF ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}`}>
+      {tipo}
+    </span>
+  );
+};
 
-// 2. Lógica de API (Fetch com dados ajustados)
-async function fetchResponsaveis(): Promise<Responsavel[]> {
-  try {
-    // Simulação de dados com telefone para PF e senhas
-    return [
-      { id: '1', tipo: 'PF', nome: 'João Silva', cpf: '123.456.789-00', nis: '123.456.789-00', telefone: '(81) 98888-7777', animais: ['Rex'], senha: 'senha1' },
-      { id: '2', tipo: 'ONG', nome: 'ONG Amigos dos Animais', cnpj: '12.345.678/0001-00', telefone: '(81) 3333-4444', animais: ['Max', 'Bolinha', 'Frajola'], senha: 'senha2' },
-      { id: '3', tipo: 'ONG', nome: 'Instituto Patinhas', cnpj: '12.345.678/0001-02', telefone: '(81) 5555-6666', animais: ['Luna', 'Thor'], senha: 'senha3' },
-    ];
-  } catch (error) {
-    console.error(error);
-    return []; 
-  }
-}
-
-// -- COMPONENTE DE RADIO CUSTOMIZADO --
-type TipoResponsavelProps = {
-  tipo: 'PF' | 'ONG';
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  disabled?: boolean;
-}
-
-const TipoResponsavelRadio: React.FC<TipoResponsavelProps> = ({ tipo, onChange, disabled = false }) => (
-  <div className="space-y-2">
-    <label className="block text-sm font-semibold text-gray-600">Tipo de Responsável</label>
-    <div className="flex gap-6">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name="tipoResponsavel"
-          value="PF"
-          checked={tipo === 'PF'}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-4 h-4 text-green-600 focus:ring-green-500"
-        />
-        Pessoa Física
-      </label>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name="tipoResponsavel"
-          value="ONG"
-          checked={tipo === 'ONG'}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-4 h-4 text-green-600 focus:ring-green-500"
-        />
-        ONG
-      </label>
-    </div>
-  </div>
-);
-
-
-// 3. Componente da Página
-export default function PaginaResponsaveis() {
-  // 4. Estados
+export default function PaginaGestaoResponsaveis() {
+  // --- ESTADOS ---
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  
+  // Filtros
+  const [filterPF, setFilterPF] = useState(false);
+  const [filterONG, setFilterONG] = useState(false);
+
+  // Modais e Forms
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
-  const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
-  const [editFormData, setEditFormData] = useState<Responsavel | null>(null);
-
   
-  useEffect(() => {
-    fetchResponsaveis().then(data => setResponsaveis(data));
-  }, []);
+  const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
+  const [editFormData, setEditFormData] = useState<ResponsavelForm | null>(null);
+  const [createFormData, setCreateFormData] = useState<ResponsavelForm>(emptyForm);
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Definição das Colunas
-  const columns: ColumnDefinition<Responsavel>[] = [
-    { 
-      header: 'Tipo', 
-      cell: (item) => (
-        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-          item.tipo === 'PF' 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-blue-100 text-blue-800' 
-        }`}>
-          {item.tipo}
-        </span>
-      ) 
-    },
-    { header: 'Nome', cell: (item) => <span className="font-medium">{item.nome}</span> },
-    { 
-      header: 'CPF ou CNPJ', 
-      cell: (item) => <span>{item.cpf || item.cnpj}</span> 
-    },
-    { 
-      header: 'Telefone', 
-      cell: (item) => <span>{item.telefone || 'N/A'}</span> // <-- Agora funciona para PF também
-    },
-    { 
-      header: 'Animais', 
-      cell: (item) => <span>{item.animais.join(', ')}</span> 
-    },
-  ];
-
-  // 5. Handlers
-  const handleView = (responsavel: Responsavel) => {
-    setSelectedResponsavel(responsavel);
-    setIsViewModalOpen(true);
+  // --- LOADERS ---
+  const loadResponsaveis = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await PetOwnerService.getAll();
+      const data = Array.isArray(response) ? response : response.data;
+      
+      const formatados: Responsavel[] = data.map((petOwner: PetOwner) => ({
+        id: petOwner.id,
+        nome: petOwner.name,
+        tipo: TYPE_MAP[petOwner.type] || 'Pessoa Física',
+        cpf: petOwner.cpf || '',
+        nis: petOwner.nis || '',
+        cnpj: petOwner.cnpj || '',
+        telefone: petOwner.phone || '',
+        email: petOwner.email || '',
+        endereco: petOwner.address || '',
+      }));
+      setResponsaveis(formatados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar responsáveis');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => { loadResponsaveis(); }, []);
+
+  // --- FILTRAGEM ---
+  const filteredResponsaveis = useMemo(() => {
+    return responsaveis.filter(resp => {
+      let match = true;
+      if (filterPF || filterONG) {
+        const isPF = resp.tipo === 'Pessoa Física';
+        const isONG = resp.tipo === 'ONG';
+        
+        match = false;
+        if (filterPF && isPF) match = true;
+        if (filterONG && isONG) match = true;
+      }
+      return match;
+    });
+  }, [responsaveis, filterPF, filterONG]);
+
+  // --- HANDLERS ---
+  const handleView = (responsavel: Responsavel) => { setSelectedResponsavel(responsavel); setIsViewModalOpen(true); };
+  
   const handleEdit = (responsavel: Responsavel) => {
-    // Preparamos o 'editFormData' para ter um valor de 'senha' vazio, 
-    // para que o placeholder "Deixe em branco..." funcione
-    setEditFormData({...responsavel, senha: ''});
-    setIsEditModalOpen(true);
+    setEditFormData({
+      nome: responsavel.nome, tipo: responsavel.tipo, cpf: responsavel.cpf || '', nis: responsavel.nis || '',
+      cnpj: responsavel.cnpj || '', telefone: responsavel.telefone || '', email: responsavel.email || '',
+      endereco: responsavel.endereco || '', senha: '',
+    });
+    setSelectedResponsavel(responsavel); setIsEditModalOpen(true);
   };
 
   const handleDelete = async (responsavel: Responsavel) => {
-    if (!window.confirm(`Tem certeza que deseja deletar ${responsavel.nome}?`)) {
-      return;
-    }
-    setResponsaveis(responsaveis.filter(m => m.id !== responsavel.id));
-    alert('Responsável deletado(a) com sucesso!');
-  };
-
-  const handleOpenCreate = () => {
-    setCreateFormData(emptyForm); 
-    setIsCreateModalOpen(true);
+    if (!window.confirm(`Deletar ${responsavel.nome}?`)) return;
+    try {
+      setLoading(true); await PetOwnerService.delete(responsavel.id); await loadResponsaveis();
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    console.log("Criando responsável com:", createFormData); 
-
-    const novoResponsavel: Responsavel = { 
-      ...createFormData, 
-      id: Math.random().toString(),
-      animais: [] 
-    }; 
-    setResponsaveis([...responsaveis, novoResponsavel]); 
-    setIsCreateModalOpen(false); 
-    alert('Responsável cadastrado(a)!');
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const createData: CreatePetOwnerData = {
+        name: createFormData.nome, type: TYPE_REVERSE_MAP[createFormData.tipo] as any,
+        phone: createFormData.telefone, email: createFormData.email, address: createFormData.endereco,
+        password: createFormData.senha,
+      };
+      if (createFormData.tipo === 'Pessoa Física') {
+        if (!createFormData.cpf) { alert('CPF obrigatório'); setLoading(false); return; }
+        createData.cpf = createFormData.cpf; createData.nis = createFormData.nis;
+      } else {
+        if (!createFormData.cnpj) { alert('CNPJ obrigatório'); setLoading(false); return; }
+        createData.cnpj = createFormData.cnpj;
+      }
+      await PetOwnerService.create(createData); await loadResponsaveis();
+      setIsCreateModalOpen(false); setCreateFormData(emptyForm);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFormData) return; 
-    
-    // Lógica para não alterar a senha se o campo estiver em branco
-    // Precisaríamos buscar o responsável original para saber a senha antiga
-    // Por enquanto, a simulação apenas salva o que está no formulário.
-    // Se a senha estiver vazia, ela será salva como vazia na simulação.
-    
-    console.log("Salvando edição:", editFormData);
-    setResponsaveis(responsaveis.map(m => m.id === editFormData.id ? editFormData : m));
-    setIsEditModalOpen(false);
+    if (!editFormData || !selectedResponsavel) return;
+    try {
+      setLoading(true);
+      const updateData: UpdatePetOwnerData = {
+        name: editFormData.nome, type: TYPE_REVERSE_MAP[editFormData.tipo] as any,
+        phone: editFormData.telefone, email: editFormData.email, address: editFormData.endereco,
+      };
+      if (editFormData.tipo === 'Pessoa Física') { updateData.cpf = editFormData.cpf; updateData.nis = editFormData.nis; } 
+      else { updateData.cnpj = editFormData.cnpj; }
+      if (editFormData.senha) updateData.password = editFormData.senha;
+      
+      await PetOwnerService.update(selectedResponsavel.id, updateData); await loadResponsaveis();
+      setIsEditModalOpen(false); setSelectedResponsavel(null);
+    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
+  // --- COLUNAS ---
+  const columns: ColumnDefinition<Responsavel>[] = [
+    { header: 'Nome', cell: (item) => <span className="font-bold text-gray-900">{item.nome}</span> },
+    { header: 'Tipo', cell: (item) => <TipoBadge tipo={item.tipo} /> },
+    { header: 'Documento', cell: (item) => <span className="text-gray-600 font-mono text-xs">{item.tipo === 'Pessoa Física' ? item.cpf || '-' : item.cnpj || '-'}</span> },
+    { header: 'Telefone', cell: (item) => <span className="text-gray-600">{item.telefone || '-'}</span> },
+    { header: 'Email', cell: (item) => <span className="text-gray-600">{item.email || '-'}</span> },
+  ];
 
-  // 6. JSX (Renderização)
   return (
-    <div className="space-y-4">
-      
-      <CrudHeader
-        title="Responsáveis"
-        buttonText="Novo Responsável"
-        onButtonClick={handleOpenCreate} 
+    <div className="max-w-7xl mx-auto">
+      <CrudHeader 
+        title="Gestão de Responsáveis"
+        description="Cadastre e gerencie os tutores e ONGs parceiras."
+        buttonText="Cadastrar Responsável"
+        onButtonClick={() => setIsCreateModalOpen(true)}
       />
-      
-      <CrudDisplay<Responsavel>
-        data={responsaveis}
+
+      {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
+
+      <CrudDisplay
+        data={filteredResponsaveis}
         columns={columns}
-        searchPlaceholder="Buscar por nome, CPF ou CNPJ..."
+        searchPlaceholder="Buscar por nome, documento ou email..."
+        emptyMessage="Nenhum responsável encontrado."
+        isLoading={loading}
         onView={handleView}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        
+        // FILTROS EXTRAS
+        extraFilters={
+          <>
+             <button onClick={() => setFilterPF(!filterPF)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterPF ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <User size={16} /> Pessoa Física
+              </button>
+              <button onClick={() => setFilterONG(!filterONG)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${filterONG ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <Building2 size={16} /> ONG
+              </button>
+          </>
+        }
+
+        // GRID VIEW (Usando o novo componente)
+        renderGrid={(items) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map(resp => (
+              <ResponsavelCardAdm
+                key={resp.id} 
+                responsavel={resp} 
+                onView={handleView} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete} 
+              />
+            ))}
+          </div>
+        )}
       />
 
-      {/* Modal de Visualização (com Telefone para PF) */}
-      <ViewModal
-        isOpen={isViewModalOpen && !!selectedResponsavel}
-        onClose={() => setIsViewModalOpen(false)}
-        title="Detalhes do Responsável"
-      >
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Tipo:</label>
-          <p className="text-gray-800">{selectedResponsavel?.tipo === 'PF' ? 'Pessoa Física' : 'ONG'}</p>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Nome:</label>
-          <p className="text-gray-800">{selectedResponsavel?.nome}</p>
-        </div>
-        
-        {selectedResponsavel?.tipo === 'PF' && (
-          <>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">CPF:</label>
-              <p className="text-gray-800">{selectedResponsavel?.cpf}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">Telefone:</label> {/* <-- Adicionado */}
-              <p className="text-gray-800">{selectedResponsavel?.telefone || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">NIS:</label>
-              <p className="text-gray-800">{selectedResponsavel?.nis || 'N/A'}</p>
-            </div>
-          </>
-        )}
-        
-        {selectedResponsavel?.tipo === 'ONG' && (
-          <>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">CNPJ:</label>
-              <p className="text-gray-800">{selectedResponsavel?.cnpj}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600">Telefone:</label>
-              <p className="text-gray-800">{selectedResponsavel?.telefone}</p>
-            </div>
-          </>
-        )}
-        
-        <div>
-          <label className="text-sm font-semibold text-gray-600">Animais:</label>
-          <p className="text-gray-800">{selectedResponsavel?.animais.join(', ') || 'Nenhum animal associado'}</p>
+      {/* --- MODAL VIEW --- */}
+      <ViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalhes do Responsável">
+        <div className="space-y-4">
+           <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+             <div className={`h-16 w-16 rounded-full flex items-center justify-center ${selectedResponsavel?.tipo === 'ONG' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+               {selectedResponsavel?.tipo === 'ONG' ? <Building2 size={32}/> : <User size={32}/>}
+             </div>
+             <div>
+               <h3 className="text-lg font-bold text-gray-900">{selectedResponsavel?.nome}</h3>
+               <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase ${selectedResponsavel?.tipo === 'ONG' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{selectedResponsavel?.tipo}</span>
+             </div>
+           </div>
+           
+           <div className="grid grid-cols-2 gap-4">
+              {selectedResponsavel?.tipo === 'Pessoa Física' ? (
+                <>
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">CPF</label><p className="font-medium">{selectedResponsavel?.cpf || '-'}</p></div>
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">NIS</label><p className="font-medium">{selectedResponsavel?.nis || '-'}</p></div>
+                </>
+              ) : (
+                  <div><label className="text-xs font-bold text-gray-400 uppercase">CNPJ</label><p className="font-medium">{selectedResponsavel?.cnpj || '-'}</p></div>
+              )}
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+              <div><label className="text-xs font-bold text-gray-400 uppercase">Telefone</label><p className="font-medium">{selectedResponsavel?.telefone || '-'}</p></div>
+              <div><label className="text-xs font-bold text-gray-400 uppercase">Email</label><p className="font-medium">{selectedResponsavel?.email || '-'}</p></div>
+           </div>
+           <div><label className="text-xs font-bold text-gray-400 uppercase">Endereço</label><p className="font-medium text-gray-900">{selectedResponsavel?.endereco || '-'}</p></div>
         </div>
       </ViewModal>
 
-      {/* Modal de Edição (com Senha e Telefone/NIS ajustados) */}
-      <CadastroModal
-        isOpen={isEditModalOpen && !!editFormData}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleEditSave}
-        title="Editar Responsável"
-        saveText="Salvar Alterações"
-      >
-        <TipoResponsavelRadio
-          tipo={editFormData?.tipo || 'PF'}
-          onChange={() => {}} 
-          disabled={true}
-        />
-        
-        <FormInput
-          label="Nome Completo:"
-          name="nome"
-          value={editFormData?.nome || ''}
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, nome: e.target.value } : null)}
-        />
-        
-        {editFormData?.tipo === 'PF' && (
-          <>
-            <FormInput
-              label="CPF:"
-              name="cpf"
-              value={editFormData?.cpf || ''}
-              disabled 
-            />
-            <FormInput
-              label="Telefone:" // <-- Adicionado
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={editFormData?.telefone || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, telefone: e.target.value } : null)}
-            />
-            <FormInput
-              label="Número do NIS" // <-- Ajustado (sem *)
-              name="nis"
-              placeholder="Insira o NIS do responsável"
-              value={editFormData?.nis || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, nis: e.target.value } : null)}
-            />
-          </>
-        )}
-        
-        {editFormData?.tipo === 'ONG' && (
-          <>
-            <FormInput
-              label="CNPJ:"
-              name="cnpj"
-              value={editFormData?.cnpj || ''}
-              disabled 
-            />
-            <FormInput
-              label="Telefone:"
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={editFormData?.telefone || ''}
-              onChange={(e) => setEditFormData(prev => prev ? { ...prev, telefone: e.target.value } : null)}
-            />
-          </>
-        )}
+      {/* --- MODAL CADASTRO --- */}
+      <CadastroModal isOpen={isCreateModalOpen} onClose={() => {setIsCreateModalOpen(false); setCreateFormData(emptyForm);}} onSubmit={handleCreateSave} title="Novo Responsável" saveText="Cadastrar">
+         <FormInput label="Nome Completo" name="nome" value={createFormData.nome} onChange={e => setCreateFormData({...createFormData, nome: e.target.value})} required />
+         
+         <div className="space-y-1">
+           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo de Cadastro</label>
+           <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900" value={createFormData.tipo} onChange={e => setCreateFormData({...createFormData, tipo: e.target.value as TipoResponsavel})}>
+             <option value="Pessoa Física">Pessoa Física</option>
+             <option value="ONG">ONG</option>
+           </select>
+         </div>
 
-        <FormInput
-          label="Senha:" // <-- Adicionado
-          name="senha"
-          type="password"
-          placeholder="Deixe em branco para não alterar"
-          value={editFormData?.senha || ''} 
-          onChange={(e) => setEditFormData(prev => prev ? { ...prev, senha: e.target.value } : null)}
-        />
+         {createFormData.tipo === 'Pessoa Física' ? (
+            <div className="grid grid-cols-2 gap-4">
+               <FormInput label="CPF *" name="cpf" value={createFormData.cpf} onChange={e => setCreateFormData({...createFormData, cpf: e.target.value})} required />
+               <FormInput label="NIS" name="nis" value={createFormData.nis} onChange={e => setCreateFormData({...createFormData, nis: e.target.value})} />
+            </div>
+         ) : (
+            <FormInput label="CNPJ *" name="cnpj" value={createFormData.cnpj} onChange={e => setCreateFormData({...createFormData, cnpj: e.target.value})} required />
+         )}
+
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput label="Telefone" name="telefone" value={createFormData.telefone} onChange={e => setCreateFormData({...createFormData, telefone: e.target.value})} />
+            <FormInput label="Email" name="email" type="email" value={createFormData.email} onChange={e => setCreateFormData({...createFormData, email: e.target.value})} />
+         </div>
+         <FormInput label="Endereço" name="endereco" value={createFormData.endereco} onChange={e => setCreateFormData({...createFormData, endereco: e.target.value})} />
+         <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
       </CadastroModal>
 
-      {/* Modal de Cadastro (com Senha e Telefone/NIS ajustados) */}
-      <CadastroModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateSave}
-        title="Cadastrar Novo Responsável"
-        saveText="Cadastrar"
-      >
-        <TipoResponsavelRadio
-          tipo={createFormData.tipo}
-          onChange={(e) => setCreateFormData(prev => ({ ...emptyForm, tipo: e.target.value as 'PF' | 'ONG', nome: prev.nome }))}
-        />
-        
-        <FormInput
-          label="Nome Completo"
-          name="nome"
-          placeholder="Insira o nome completo do responsável"
-          value={createFormData.nome}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, nome: e.target.value }))}
-        />
-        
-        {createFormData.tipo === 'PF' && (
-          <>
-            <FormInput
-              label="CPF"
-              name="cpf"
-              placeholder="Insira o CPF do responsável"
-              value={createFormData.cpf || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, cpf: e.target.value }))}
-            />
-             <FormInput
-              label="Telefone" // <-- Adicionado
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={createFormData.telefone || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, telefone: e.target.value }))}
-            />
-            <FormInput
-              label="Número do NIS" // <-- Ajustado (sem *)
-              name="nis"
-              placeholder="Insira o NIS do responsável"
-              value={createFormData.nis || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, nis: e.target.value }))}
-            />
-          </>
-        )}
+      {/* --- MODAL EDIÇÃO --- */}
+      <CadastroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSubmit={handleEditSave} title="Editar Responsável" saveText="Salvar">
+         <FormInput label="Nome Completo" name="nome" value={editFormData?.nome || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nome: e.target.value} : null)} />
+         
+         <div className="space-y-1">
+           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo</label>
+           <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none" value={editFormData?.tipo} onChange={e => setEditFormData(prev => prev ? {...prev, tipo: e.target.value as TipoResponsavel} : null)}>
+             <option value="Pessoa Física">Pessoa Física</option>
+             <option value="ONG">ONG</option>
+           </select>
+         </div>
 
-        {createFormData.tipo === 'ONG' && (
-          <>
-            <FormInput
-              label="CNPJ"
-              name="cnpj"
-              placeholder="Insira o CNPJ do responsável"
-              value={createFormData.cnpj || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, cnpj: e.target.value }))}
-            />
-            <FormInput
-              label="Telefone"
-              name="telefone"
-              placeholder="(XX) XXXXX-XXXX"
-              value={createFormData.telefone || ''}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, telefone: e.target.value }))}
-            />
-          </>
-        )}
-
-        <FormInput
-          label="Senha" // <-- Adicionado
-          name="senha"
-          type="password"
-          placeholder="Senha de acesso"
-          value={createFormData.senha}
-          onChange={(e) => setCreateFormData(prev => ({ ...prev, senha: e.target.value }))}
-        />
+         {editFormData?.tipo === 'Pessoa Física' ? (
+            <div className="grid grid-cols-2 gap-4">
+               <FormInput label="CPF" name="cpf" value={editFormData?.cpf || ''} onChange={e => setEditFormData(prev => prev ? {...prev, cpf: e.target.value} : null)} />
+               <FormInput label="NIS" name="nis" value={editFormData?.nis || ''} onChange={e => setEditFormData(prev => prev ? {...prev, nis: e.target.value} : null)} />
+            </div>
+         ) : (
+            <FormInput label="CNPJ" name="cnpj" value={editFormData?.cnpj || ''} onChange={e => setEditFormData(prev => prev ? {...prev, cnpj: e.target.value} : null)} />
+         )}
+         
+         <div className="grid grid-cols-2 gap-4">
+            <FormInput label="Telefone" name="telefone" value={editFormData?.telefone || ''} onChange={e => setEditFormData(prev => prev ? {...prev, telefone: e.target.value} : null)} />
+            <FormInput label="Email" name="email" type="email" value={editFormData?.email || ''} onChange={e => setEditFormData(prev => prev ? {...prev, email: e.target.value} : null)} />
+         </div>
+         <FormInput label="Endereço" name="endereco" value={editFormData?.endereco || ''} onChange={e => setEditFormData(prev => prev ? {...prev, endereco: e.target.value} : null)} />
+         
+         <div className="pt-4 border-t border-gray-100 mt-2">
+            <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
+            <FormInput label="Nova Senha" name="senha" type="password" value={editFormData?.senha || ''} onChange={e => setEditFormData(prev => prev ? {...prev, senha: e.target.value} : null)} />
+         </div>
       </CadastroModal>
+
     </div>
   );
 }

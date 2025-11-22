@@ -1,38 +1,181 @@
-# Next.js App
+# 🐾 Sistema de Castração - Frontend
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Sistema web para gerenciamento de castrações de animais, desenvolvido com Next.js 15, TypeScript e Tailwind CSS.
 
-## Getting Started
+## 🚀 Tecnologias
 
-First, run the development server:
+- **Next.js 15.5.6** - Framework React
+- **TypeScript 5.9** - Tipagem estática
+- **Tailwind CSS 4** - Estilização
+- **Axios** - Cliente HTTP
+- **Radix UI** - Componentes acessíveis
+- **Shadcn/UI** - Biblioteca de componentes
+- **React 19** - Biblioteca UI
 
+## 📋 Pré-requisitos
+
+- Node.js 18+ 
+- npm, yarn, pnpm ou bun
+
+## ⚙️ Configuração
+
+1. **Clone o repositório**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/mymba-softwares/sistema-castracao-frontend.git
+cd sistema-castracao-frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Instale as dependências**
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Configure as variáveis de ambiente**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crie um arquivo `.env.local` na raiz do projeto:
+```env
+NEXT_PUBLIC_API_URL=https://sistema-castracao-backend.onrender.com/api
+```
 
-## Learn More
+4. **Execute o servidor de desenvolvimento**
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Abra [http://localhost:3000](http://localhost:3000) no navegador.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🏗️ Estrutura do Projeto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/                      # Rotas e páginas (App Router)
+│   ├── (auth)/              # Grupo de rotas de autenticação
+│   │   └── login/           # Página de login
+│   ├── (dashboard)/         # Grupo de rotas do dashboard
+│   │   ├── adm/            # Dashboard do administrador
+│   │   ├── medico/         # Dashboard do médico
+│   │   └── atendente/      # Dashboard do atendente
+│   └── (public)/           # Rotas públicas
+├── components/              # Componentes React
+│   ├── forms/              # Formulários
+│   ├── modals/             # Modais
+│   ├── ui/                 # Componentes UI (Shadcn)
+│   ├── Dashboard/          # Componentes do dashboard
+│   └── Sidebars/           # Componentes de sidebar
+├── lib/                     # Utilitários e configurações
+│   ├── axios.ts            # Configuração do Axios
+│   └── utils.ts            # Funções utilitárias
+├── services/               # Serviços de API
+│   └── auth.service.ts     # Serviço de autenticação
+└── hooks/                  # React Hooks customizados
+```
 
-## Deploy on Vercel
+## 📚 Documentação
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **[Guia do Axios](./docs/AXIOS_GUIDE.md)** - Como usar Axios no projeto
+- **[Guia de Migração](./docs/MIGRATION_GUIDE.md)** - Migração de fetch para Axios
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔐 Autenticação
+
+O sistema usa autenticação JWT com refresh tokens:
+
+```typescript
+import { AuthService } from '@/services/auth.service';
+
+// Login
+const response = await AuthService.login({
+  email: 'usuario@email.com',
+  password: 'senha123'
+});
+
+// Logout
+await AuthService.logout();
+
+// Verificar autenticação
+const isAuth = AuthService.isAuthenticated();
+```
+
+## 🎨 Componentes
+
+O projeto usa [Shadcn/UI](https://ui.shadcn.com/) para componentes:
+
+```bash
+# Adicionar um novo componente
+npx shadcn-ui@latest add button
+```
+
+## 📦 Scripts Disponíveis
+
+```bash
+# Desenvolvimento
+npm run dev
+
+# Build de produção
+npm run build
+
+# Iniciar servidor de produção
+npm start
+```
+
+## 🌐 Rotas Principais
+
+- `/login` - Página de login
+- `/adm` - Dashboard do administrador
+- `/medico` - Dashboard do médico
+- `/atendente` - Dashboard do atendente
+- `/responsavel` - Área pública do responsável
+
+## 🔧 Axios Configuration
+
+O projeto utiliza Axios com configurações otimizadas:
+
+- ✅ Timeout de 15 segundos
+- ✅ Interceptors para autenticação automática
+- ✅ Renovação automática de tokens
+- ✅ Tratamento de erros centralizado
+- ✅ TypeScript completo
+
+Veja o [Guia do Axios](./docs/AXIOS_GUIDE.md) para mais detalhes.
+
+## 🚀 Deploy
+
+### Vercel (Recomendado)
+
+1. Faça push do código para o GitHub
+2. Importe o projeto no [Vercel](https://vercel.com)
+3. Configure a variável de ambiente `NEXT_PUBLIC_API_URL`
+4. Deploy!
+
+### Outras plataformas
+
+```bash
+npm run build
+npm start
+```
+
+## 📝 Convenções de Código
+
+- **Componentes**: PascalCase (`LoginForm.tsx`)
+- **Funções**: camelCase (`handleSubmit`)
+- **Constantes**: UPPER_SNAKE_CASE (`API_URL`)
+- **Interfaces**: PascalCase com `I` opcional (`LoginData`)
+
+## 🤝 Contribuindo
+
+1. Fork o projeto
+2. Crie uma branch (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -m 'Add nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença especificada no arquivo [LICENSE](LICENSE).
+
+## 👥 Equipe
+
+Desenvolvido por [Mymba Softwares](https://github.com/mymba-softwares)
+
+---
+
+Para mais informações, consulte a [documentação do Next.js](https://nextjs.org/docs).
