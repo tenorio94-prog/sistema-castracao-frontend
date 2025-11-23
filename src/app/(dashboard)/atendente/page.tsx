@@ -19,6 +19,8 @@ import {
   SERVICE_TYPE_LABELS 
 } from '@/services/appointment.service';
 import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
+import { PetOwnerService } from '@/services/petowner.service';
+import { UserService } from '@/services/user.service';
 
 // ---------- Helpers de data ----------
 const hoje = new Date();
@@ -64,6 +66,9 @@ export default function AtendenteDashboardPage() {
   const [animaisDisponiveis, setAnimaisDisponiveis] = useState<AnimalOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+
+  // Cache de usuários para evitar requisições duplicadas
+  const [usersCache, setUsersCache] = useState<Map<number, { completeName: string }>>(new Map());
 
   // Estados dos modais
   const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
@@ -127,17 +132,102 @@ export default function AtendenteDashboardPage() {
 
   const fetchAnimais = async () => {
     try {
+      console.log('🔍 Iniciando busca de animais...');
       const animais = await AnimalService.getAll();
-      const opcoes: AnimalOption[] = animais.map(a => ({
-        id: a.id,
-        name: a.name || 'Sem nome',
-        petOwnerId: a.petOwnerId,
-        ownerName: a.petOwner?.user?.completeName || 'Tutor Desconhecido',
-        species: a.species
-      }));
+      console.log('📦 Animais recebidos do backend:', JSON.stringify(animais, null, 2));
+      
+      // Coletar userIds únicos que precisam ser buscados
+      const userIdsToFetch = new Set<number>();
+      const newCache = new Map(usersCache);
+      
+      animais.forEach((animal, index) => {
+        console.log(`\n🐾 Animal ${index + 1}:`, {
+          id: animal.id,
+          name: animal.name,
+          petOwnerId: animal.petOwnerId,
+          petOwner: animal.petOwner,
+          hasUser: !!animal.petOwner?.user,
+          userId: animal.petOwner?.userId
+        });
+        
+        if (animal.petOwner?.userId) {
+          // Se não tem user aninhado e não está no cache, adiciona para buscar
+          if (!animal.petOwner.user && !newCache.has(animal.petOwner.userId)) {
+            console.log(`  ➕ Adicionando userId ${animal.petOwner.userId} para busca`);
+            userIdsToFetch.add(animal.petOwner.userId);
+          } else if (animal.petOwner.user) {
+            console.log(`  ✅ Já tem user nested:`, animal.petOwner.user.completeName);
+          } else {
+            console.log(`  💾 Já está no cache:`, newCache.get(animal.petOwner.userId));
+          }
+        } else {
+          console.log(`  ⚠️ Animal sem petOwner.userId`);
+        }
+      });
+      
+      console.log(`\n📊 Total de userIds para buscar: ${userIdsToFetch.size}`);
+      console.log('UserIds:', Array.from(userIdsToFetch));
+      
+      // Buscar usuários em paralelo
+      if (userIdsToFetch.size > 0) {
+        console.log(`🔍 Buscando dados de ${userIdsToFetch.size} tutores via UserService...`);
+        const userPromises = Array.from(userIdsToFetch).map(userId => 
+          UserService.getById(userId)
+            .then(user => {
+              console.log(`  ✅ Usuário ${userId} encontrado:`, user.completeName);
+              return { userId, completeName: user.completeName };
+            })
+            .catch(err => {
+              console.error(`  ❌ Erro ao buscar usuário ${userId}:`, err);
+              return { userId, completeName: 'Erro ao carregar' };
+            })
+        );
+        
+        const users = await Promise.all(userPromises);
+        users.forEach(({ userId, completeName }) => {
+          newCache.set(userId, { completeName });
+        });
+        
+        setUsersCache(newCache);
+        console.log('✅ Cache de tutores atualizado:', newCache.size, 'entradas');
+        console.log('Cache completo:', Object.fromEntries(newCache));
+      }
+      
+      // Formatar opções com dados do cache ou do backend
+      console.log('\n🏗️ Montando opções de animais...');
+      const opcoes: AnimalOption[] = animais.map((a, index) => {
+        let ownerName = 'Tutor Desconhecido';
+        
+        if (a.petOwner) {
+          // Prioridade 1: Dados aninhados do backend
+          if (a.petOwner.user?.completeName) {
+            ownerName = a.petOwner.user.completeName;
+            console.log(`  ${index + 1}. ${a.name} - Tutor do backend nested: ${ownerName}`);
+          }
+          // Prioridade 2: Cache local
+          else if (a.petOwner.userId && newCache.has(a.petOwner.userId)) {
+            ownerName = newCache.get(a.petOwner.userId)!.completeName;
+            console.log(`  ${index + 1}. ${a.name} - Tutor do cache (userId ${a.petOwner.userId}): ${ownerName}`);
+          } else {
+            console.log(`  ${index + 1}. ${a.name} - ⚠️ Tutor não encontrado (petOwnerId: ${a.petOwnerId}, userId: ${a.petOwner.userId})`);
+          }
+        } else {
+          console.log(`  ${index + 1}. ${a.name} - ⚠️ Sem petOwner`);
+        }
+        
+        return {
+          id: a.id,
+          name: a.name || 'Sem nome',
+          petOwnerId: a.petOwnerId,
+          ownerName,
+          species: a.species
+        };
+      });
+      
+      console.log('\n✅ Opções finais de animais:', opcoes);
       setAnimaisDisponiveis(opcoes);
     } catch (error) {
-      console.error('Erro ao carregar animais:', error);
+      console.error('❌ Erro ao carregar animais:', error);
       toast.error('Erro ao carregar lista de animais.');
     }
   };
@@ -270,7 +360,7 @@ export default function AtendenteDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <CardBaseDash
             title="Atendimentos Hoje"
-            value={agendamentosHoje.filter(a => a.status === 'Pendente').length}
+            value={agendamentosHoje.filter(a => a.backendStatus === AppointmentStatus.scheduled).length}
             subtitle="Aguardando atendimento"
             icon={Calendar} // Passamos o componente Icon, não o elemento JSX
             color="blue"
@@ -278,14 +368,14 @@ export default function AtendenteDashboardPage() {
           />
           <CardBaseDash
             title="Cirurgias"
-            value={agendamentosHoje.filter(a => a.tipo === 'Castração' && a.status === 'Pendente').length}
+            value={agendamentosHoje.filter(a => a.backendServiceType === ServiceType.castrationSurgery).length}
             subtitle="Procedimentos cirúrgicos"
             icon={Activity}
             color="purple"
           />
           <CardBaseDash
             title="Finalizados"
-            value={agendamentosHoje.filter(a => a.status === 'Concluído').length}
+            value={agendamentosHoje.filter(a => a.backendStatus === AppointmentStatus.completed).length}
             subtitle="Animais já atendidos"
             icon={CheckCircle}
             color="green"

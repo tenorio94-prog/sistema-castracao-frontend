@@ -67,6 +67,21 @@ export class AuthService {
   }
 
   /**
+   * Registra um novo responsável (PetOwner) por recepcionista/SEMAS
+   * Rota específica que permite receptionist e semas criarem responsáveis
+   * @param data - Dados do responsável a ser registrado
+   * @returns Dados do usuário criado
+   */
+  static async registerPetOwnerByReceptionist(data: CreateUserDto): Promise<RegisterResponse> {
+    try {
+      const response = await api.post<RegisterResponse>('/auth/register-petowner-by-receptionist', data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Realiza o logout do usuário
    */
   static async logout(): Promise<void> {

@@ -201,6 +201,30 @@ export class PetOwnerService {
   }
 
   /**
+   * Buscar animais do responsável logado
+   */
+  static async getMyPets(): Promise<any[]> {
+    try {
+      const response = await api.get<any[]>(`${this.BASE_PATH}/me/pets`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Buscar agendamentos do responsável logado
+   */
+  static async getMyAppointments(): Promise<any[]> {
+    try {
+      const response = await api.get<any[]>(`${this.BASE_PATH}/me/appointments`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Atualizar perfil do responsável logado
    */
   static async updateMe(data: UpdatePetOwnerData): Promise<PetOwner> {

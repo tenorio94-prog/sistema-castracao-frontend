@@ -1,54 +1,18 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dog, Calendar, Plus, Zap, Bell, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Dog, Calendar, Plus, Zap, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { toast } from 'sonner';
 
 import CardBaseDash from '@/components/Dashboard/CardBaseDash';
 import NovaConsultaModal from '@/components/ResponsavelComponents/NovaConsulta';
 import DetalhesConsultaModal, { DetalhesData } from '@/components/ResponsavelComponents/DetalhesConsulta';
-// IMPORTANTE: Usando o mesmo card da página de Consultas
 import ConsultaCard, { ConsultaResponsavelUI } from '@/components/ResponsavelComponents/CardConsulta';
-import { maskCPF, maskPhone } from '@/lib/masks';
 
-// Mocks (Adaptados para a interface ConsultaResponsavelUI)
-const mockAppointments: ConsultaResponsavelUI[] = [
-  {
-    id: '1', 
-    title: 'Primeira Consulta',
-    petName: 'Rex', 
-    status: 'Concluído', 
-    date: '14/01/2026', 
-    time: '14:00',
-    veterinarian: 'Dra. Maria Silva',
-    clinic: 'Unidade Central'
-  },
-  {
-    id: '2', 
-    title: 'Castração',
-    petName: 'Mel', 
-    status: 'Agendado', 
-    date: '01/02/2026', 
-    time: '09:30',
-    veterinarian: 'Dr. João Costa',
-    clinic: 'Unidade Boa Viagem'
-  }
-];
-
-const mockNotifications = [
-  { id: 1, title: 'Rex está pronto para castrar!', desc: 'Os exames foram aprovados. Agende a cirurgia agora mesmo.', type: 'success' },
-  { id: 2, title: 'Atualize o peso de Mel', desc: 'Para garantir a dosagem correta na próxima consulta.', type: 'info' },
-];
-
-// Mock Detalhes Completo (Para o Modal)
-const mockFullDetails: DetalhesData = {
-  id: 1,
-  protocolo: '#123456',
-  status: 'Concluído',
-  responsavel: { nome: 'Ana Paula', cpf: '123.456.789-00', telefone: '(81) 98888-7777', email: 'ana@email.com' },
-  paciente: { nome: 'Rex', especie: 'Cachorro', raca: 'Pastor Alemão', sexo: 'Macho', idade: '5 anos', peso: '30kg' },
-  servico: { procedimento: 'Primeira Consulta', data: '14/01/2026', horario: '14:00', observacoes: 'Animal clinicamente saudável.' }
-};
+import { PetOwnerService } from '@/services/petowner.service';
+import { AppointmentService, AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
+import { SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 // Componente Local de Notificação
 const NotificationItem = ({ title, desc, type }: { title: string, desc: string, type: string }) => {
@@ -70,30 +34,145 @@ const NotificationItem = ({ title, desc, type }: { title: string, desc: string, 
 
 export default function ResponsavelDashboardPage() {
   const router = useRouter();
+  
+  // Estados
+  const [profile, setProfile] = useState<any>(null);
+  const [animals, setAnimals] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<ConsultaResponsavelUI[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const [isNewConsultModalOpen, setIsNewConsultModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<DetalhesData | null>(null);
 
+  // Carregar dados
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar perfil, animais e agendamentos em paralelo
+      const [profileData, animalsData, appointmentsData] = await Promise.all([
+        PetOwnerService.getMe(),
+        PetOwnerService.getMyPets(),
+        PetOwnerService.getMyAppointments()
+      ]);
+
+      setProfile(profileData);
+      setAnimals(animalsData);
+      
+      // Transformar agendamentos para UI
+      const appointmentsUI: ConsultaResponsavelUI[] = appointmentsData.map(apt => {
+        const dataObj = new Date(apt.startTime);
+        return {
+          id: apt.id.toString(),
+          title: apt.serviceType ? SERVICE_TYPE_LABELS[apt.serviceType as ServiceType] : 'Consulta',
+          petName: apt.animal?.name || 'Animal',
+          date: dataObj.toLocaleDateString('pt-BR'),
+          time: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          veterinarian: 'Veterinário a definir',
+          clinic: 'Clínica Veterinária',
+          status: STATUS_LABELS[apt.status as AppointmentStatus] || 'Agendado',
+          backendData: apt
+        };
+      });
+      
+      setAppointments(appointmentsUI);
+    } catch (error: any) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error(error.message || 'Erro ao carregar informações');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOpenDetails = (consulta: ConsultaResponsavelUI) => {
-    // Em produção, você buscaria os dados completos pelo ID
-    // Aqui usamos o mock estático para demonstração visual
-    setSelectedDetails({ ...mockFullDetails, status: consulta.status, servico: { ...mockFullDetails.servico, procedimento: consulta.title } });
+    const apt = consulta.backendData;
+    
+    setSelectedDetails({
+      id: apt.id,
+      protocolo: `#${apt.id.toString().padStart(6, '0')}`,
+      status: consulta.status,
+      responsavel: {
+        nome: profile?.user?.completeName || 'N/A',
+        cpf: profile?.user?.cpf || 'N/A',
+        telefone: profile?.user?.phone || 'N/A',
+        email: profile?.user?.email || 'N/A'
+      },
+      paciente: {
+        nome: apt.animal?.name || 'N/A',
+        especie: apt.animal?.species ? SPECIES_LABELS[apt.animal.species] : 'N/A',
+        raca: apt.animal?.breed || 'SRD',
+        sexo: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender] : 'N/A',
+        idade: apt.animal?.estimatedAge || 'N/A',
+        peso: apt.animal?.sizeWeight || 'N/A'
+      },
+      servico: {
+        procedimento: consulta.title,
+        data: consulta.date,
+        horario: consulta.time,
+        observacoes: apt.notes || 'Nenhuma observação'
+      }
+    });
+    
     setIsDetailsModalOpen(true);
   };
 
-  const handleSaveConsulta = (data: any) => {
-    alert(`Solicitação enviada para ${data.animal}!`);
-    setIsNewConsultModalOpen(false);
+  const handleSaveConsulta = async (data: any) => {
+    try {
+      const animal = animals.find(a => a.id === parseInt(data.animal));
+      if (!animal) {
+        toast.error('Animal não encontrado');
+        return;
+      }
+
+      const startDate = new Date(data.data + 'T' + data.horario);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+      await AppointmentService.create({
+        animalId: animal.id,
+        petOwnerId: profile.id,
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
+        serviceType: data.tipo === 'Castração' ? ServiceType.castrationSurgery : ServiceType.triage,
+        status: AppointmentStatus.scheduled,
+        notes: data.observacoes || ''
+      });
+
+      toast.success('Solicitação enviada com sucesso!');
+      setIsNewConsultModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao criar agendamento:', error);
+      toast.error(error.response?.data?.message || 'Erro ao agendar consulta');
+    }
   };
+
+  const mockNotifications = [
+    { id: 1, title: 'Bem-vindo!', desc: 'Acompanhe a saúde dos seus pets em um só lugar.', type: 'info' }
+  ];
+
+  const upcomingAppointments = appointments
+    .filter(a => a.status !== 'Concluído' && a.status !== 'Cancelado')
+    .slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      
-      {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-            Bem vindo(a), <span className="text-green-600">Ana!</span>
+            Bem vindo(a), <span className="text-green-600">{profile?.user?.completeName?.split(' ')[0] || 'Responsável'}!</span>
           </h1>
           <p className="text-gray-500 mt-1">Gerencie a saúde dos seus pets em um só lugar.</p>
         </div>
@@ -102,12 +181,10 @@ export default function ResponsavelDashboardPage() {
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CardBaseDash title="Meus Animais" value={3} subtitle="Pets cadastrados" icon={Dog} color="green" />
-        <CardBaseDash title="Consultas" value={mockAppointments.length} subtitle="Agendamentos futuros" icon={Calendar} color="blue" />
+        <CardBaseDash title="Meus Animais" value={animals.length} subtitle="Pets cadastrados" icon={Dog} color="green" />
+        <CardBaseDash title="Consultas" value={upcomingAppointments.length} subtitle="Agendamentos futuros" icon={Calendar} color="blue" />
         
-        {/* Card Ação Rápida */}
         <button onClick={() => setIsNewConsultModalOpen(true)} className="group flex flex-col justify-between bg-white p-6 rounded-2xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all text-left">
           <div className="flex justify-between items-start w-full">
             <div><p className="text-sm font-medium text-gray-500">Ações Rápidas</p><h3 className="text-xl font-bold text-gray-900 mt-1 group-hover:text-green-700">Nova Consulta</h3></div>
@@ -117,30 +194,28 @@ export default function ResponsavelDashboardPage() {
         </button>
       </div>
 
-      {/* Conteúdo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Próximas Consultas (Usando ConsultaCard) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Calendar className="text-green-600" size={20} />
-              Próximas Consultas
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Calendar className="text-green-600" size={20} />Próximas Consultas</h2>
             <button onClick={() => router.push('/responsavel/consultas')} className="text-sm text-green-600 hover:underline font-medium">Ver todas</button>
           </div>
-          <div className="space-y-3">
-            {mockAppointments.map(appt => (
-              <ConsultaCard 
-                key={appt.id} 
-                consulta={appt} 
-                onDetalhes={handleOpenDetails} 
-              />
-            ))}
-          </div>
+          
+          {upcomingAppointments.length > 0 ? (
+            <div className="space-y-3">
+              {upcomingAppointments.map(appt => (
+                <ConsultaCard key={appt.id} consulta={appt} onDetalhes={handleOpenDetails} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <Calendar className="mx-auto text-gray-300 mb-3" size={40} />
+              <p className="text-gray-500 font-medium">Nenhum agendamento futuro</p>
+              <p className="text-sm text-gray-400 mt-1">Agende uma consulta para seus pets</p>
+            </div>
+          )}
         </div>
 
-        {/* Notificações */}
         <div className="space-y-6">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Bell className="text-amber-500" size={20} />Notificações</h2>
           <div className="space-y-3">
@@ -151,20 +226,8 @@ export default function ResponsavelDashboardPage() {
         </div>
       </div>
 
-      {/* Modais */}
-      <NovaConsultaModal 
-        isOpen={isNewConsultModalOpen} 
-        onClose={() => setIsNewConsultModalOpen(false)} 
-        onSave={handleSaveConsulta} 
-      />
-      
-      <DetalhesConsultaModal 
-        isOpen={isDetailsModalOpen} 
-        onClose={() => setIsDetailsModalOpen(false)} 
-        data={selectedDetails} 
-        onCancel={() => setIsDetailsModalOpen(false)} 
-        onConfirm={() => setIsDetailsModalOpen(false)} 
-      />
+      <NovaConsultaModal isOpen={isNewConsultModalOpen} onClose={() => setIsNewConsultModalOpen(false)} onSave={handleSaveConsulta} animais={animals} />
+      <DetalhesConsultaModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} data={selectedDetails} onCancel={() => setIsDetailsModalOpen(false)} onConfirm={() => setIsDetailsModalOpen(false)} />
     </div>
   );
 }

@@ -1,47 +1,60 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Dog } from 'lucide-react';
+import { toast } from 'sonner';
 import MyPetCard, { PetResponsavelUI } from '@/components/ResponsavelComponents/MeuPetCard';
 import ProntuarioModal from '@/components/ResponsavelComponents/ProntuarioAnimal';
 import EditarPetModal from '@/components/ResponsavelComponents/EditarPet';
-
-// --- Mock Data ---
-const mockPets: PetResponsavelUI[] = [
-  {
-    id: '1',
-    name: 'Rex',
-    species: 'Cão',
-    breed: 'Labrador',
-    gender: 'Macho',
-    age: '3 anos',
-    weight: '13kg',
-    status: 'Castração Pendente',
-    lastConsult: '10/09/2026',
-    prontuarioCode: '2025-0001'
-  },
-  {
-    id: '2',
-    name: 'Mel',
-    species: 'Gato',
-    breed: 'Siamês',
-    gender: 'Fêmea',
-    age: '2 anos',
-    weight: '4kg',
-    status: 'Saudável',
-    lastConsult: '15/08/2025',
-    prontuarioCode: '2025-0042'
-  }
-];
+import { PetOwnerService } from '@/services/petowner.service';
+import { AnimalService, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 export default function MeusAnimaisPage() {
-  const [pets, setPets] = useState<PetResponsavelUI[]>(mockPets);
+  const [pets, setPets] = useState<PetResponsavelUI[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Estados dos Modais
   const [selectedPet, setSelectedPet] = useState<PetResponsavelUI | null>(null);
   const [isProntuarioOpen, setIsProntuarioOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [profileData, animalsData] = await Promise.all([
+        PetOwnerService.getMe(),
+        PetOwnerService.getMyPets()
+      ]);
+
+      setProfile(profileData);
+      
+      const petsUI: PetResponsavelUI[] = animalsData.map(animal => ({
+        id: animal.id.toString(),
+        name: animal.name || 'Sem nome',
+        species: animal.species ? SPECIES_LABELS[animal.species] : 'N/A',
+        breed: animal.breed || 'SRD',
+        gender: animal.gender ? GENDER_LABELS[animal.gender] : 'N/A',
+        age: animal.estimatedAge || 'N/A',
+        weight: animal.sizeWeight || 'N/A',
+        status: 'Cadastrado',
+        lastConsult: 'N/A',
+        prontuarioCode: `2025-${animal.id.toString().padStart(4, '0')}`,
+        backendData: animal
+      }));
+      
+      setPets(petsUI);
+    } catch (error: any) {
+      console.error('Erro ao carregar animais:', error);
+      toast.error(error.message || 'Erro ao carregar animais');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handlers
   const handleOpenProntuario = (pet: PetResponsavelUI) => {
@@ -54,9 +67,20 @@ export default function MeusAnimaisPage() {
     setIsEditOpen(true);
   };
 
-  const handleSaveEdit = (data: { id: string, weight: string, age: string }) => {
-    setPets(prev => prev.map(p => p.id === data.id ? { ...p, weight: data.weight, age: data.age } : p));
-    // alert('Dados do animal atualizados!'); // Opcional
+  const handleSaveEdit = async (data: { id: string, weight: string, age: string }) => {
+    try {
+      await AnimalService.update(parseInt(data.id), {
+        sizeWeight: data.weight,
+        estimatedAge: data.age
+      });
+      
+      toast.success('Dados do animal atualizados!');
+      setIsEditOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao atualizar animal:', error);
+      toast.error(error.response?.data?.message || 'Erro ao atualizar animal');
+    }
   };
 
   const filteredPets = pets.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -87,7 +111,11 @@ export default function MeusAnimaisPage() {
       </div>
 
       {/* Grid de Cards */}
-      {filteredPets.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        </div>
+      ) : filteredPets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredPets.map(pet => (
             <MyPetCard 
@@ -113,7 +141,7 @@ export default function MeusAnimaisPage() {
         isOpen={isProntuarioOpen}
         onClose={() => setIsProntuarioOpen(false)}
         pet={selectedPet}
-        responsavelNome="Ana Paula" 
+        responsavelNome={profile?.user?.completeName || 'Responsável'} 
       />
 
       <EditarPetModal 

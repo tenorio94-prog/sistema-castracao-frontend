@@ -148,6 +148,12 @@ export default function PaginaResponsaveis() {
         return;
       }
 
+      if (!createFormData.endereco?.trim()) {
+        toast.warning('Endereço é obrigatório.');
+        setLoadingSubmit(false);
+        return;
+      }
+
       if (createFormData.tipo === 'PF') {
         if (!createFormData.cpf || !validateCPF(createFormData.cpf)) {
           toast.warning('CPF inválido.');
@@ -158,8 +164,7 @@ export default function PaginaResponsaveis() {
 
       const role = createFormData.tipo === 'ONG' ? Role.semas : Role.petOwner;
 
-      // Criar usuário (backend cria automaticamente o PetOwner para role petOwner/semas)
-      await AuthService.register({
+      const payload = {
         completeName: createFormData.nome,
         cpf: createFormData.cpf.replace(/\D/g, ''),
         phone: createFormData.telefone.replace(/\D/g, ''),
@@ -168,16 +173,37 @@ export default function PaginaResponsaveis() {
         role: role,
         address: createFormData.endereco || '',
         nis: createFormData.nis || undefined,
-      });
+      };
+
+      console.log('📤 Enviando payload:', payload);
+
+      // Usar rota específica para recepcionistas/SEMAS cadastrarem responsáveis
+      await AuthService.registerPetOwnerByReceptionist(payload);
 
       toast.success('Responsável cadastrado com sucesso!');
       await fetchResponsaveis();
       handleCloseCreate();
     } catch (error: any) {
+      console.error('Erro ao cadastrar responsável:', error);
+      
       if (error.response?.status === 409) {
-        toast.error('CPF ou e-mail já cadastrado.');
+        const message = error.response?.data?.message;
+        if (message) {
+          toast.error(message);
+        } else {
+          toast.error('CPF ou e-mail já cadastrado no sistema.');
+        }
+      } else if (error.response?.status === 403) {
+        toast.error('Você não tem permissão para cadastrar responsáveis.');
+      } else if (error.response?.status === 400) {
+        const message = error.response?.data?.message;
+        if (Array.isArray(message)) {
+          toast.error(message.join(', '));
+        } else {
+          toast.error(message || 'Dados inválidos. Verifique os campos.');
+        }
       } else {
-        const msg = error.response?.data?.message || 'Erro ao cadastrar responsável.';
+        const msg = error.response?.data?.message || error.message || 'Erro ao cadastrar responsável.';
         toast.error(msg);
       }
     } finally {
