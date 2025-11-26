@@ -15,7 +15,7 @@ export default function ConsultasPage() {
   const [animals, setAnimals] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'Todos' | 'Consulta' | 'Castração'>('Todos');
+  const [filterType, setFilterType] = useState<'Todos' | 'Triagem' | 'Castração' | 'Pós-Operatório'>('Todos');
   const [loading, setLoading] = useState(true);
 
   const [isNewConsultModalOpen, setIsNewConsultModalOpen] = useState(false);
@@ -38,17 +38,23 @@ export default function ConsultasPage() {
       setProfile(profileData);
       setAnimals(animalsData);
       
-      const consultasUI: ConsultaResponsavelUI[] = appointmentsData.map(apt => {
+      const consultasUI: ConsultaResponsavelUI[] = appointmentsData.map((apt: any) => {
         const dataObj = new Date(apt.startTime);
+        const statusLabel = STATUS_LABELS[apt.status as AppointmentStatus] || 'Agendado';
+        
+        const serviceLabel = apt.serviceType && SERVICE_TYPE_LABELS[apt.serviceType as ServiceType]
+          ? SERVICE_TYPE_LABELS[apt.serviceType as ServiceType]
+          : 'Consulta Geral';
+
         return {
           id: apt.id.toString(),
-          title: apt.serviceType ? SERVICE_TYPE_LABELS[apt.serviceType as ServiceType] : 'Consulta',
+          title: serviceLabel,
           petName: apt.animal?.name || 'Animal',
           date: dataObj.toLocaleDateString('pt-BR'),
           time: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           veterinarian: 'Veterinário a definir',
           clinic: 'Clínica Veterinária',
-          status: STATUS_LABELS[apt.status as AppointmentStatus] || 'Agendado',
+          status: statusLabel as 'Agendado' | 'Concluído' | 'Cancelado' | 'Em Andamento',
           backendData: apt
         };
       });
@@ -77,9 +83,9 @@ export default function ConsultasPage() {
       },
       paciente: {
         nome: apt.animal?.name || 'N/A',
-        especie: apt.animal?.species ? SPECIES_LABELS[apt.animal.species] : 'N/A',
+        especie: apt.animal?.species ? SPECIES_LABELS[apt.animal.species as keyof typeof SPECIES_LABELS] : 'N/A',
         raca: apt.animal?.breed || 'SRD',
-        sexo: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender] : 'N/A',
+        sexo: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender as keyof typeof GENDER_LABELS] : 'N/A',
         idade: apt.animal?.estimatedAge || 'N/A',
         peso: apt.animal?.sizeWeight || 'N/A'
       },
@@ -102,25 +108,68 @@ export default function ConsultasPage() {
         return;
       }
 
+      if (!profile?.id) {
+        toast.error('Erro ao identificar responsável. Faça login novamente.');
+        return;
+      }
+
       const startDate = new Date(data.data + 'T' + data.horario);
       const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+      if (isNaN(startDate.getTime())) {
+        toast.error('Data ou horário inválido');
+        return;
+      }
+
+      if (startDate < new Date()) {
+        toast.error('Não é possível agendar consultas no passado');
+        return;
+      }
+
+      // Mapear tipo para ServiceType do backend
+      let serviceType: ServiceType;
+      
+      switch (data.tipo) {
+        case 'Castração':
+          serviceType = ServiceType.castrationSurgery;
+          break;
+        case 'Consulta de Retorno':
+        case 'Pós-Operatório':
+          serviceType = ServiceType.postOperative;
+          break;
+        default:
+          serviceType = ServiceType.triage;
+          break;
+      }
 
       await AppointmentService.create({
         animalId: animal.id,
         petOwnerId: profile.id,
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
-        serviceType: data.tipo === 'Castração' ? ServiceType.castrationSurgery : ServiceType.triage,
+        serviceType: serviceType,
         status: AppointmentStatus.scheduled,
         notes: data.observacoes || ''
       });
 
-      toast.success('Solicitação enviada com sucesso!');
+      toast.success('Agendamento criado com sucesso!');
       setIsNewConsultModalOpen(false);
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
-      toast.error(error.response?.data?.message || 'Erro ao agendar consulta');
+      
+      let errorMessage = 'Erro ao agendar consulta';
+      
+      if (error.response?.data) {
+        const apiError = error.response.data;
+        if (Array.isArray(apiError.message)) {
+          errorMessage = apiError.message.join(', ');
+        } else if (typeof apiError.message === 'string') {
+          errorMessage = apiError.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -155,8 +204,9 @@ export default function ConsultasPage() {
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={16} />
           <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} className="w-full pl-10 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 appearance-none cursor-pointer hover:bg-gray-50 transition-colors">
             <option value="Todos">Todos os Tipos</option>
-            <option value="Consulta">Consulta</option>
+            <option value="Triagem">Triagem</option>
             <option value="Castração">Castração</option>
+            <option value="Pós-Operatório">Pós-Operatório</option>
           </select>
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><ChevronDown size={16} /></div>
         </div>

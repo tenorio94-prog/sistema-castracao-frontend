@@ -6,7 +6,7 @@ import { Dog, Cat, FileText, Edit3, Clock, Weight, Calendar } from 'lucide-react
 export type PetResponsavelUI = {
   id: string;
   name: string;
-  species: 'Cão' | 'Gato';
+  species: 'Cachorro' | 'Gato';
   breed: string;
   gender: 'Macho' | 'Fêmea';
   age: string;
@@ -14,6 +14,7 @@ export type PetResponsavelUI = {
   status: string;      
   lastConsult: string;
   prontuarioCode: string; // Ex: 2025-0001
+  backendData?: any;
 };
 
 type Props = {

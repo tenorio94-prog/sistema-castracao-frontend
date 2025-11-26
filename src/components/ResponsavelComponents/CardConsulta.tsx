@@ -12,6 +12,7 @@ export type ConsultaResponsavelUI = {
   veterinarian: string;
   clinic?: string;      // Opcional: Unidade/Clínica
   status: 'Agendado' | 'Concluído' | 'Cancelado' | 'Em Andamento';
+  backendData?: any;
 };
 
 type Props = {
