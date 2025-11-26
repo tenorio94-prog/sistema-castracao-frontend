@@ -6,60 +6,40 @@ import { toast } from 'sonner';
 
 type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
+  hidePasswordGenerators?: boolean; // Nova prop para esconder botões de gerar/copiar
 };
 
-/**
- * Componente de Input reutilizável.
- * - Placeholder automático baseado na label.
- * - Funcionalidades avançadas para input de senha (Gerar, Copiar, Visualizar).
- */
 const FormInput: React.FC<FormInputProps> = (props) => {
-  const { label, type, value, onChange, placeholder, ...rest } = props;
+  const { label, type, value, onChange, placeholder, hidePasswordGenerators, ...rest } = props;
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
   
   const isPassword = type === 'password';
-
-  // Define o placeholder: usa o passado via props OU o próprio label
   const finalPlaceholder = placeholder || label;
 
-  // Função para gerar senha aleatória
   const handleGeneratePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*";
     let newPassword = "";
-    // Ajustado para 8 caracteres conforme solicitado
     for (let i = 0; i < 8; i++) {
       newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    // Cria um evento sintético para atualizar o estado do componente pai
-    // Isso permite que o `onChange` do formulário pai funcione como se o usuário tivesse digitado
     if (onChange) {
       const syntheticEvent = {
-        target: {
-          value: newPassword,
-          name: props.name,
-          type: 'password'
-        }
+        target: { value: newPassword, name: props.name, type: 'password' }
       } as React.ChangeEvent<HTMLInputElement>;
-      
       onChange(syntheticEvent);
     }
     
-    // Mostra a senha gerada para o usuário ver
     setShowPassword(true);
     toast.success("Senha segura de 8 caracteres gerada!");
   };
 
-  // Função para copiar senha
   const handleCopyPassword = () => {
     if (!value || value.toString().length === 0) return;
-    
     navigator.clipboard.writeText(value.toString());
     setCopied(true);
-    toast.success("Senha copiada para a área de transferência");
-    
-    // Reseta o ícone de check após 2 segundos
+    toast.success("Senha copiada!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -80,43 +60,43 @@ const FormInput: React.FC<FormInputProps> = (props) => {
           value={value ?? ''}
           onChange={onChange}
           placeholder={finalPlaceholder}
-          // Se for senha, adicionamos padding extra na direita para caber os 3 botões
+          // Ajusta o padding dependendo se mostra os botões extras ou só o olho
           className={`w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 
             focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm
             disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
             ${props.disabled ? 'bg-gray-50' : ''}
-            ${isPassword ? 'pr-28' : ''} 
+            ${isPassword ? (hidePasswordGenerators ? 'pr-10' : 'pr-28') : ''} 
           `}
         />
         
-        {/* Ações de Senha (Gerar, Copiar, Visualizar) */}
         {isPassword && !props.disabled && (
           <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
             
-            {/* Botão Gerar Senha */}
-            <button
-              type="button"
-              onClick={handleGeneratePassword}
-              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-              title="Gerar senha aleatória (8 chars)"
-            >
-              <RefreshCw size={16} />
-            </button>
+            {/* Botões de Gerar/Copiar (Só aparecem se hidePasswordGenerators for false/undefined) */}
+            {!hidePasswordGenerators && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  title="Gerar senha"
+                >
+                  <RefreshCw size={16} />
+                </button>
 
-            {/* Botão Copiar Senha */}
-            <button
-              type="button"
-              onClick={handleCopyPassword}
-              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-              title="Copiar senha"
-            >
-              {copied ? <Check size={16} className="text-green-600"/> : <Copy size={16} />}
-            </button>
+                <button
+                  type="button"
+                  onClick={handleCopyPassword}
+                  className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                  title="Copiar senha"
+                >
+                  {copied ? <Check size={16} className="text-green-600"/> : <Copy size={16} />}
+                </button>
 
-            {/* Divisória Pequena */}
-            <div className="h-4 w-px bg-gray-200 mx-0.5"></div>
+                <div className="h-4 w-px bg-gray-200 mx-0.5"></div>
+              </>
+            )}
 
-            {/* Botão Toggle Visualizar */}
             <button
               type="button" 
               onClick={() => setShowPassword(!showPassword)}

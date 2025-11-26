@@ -7,27 +7,37 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-   
-    <main className="flex flex-col lg:flex-row h-screen">
+    <main className="flex min-h-screen w-full">
       
-      <div className="w-full bg-white lg:w-2/5 lg:h-full">
-        <Image
-          src="/img.png" 
-          alt="Ilustração de Login"
-          width={800} 
-          height={1200} 
-          className="w-full h-48 object-contain lg:h-full"
-          priority
-        />
+      {/* LADO ESQUERDO: Imagem 
+        - hidden: Escondido por padrão (Mobile)
+        - lg:flex: Aparece apenas em telas grandes (Desktop)
+        - w-1/2: Ocupa metade da tela
+        - bg-white: Fundo branco como solicitado
+      */}
+      <div className="hidden lg:flex w-1/2 bg-white items-center justify-center p-12 relative">
+        <div className="relative w-full max-w-lg aspect-square">
+          <Image
+            src="/img.png" 
+            alt="Ilustração de Login"
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
       </div>
 
-      
-      <div className="w-full flex-1 bg-[#d8e4d0] flex items-center justify-center p-4">
-        
-    
-        {children}
-
+      {/* LADO DIREITO: Formulário 
+        - w-full: Ocupa tudo no mobile
+        - lg:w-1/2: Ocupa metade no desktop
+        - bg-gray-50: Fundo padrão do projeto (substituindo o verde)
+      */}
+      <div className="w-full lg:w-1/2 bg-gray-50 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-[400px]">
+           {children}
+        </div>
       </div>
+
     </main>
   );
 }
