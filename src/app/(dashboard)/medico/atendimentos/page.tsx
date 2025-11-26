@@ -1,170 +1,232 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Calendar,
-  Clock,
-  StethoscopeIcon,
-  User,
-} from "lucide-react";
+import React, { useState } from 'react';
+import { Search, Plus } from 'lucide-react';
+import AtendimentoCard, { AtendimentoMedicoUI } from '@/components/MedicoComponents/AtendimentoCard';
+import CadastroModal from '@/components/modals/CadastroModal';
+import FormInput from '@/components/forms/FormInput';
 
-export default function AtendimentosPage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState("todos");
+// --- Mocks ---
+const mockAtendimentos: AtendimentoMedicoUI[] = [
+  {
+    id: '1',
+    petName: 'Ana',
+    species: 'Felino - Persa',
+    date: '20/10/2025',
+    time: '09:00h',
+    type: 'cirurgia',
+    veterinarian: 'Dr. House',
+    student: 'Emanuel Rodrigues',
+    observations: 'Castração eletiva - Preparação pré-operatória completa',
+    status: 'Agendado'
+  },
+  {
+    id: '2',
+    petName: 'Thor',
+    species: 'Canino - Golden',
+    date: '21/10/2025',
+    time: '10:30h',
+    type: 'consulta',
+    veterinarian: 'Dr. House',
+    observations: 'Vacinação anual e check-up geral',
+    status: 'Agendado'
+  },
+  {
+    id: '3',
+    petName: 'Luna',
+    species: 'Felino - Siamês',
+    date: '22/10/2025',
+    time: '14:00h',
+    type: 'retorno',
+    veterinarian: 'Dr. House',
+    observations: 'Retirada de pontos',
+    status: 'Realizado'
+  }
+];
 
-  // Dados mocados para o card. Em um app real, isso viria de uma API.
-  const appointmentData = {
-    animalName: "Ana",
-    species: "Felino - Raça",
-    date: "20/10/2025",
-    time: "09:00h",
-    type: "cirurgia",
-    vet: "Dr. House",
-    student: "Emanuel Rodrigues",
-    observations: "Castração eletiva - Preparação pré-operatória completa",
+// Form Type
+type AgendamentoForm = {
+  animal: string;
+  tipo: string;
+  data: string;
+  hora: string;
+  observacoes: string;
+};
+const emptyForm: AgendamentoForm = { animal: '', tipo: '', data: '', hora: '', observacoes: '' };
+
+export default function PaginaAtendimentosMedico() {
+  const [atendimentos, setAtendimentos] = useState<AtendimentoMedicoUI[]>(mockAtendimentos);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'todos' | 'cirurgias' | 'consultas' | 'retornos'>('todos');
+  
+  // Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState<AgendamentoForm>(emptyForm);
+
+  // Handlers
+  const handleVerProntuario = (id: string) => alert(`Abrindo prontuário ID: ${id}`);
+  const handlePreencherFicha = (id: string) => alert(`Abrindo ficha ID: ${id}`);
+
+  const handleCreateSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulação de criação
+    const novo: AtendimentoMedicoUI = {
+      id: Math.random().toString(),
+      petName: formData.animal, // Mock: assumindo que o nome do animal é o input
+      species: 'Espécie Mock',
+      date: formData.data.split('-').reverse().join('/'),
+      time: formData.hora,
+      type: formData.tipo,
+      veterinarian: 'Dr. House', // Logado atualmente
+      status: 'Agendado',
+      observations: formData.observacoes
+    };
+    setAtendimentos([novo, ...atendimentos]);
+    setIsCreateModalOpen(false);
+    setFormData(emptyForm);
+    alert('Agendamento realizado com sucesso!');
   };
 
-  /**
-   * Componente interno para o Card de Agendamento,
-   * para evitar repetição de código.
-   */
-  const AppointmentCard = ({ data }: { data: typeof appointmentData }) => (
-    <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex flex-col md:flex-row justify-between gap-6">
-        
-        {/* Lado Esquerdo: Informações do Animal */}
-        <div className="flex gap-4 items-start">
-          <div className="shrink-0 bg-gray-200 rounded-full w-12 h-12 flex items-center justify-center">
-            <User className="w-6 h-6 text-gray-500" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800">{data.animalName}</h3>
-            <p className="text-sm text-gray-500 mb-3">{data.species}</p>
-            <ul className="space-y-1.5 text-sm text-gray-700">
-              <li className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <strong>Data:</strong> {data.date}
-              </li>
-              <li className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <strong>Horário:</strong> {data.time}
-              </li>
-              <li className="flex items-center gap-2">
-                <StethoscopeIcon className="w-4 h-4 text-gray-500" />
-                <strong>Tipo:</strong> {data.type}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Lado Direito: Detalhes do Atendimento */}
-        <div className="flex flex-col items-start md:items-end justify-between gap-4">
-          <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-100 border border-blue-300 rounded-full">
-            Agendado
-          </span>
-          <div className="text-left md:text-right text-sm text-gray-700">
-            <p>
-              <strong>Veterinário:</strong> {data.vet}
-            </p>
-            <p>
-              <strong>Estudante:</strong> {data.student}
-            </p>
-            <div className="mt-2">
-              <strong className="block">Observações:</strong>
-              <p className="text-gray-600">{data.observations}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer: Botões de Ação */}
-      <div className="border-t border-gray-200 mt-5 pt-4 flex flex-wrap gap-3">
-        <button className="bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-800">
-          Ver Prontuário
-        </button>
-        <button className="bg-white text-blue-600 border border-blue-300 px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-50">
-          Preencher Ficha
-        </button>
-      </div>
-    </div>
-  );
+  // Filtragem
+  const filteredAtendimentos = atendimentos.filter(item => {
+    const matchesSearch = item.petName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTab = activeTab === 'todos' || item.type.toLowerCase().includes(activeTab.slice(0, -1)); // remove 's' final para match simples
+    return matchesSearch && matchesTab;
+  });
 
   return (
-    <>
-      {/* Título */}
-      <h1 className="text-3xl font-bold text-green-700">Atendimentos</h1>
-      <p className="text-gray-600 mt-1 mb-8">
-        Gerencie sua agenda de consultas, cirurgias e retornos
-      </p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      
+      {/* Cabeçalho */}
+      <div>
+        <h1 className="text-3xl font-bold text-green-800 tracking-tight">Atendimentos</h1>
+        <p className="text-gray-600 mt-1 text-lg">Gerencie sua agenda de consultas, cirurgias e retornos</p>
+      </div>
 
-      {/* Toolbar: Busca e Novo Agendamento */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Buscar por nome do animal"
-          className="border border-gray-300 rounded-md py-2.5 px-4 w-full md:w-1/3"
-        />
-        <button
-          onClick={() => router.push("/medico/atendimentos/novo")} // Ajuste a rota se necessário
-          className="bg-green-700 text-white px-5 py-2.5 rounded-md font-medium w-full md:w-auto"
+      {/* Barra de Ferramentas */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        
+        {/* Busca */}
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome do animal"
+            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all shadow-sm placeholder-gray-400"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Botão Novo Agendamento (Padrão Preto ADM) */}
+        <button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-gray-200 transition-all active:scale-95 whitespace-nowrap w-full md:w-auto justify-center"
         >
-          Novo Agendamento
+          <Plus size={20} />
+          <span>Novo Agendamento</span>
         </button>
       </div>
 
       {/* Tabs de Filtro */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab("todos")}
-          className={`py-2 px-5 rounded-md text-sm font-medium ${
-            activeTab === "todos"
-              ? "bg-green-700 text-white"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
-          }`}
-        >
-          Todos
-        </button>
-        <button
-          onClick={() => setActiveTab("cirurgias")}
-          className={`py-2 px-5 rounded-md text-sm font-medium ${
-            activeTab === "cirurgias"
-              ? "bg-green-700 text-white"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
-          }`}
-        >
-          Cirurgias
-        </button>
-        <button
-          onClick={() => setActiveTab("consultas")}
-          className={`py-2 px-5 rounded-md text-sm font-medium ${
-            activeTab === "consultas"
-              ? "bg-green-700 text-white"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
-          }`}
-        >
-          Consultas
-        </button>
-        <button
-          onClick={() => setActiveTab("retornos")}
-          className={`py-2 px-5 rounded-md text-sm font-medium ${
-            activeTab === "retornos"
-              ? "bg-green-700 text-white"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
-          }`}
-        >
-          Retornos
-        </button>
+      <div className="flex flex-wrap gap-2">
+        {(['todos', 'cirurgias', 'consultas', 'retornos'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all capitalize ${
+              activeTab === tab 
+                ? 'bg-green-700 text-white shadow-md shadow-green-100' 
+                : 'bg-white text-gray-600 hover:bg-green-50 hover:text-green-800 border border-transparent hover:border-green-100'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
-      {/* Lista de Agendamentos */}
-      <div className="space-y-6">
-        {/* Aqui você faria um .map() nos seus dados filtrados.
-          Estou renderizando o card duas vezes estaticamente para bater com a imagem.
-        */}
-        <AppointmentCard data={appointmentData} />
-        <AppointmentCard data={appointmentData} />
+      {/* Lista de Atendimentos */}
+      <div className="space-y-4">
+        {filteredAtendimentos.length > 0 ? (
+          filteredAtendimentos.map((item, index) => (
+            <AtendimentoCard 
+              key={index} 
+              atendimento={item}
+              onVerProntuario={handleVerProntuario}
+              onPreencherFicha={handlePreencherFicha}
+            />
+          ))
+        ) : (
+          <div className="py-20 text-center bg-white border border-dashed border-gray-200 rounded-2xl">
+            <p className="text-gray-500 font-medium">Nenhum atendimento encontrado para os filtros atuais.</p>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* --- MODAL DE NOVO AGENDAMENTO (Padrão Atendente) --- */}
+      <CadastroModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateSave}
+        title="Novo Agendamento"
+        saveText="Agendar"
+      >
+        <div className="space-y-4">
+           {/* Em produção, isso seria um Select buscando animais da API */}
+           <FormInput 
+             label="Nome do Animal *" 
+             name="animal"
+             value={formData.animal} 
+             onChange={(e) => setFormData({...formData, animal: e.target.value})}
+             required
+           />
+           
+           <div className="space-y-1">
+              <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tipo de Atendimento *</label>
+              <select 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-600"
+                value={formData.tipo}
+                onChange={(e) => setFormData({...formData, tipo: e.target.value})}
+                required
+              >
+                <option value="">Selecione...</option>
+                <option value="consulta">Consulta</option>
+                <option value="cirurgia">Cirurgia</option>
+                <option value="retorno">Retorno</option>
+              </select>
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+              <FormInput 
+                label="Data *" 
+                type="date" 
+                name="data"
+                value={formData.data} 
+                onChange={(e) => setFormData({...formData, data: e.target.value})} 
+                required 
+              />
+              <FormInput 
+                label="Horário *" 
+                type="time" 
+                name="hora"
+                value={formData.hora} 
+                onChange={(e) => setFormData({...formData, hora: e.target.value})} 
+                required 
+              />
+           </div>
+
+           <div>
+             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Observações</label>
+             <textarea 
+               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-600 min-h-[100px] resize-none"
+               placeholder="Detalhes adicionais..."
+               value={formData.observacoes}
+               onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+             />
+           </div>
+        </div>
+      </CadastroModal>
+
+    </div>
   );
 }

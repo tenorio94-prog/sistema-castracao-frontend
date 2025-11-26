@@ -14,6 +14,7 @@ export type ResponsavelAdmUI = {
   email?: string;
   endereco?: string;
   nis?: string;
+  quantidadeAnimais?: number;
 };
 
 type ResponsavelCardAdmProps = {

@@ -1,197 +1,121 @@
 import api from '@/lib/axios';
-import { AxiosError } from 'axios';
 
-/**
- * Interface para Animal
- */
+export enum Gender {
+  male = 'male',
+  female = 'female',
+}
+
+export enum Species {
+  canine = 'canine',
+  feline = 'feline',
+}
+
+export const GENDER_LABELS: Record<Gender, string> = {
+  [Gender.male]: 'Macho',
+  [Gender.female]: 'Fêmea',
+};
+
+export const SPECIES_LABELS: Record<Species, string> = {
+  [Species.canine]: 'Cachorro',
+  [Species.feline]: 'Gato',
+};
+
 export interface Animal {
-  id: string;
-  name: string;
-  species: string;
-  breed?: string;
-  age?: number;
-  weight?: number;
-  sex?: 'MALE' | 'FEMALE';
-  status?: 'COMPLETED' | 'PENDING_SCREENING' | 'PENDING_RETURN' | 'UNFIT';
-  petOwnerId: string;
+  id: number;
+  name: string | null;
+  estimatedAge: string;
+  species: Species;
+  gender: Gender;
+  sizeWeight: string;
+  breed: string | null;
+  microchipNumber: string | null;
+  petOwnerId: number;
+  createdAt: string;
+  updatedAt: string;
   petOwner?: {
-    id: string;
-    name: string;
-    type: 'INDIVIDUAL' | 'NGO';
+    id: number;
+    userId: number;
+    nis: string | null;
+    fullAddress: string;
+    user?: {
+      id: number;
+      completeName: string;
+      email: string;
+      cpf: string | null;
+      phone: string | null;
+    };
   };
-  createdAt?: string;
-  updatedAt?: string;
 }
 
-/**
- * Interface para criar animal
- */
 export interface CreateAnimalData {
-  name: string;
-  species: string;
+  name?: string;
+  estimatedAge: string;
+  species: Species;
+  gender: Gender;
+  sizeWeight: string;
   breed?: string;
-  age?: number;
-  weight?: number;
-  sex?: 'MALE' | 'FEMALE';
-  petOwnerId: string;
+  microchipNumber?: string;
+  petOwnerId: number;
 }
 
-/**
- * Interface para atualizar animal
- */
 export interface UpdateAnimalData {
   name?: string;
-  species?: string;
+  estimatedAge?: string;
+  species?: Species;
+  gender?: Gender;
+  sizeWeight?: string;
   breed?: string;
-  age?: number;
-  weight?: number;
-  sex?: 'MALE' | 'FEMALE';
-  status?: 'COMPLETED' | 'PENDING_SCREENING' | 'PENDING_RETURN' | 'UNFIT';
-  petOwnerId?: string;
+  microchipNumber?: string;
 }
 
-/**
- * Interface para resposta paginada
- */
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-/**
- * Serviço de Animais
- */
-export class AnimalService {
-  private static readonly BASE_PATH = '/animals';
-
-  /**
-   * Buscar todos os animais
-   */
-  static async getAll(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    species?: string;
-    status?: string;
-    petOwnerId?: string;
-  }): Promise<Animal[] | PaginatedResponse<Animal>> {
+export const AnimalService = {
+  async getAll(): Promise<Animal[]> {
     try {
-      const response = await api.get<Animal[] | PaginatedResponse<Animal>>(
-        this.BASE_PATH,
-        { params }
-      );
+      const response = await api.get<Animal[]>('/animals');
       return response.data;
-    } catch (error) {
-      throw this.handleError(error);
+    } catch (error: any) {
+      console.error('Error fetching animals:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao buscar animais');
     }
-  }
+  },
 
-  /**
-   * Buscar animal por ID
-   */
-  static async getById(id: string): Promise<Animal> {
+  async getById(id: number): Promise<Animal> {
     try {
-      const response = await api.get<Animal>(`${this.BASE_PATH}/${id}`);
+      const response = await api.get<Animal>(`/animals/${id}`);
       return response.data;
-    } catch (error) {
-      throw this.handleError(error);
+    } catch (error: any) {
+      console.error('Error fetching animal:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao buscar animal');
     }
-  }
+  },
 
-  /**
-   * Criar novo animal
-   */
-  static async create(data: CreateAnimalData): Promise<Animal> {
+  async create(data: CreateAnimalData): Promise<Animal> {
     try {
-      const response = await api.post<Animal>(this.BASE_PATH, data);
+      const response = await api.post<Animal>('/animals', data);
       return response.data;
-    } catch (error) {
-      throw this.handleError(error);
+    } catch (error: any) {
+      console.error('Error creating animal:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao criar animal');
     }
-  }
+  },
 
-  /**
-   * Atualizar animal
-   */
-  static async update(id: string, data: UpdateAnimalData): Promise<Animal> {
+  async update(id: number, data: UpdateAnimalData): Promise<Animal> {
     try {
-      const response = await api.put<Animal>(`${this.BASE_PATH}/${id}`, data);
+      const response = await api.patch<Animal>(`/animals/${id}`, data);
       return response.data;
-    } catch (error) {
-      throw this.handleError(error);
+    } catch (error: any) {
+      console.error('Error updating animal:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao atualizar animal');
     }
-  }
+  },
 
-  /**
-   * Deletar animal
-   */
-  static async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<{ message: string }> {
     try {
-      await api.delete(`${this.BASE_PATH}/${id}`);
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar animais por responsável
-   */
-  static async getByPetOwner(petOwnerId: string): Promise<Animal[]> {
-    try {
-      const response = await api.get<Animal[]>(`${this.BASE_PATH}/petowner/${petOwnerId}`);
+      const response = await api.delete<{ message: string }>(`/animals/${id}`);
       return response.data;
-    } catch (error) {
-      throw this.handleError(error);
+    } catch (error: any) {
+      console.error('Error deleting animal:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao deletar animal');
     }
-  }
-
-  /**
-   * Buscar animais por espécie
-   */
-  static async getBySpecies(species: string): Promise<Animal[]> {
-    try {
-      const response = await api.get<Animal[]>(`${this.BASE_PATH}/species/${species}`);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar animais por status
-   */
-  static async getByStatus(status: string): Promise<Animal[]> {
-    try {
-      const response = await api.get<Animal[]>(`${this.BASE_PATH}/status/${status}`);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Buscar histórico médico do animal
-   */
-  static async getMedicalHistory(id: string): Promise<any[]> {
-    try {
-      const response = await api.get<any[]>(`${this.BASE_PATH}/${id}/medical-history`);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  /**
-   * Tratamento de erros
-   */
-  private static handleError(error: unknown): Error {
-    if (error instanceof AxiosError) {
-      const message = error.response?.data?.message || error.message;
-      return new Error(message);
-    }
-    return new Error('Erro ao processar requisição de animais');
-  }
-}
+  },
+};
