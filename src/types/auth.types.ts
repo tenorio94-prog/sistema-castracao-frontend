@@ -3,7 +3,7 @@
  */
 
 /**
- * Enum de Roles - deve corresponder exatamente ao enum do Prisma
+ * Enum de Roles - deve corresponder exatamente ao enum do Prisma no backend
  */
 export enum Role {
   administrator = 'administrator', // Coordination/Admin (UFRPE)
@@ -11,7 +11,7 @@ export enum Role {
   veterinarian = 'veterinarian',   // Medical Team (performs procedures)
   receptionist = 'receptionist',   // HVU Reception (schedules follow-ups, etc.)
   petOwner = 'petOwner',           // Animal Owner (online scheduling)
-  student = 'student'
+  student = 'student'              // Student
 }
 
 /**
@@ -52,9 +52,18 @@ export interface CreateUserDto {
   phone: string;
   completeName: string;
   role: Role;
+  
+  // Campos específicos para veterinarian
   crmv?: string;      // Required for veterinarian
   specialty?: string; // Optional specialty for veterinarian
-  address?: string;   // Required for petOwner (fullAddress no backend)
+  
+  // Campos específicos para student
+  enrollment?: string; // Required for student (matrícula)
+  
+  // Campos específicos para petOwner
+  address?: string;       // Required for petOwner (backend converte para fullAddress)
+  nis?: string;           // Optional for petOwner
+  documentUrl?: string;   // Optional for petOwner
 }
 
 /**

@@ -10,6 +10,9 @@ import {
   Role 
 } from '@/types/auth.types';
 
+// Re-exportar Role para facilitar importação
+export { Role } from '@/types/auth.types';
+
 /**
  * Decodifica o JWT token para extrair as informações do usuário
  */
@@ -57,6 +60,21 @@ export class AuthService {
   static async register(data: CreateUserDto): Promise<RegisterResponse> {
     try {
       const response = await api.post<RegisterResponse>('/auth/register', data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Registra um novo responsável (PetOwner) por recepcionista/SEMAS
+   * Rota específica que permite receptionist e semas criarem responsáveis
+   * @param data - Dados do responsável a ser registrado
+   * @returns Dados do usuário criado
+   */
+  static async registerPetOwnerByReceptionist(data: CreateUserDto): Promise<RegisterResponse> {
+    try {
+      const response = await api.post<RegisterResponse>('/auth/register-petowner-by-receptionist', data);
       return response.data;
     } catch (error) {
       throw this.handleError(error);

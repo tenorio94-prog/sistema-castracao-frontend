@@ -1,46 +1,111 @@
 // app/atendente/animais/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Dog, Search, PawPrint } from 'lucide-react';
+import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import PetCard, { Pet } from '@/components/CRUD/PetCard';
 import CadastroModal from '@/components/modals/CadastroModal';
 import ViewModal from '@/components/modals/ViewModal';
+import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
+import { PetOwnerService } from '@/services/petowner.service';
 
 // ---------- Tipos ----------
 type PetForm = {
   name: string;
-  species: string;
+  species: Species;
   breed: string;
-  gender: string;
-  weight: string;
-  age: string;
-  ownerName: string;
-  photo?: string;
-  prontuario?: string;
+  gender: Gender;
+  sizeWeight: string;
+  estimatedAge: string;
+  petOwnerId: string;
 };
 
-// ---------- Mocks ----------
+// ---------- Form Vazio ----------
 const emptyForm: PetForm = {
-  name: '', species: '', breed: '', gender: '', weight: '', age: '', ownerName: '', photo: '', prontuario: '',
+  name: '', 
+  species: Species.canine, 
+  breed: '', 
+  gender: Gender.male, 
+  sizeWeight: '', 
+  estimatedAge: '',
+  petOwnerId: ''
 };
 
-const mockPets: Pet[] = [
-  { id: 1, name: 'Max', species: 'Cachorro', breed: 'Labrador', gender: 'Macho', weight: '13kg', age: '3 anos', ownerName: 'Ana Paula', prontuario: '2025-0001' },
-  { id: 2, name: 'Luna', species: 'Gato', breed: 'Siamês', gender: 'Fêmea', weight: '5kg', age: '2 anos', ownerName: 'Bruno Costa', prontuario: '2025-0002' },
-  { id: 3, name: 'Thor', species: 'Cachorro', breed: 'Golden Retriever', gender: 'Macho', weight: '15kg', age: '4 anos', ownerName: 'Carla Dias', prontuario: '2025-0003' },
-];
+type PetOwnerOption = { id: number; name: string; };
 
 export default function PaginaAnimais() {
   const [busca, setBusca] = useState('');
-  const [pets, setPets] = useState<Pet[]>(mockPets);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [petOwners, setPetOwners] = useState<PetOwnerOption[]>([]);
   const [formData, setFormData] = useState<PetForm>(emptyForm);
+  const [loading, setLoading] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   // Modais
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProntuarioModalOpen, setIsProntuarioModalOpen] = useState(false);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+
+  // Buscar animais do backend
+  const fetchPets = async () => {
+    setLoading(true);
+    try {
+      const data = await AnimalService.getAll();
+      
+      // Buscar todos os petOwners para fazer o match
+      const allPetOwners = await PetOwnerService.getAll();
+      
+      const petsUI: Pet[] = data.map(a => {
+        // Tentar pegar do relacionamento direto primeiro
+        let ownerName = a.petOwner?.user?.completeName;
+        
+        // Se não vier do relacionamento, buscar na lista de petOwners
+        if (!ownerName) {
+          const owner = allPetOwners.find(po => po.id === a.petOwnerId);
+          ownerName = owner?.user?.completeName;
+        }
+        
+        return {
+          id: a.id,
+          name: a.name || 'N/A',
+          species: SPECIES_LABELS[a.species] || a.species,
+          breed: a.breed || 'SRD',
+          gender: GENDER_LABELS[a.gender] || a.gender,
+          weight: a.sizeWeight || 'N/A',
+          age: a.estimatedAge || 'N/A',
+          ownerName: ownerName || 'Tutor não encontrado',
+          prontuario: `${a.id.toString().padStart(4, '0')}`,
+        };
+      });
+      
+      setPets(petsUI);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao carregar animais.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPetOwners = async () => {
+    try {
+      const data = await PetOwnerService.getAll();
+      const owners: PetOwnerOption[] = data.map(o => ({
+        id: o.id,
+        name: o.user?.completeName || 'N/A',
+      }));
+      setPetOwners(owners);
+    } catch (error) {
+      console.error('Erro ao carregar responsáveis:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPets();
+    fetchPetOwners();
+  }, []);
 
   // Filtros
   const petsFiltrados = pets.filter(pet =>
@@ -57,27 +122,41 @@ export default function PaginaAnimais() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, photo: reader.result as string }));
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const novo: Pet = {
-      ...formData,
-      id: Date.now(),
-      age: `${formData.age} anos`,
-      weight: `${formData.weight}kg`,
-      prontuario: formData.prontuario || `2025-${String(pets.length + 1).padStart(4, '0')}`,
-    };
-    setPets(prev => [novo, ...prev]);
-    handleCloseCreate();
-    alert('Animal cadastrado!');
+    setLoadingSubmit(true);
+    try {
+      if (!formData.name || !formData.petOwnerId || !formData.breed) {
+        toast.warning('Preencha todos os campos obrigatórios.');
+        setLoadingSubmit(false);
+        return;
+      }
+      
+      if (!formData.sizeWeight || !formData.estimatedAge) {
+        toast.warning('Preencha peso/tamanho e idade estimada.');
+        setLoadingSubmit(false);
+        return;
+      }
+
+      await AnimalService.create({
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        gender: formData.gender,
+        sizeWeight: formData.sizeWeight,
+        estimatedAge: formData.estimatedAge,
+        petOwnerId: parseInt(formData.petOwnerId),
+      });
+      
+      toast.success('Animal cadastrado com sucesso!');
+      await fetchPets();
+      handleCloseCreate();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Erro ao cadastrar animal.';
+      toast.error(msg);
+    } finally {
+      setLoadingSubmit(false);
+    }
   };
 
   const handleVerProntuario = (pet: Pet) => { setSelectedPet(pet); setIsProntuarioModalOpen(true); };
@@ -150,22 +229,10 @@ export default function PaginaAnimais() {
         onClose={handleCloseCreate}
         onSubmit={handleCreateSave}
         title="Cadastrar Novo Animal"
-        saveText="Salvar Cadastro"
+        saveText={loadingSubmit ? "Salvando..." : "Salvar Cadastro"}
       >
         <div className="space-y-4">
-          {/* Área de Upload de Foto */}
-          <div className="flex justify-center">
-            <label className="cursor-pointer group relative">
-              <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-50 border-2 border-dashed border-gray-300 group-hover:border-gray-900 transition-colors flex items-center justify-center">
-                {formData.photo ? (
-                  <img src={formData.photo} alt="Preview" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-xs text-gray-500 font-medium text-center p-2">Adicionar<br/>Foto</span>
-                )}
-              </div>
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-            </label>
-          </div>
+          {/* Área de Upload de Foto - REMOVIDO TEMPORARIAMENTE */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -180,75 +247,90 @@ export default function PaginaAnimais() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Espécie *</label>
-              <input
+              <select
                 name="species"
                 value={formData.species}
                 onChange={handleFormChange}
                 required
-                placeholder="Ex: Cachorro, Gato"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Raça</label>
-              <input
-                name="breed"
-                value={formData.breed}
-                onChange={handleFormChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleFormChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
               >
-                <option value="">Selecione</option>
-                <option value="Macho">Macho</option>
-                <option value="Fêmea">Fêmea</option>
+                {Object.entries(SPECIES_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Idade (anos)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Raça *</label>
               <input
-                name="age"
-                type="number"
-                value={formData.age}
+                name="breed"
+                value={formData.breed}
                 onChange={handleFormChange}
+                required
+                placeholder="Ex: SRD, Labrador, Siamês"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
-              <input
-                name="weight"
-                type="number"
-                step="0.1"
-                value={formData.weight}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
+              <select
+                name="gender"
+                value={formData.gender}
                 onChange={handleFormChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                {Object.entries(GENDER_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Peso/Tamanho *</label>
+              <input
+                name="sizeWeight"
+                type="text"
+                value={formData.sizeWeight}
+                onChange={handleFormChange}
+                required
+                placeholder="Ex: 12kg, Grande, Médio"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Idade Estimada *</label>
+              <input
+                name="estimatedAge"
+                type="text"
+                value={formData.estimatedAge}
+                onChange={handleFormChange}
+                required
+                placeholder="Ex: 3 anos, 6 meses"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Tutor *</label>
-            <input
-              name="ownerName"
-              value={formData.ownerName}
-              onChange={handleFormChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Responsável (Tutor) *</label>
+              <select
+                name="petOwnerId"
+                value={formData.petOwnerId}
+                onChange={handleFormChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="">Selecione o tutor</option>
+                {petOwners.map(owner => (
+                  <option key={owner.id} value={owner.id}>{owner.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </CadastroModal>

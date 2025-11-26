@@ -1,68 +1,111 @@
 // app/atendente/agendamentos/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, CalendarX } from 'lucide-react';
+import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import AgendamentoCard, { Agendamento, Pet, Responsavel } from '@/components/AtendenteComponents/AgendamentoCard';
+import AgendamentoCard, { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
 import AgendamentoFilter from '@/components/AtendenteComponents/FiltroAgendamento';
 import CadastroModal from '@/components/modals/CadastroModal';
 import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamento';
-
-// ---------- Mocks (Mantidos) ----------
-const mockPet1: Pet = { id: 101, name: 'Rex', species: 'Cachorro', breed: 'Labrador', gender: 'Macho', weight: '13kg', age: '3 anos', ownerName: 'Ana Paula' };
-const mockPet2: Pet = { id: 102, name: 'Thor', species: 'Cachorro', breed: 'Golden', gender: 'Macho', weight: '15kg', age: '4 anos', ownerName: 'Bruno Costa' };
-const mockPet3: Pet = { id: 103, name: 'Nina', species: 'Gato', breed: 'Siamês', gender: 'Fêmea', weight: '5kg', age: '2 anos', ownerName: 'Elisa Fernandes' };
-
-const mockResp1: Responsavel = { id: 'r1', tipo: 'PF', nome: 'Ana Paula', cpf: '111.222.333-44', telefone: '(81) 99999-1111', email: 'ana@email.com', senha: '123', animais: ['Rex'] };
-const mockResp2: Responsavel = { id: 'r2', tipo: 'PF', nome: 'Bruno Costa', cpf: '222.333.444-55', telefone: '(81) 99999-2222', email: 'bruno@email.com', senha: '123', animais: ['Thor'] };
-const mockResp3: Responsavel = { id: 'r3', tipo: 'PF', nome: 'Elisa Fernandes', cpf: '333.444.555-66', telefone: '(81) 99999-3333', email: 'elisa@email.com', senha: '123', animais: ['Nina'] };
-
-const mockAgendamentosIniciais: Agendamento[] = [
-  { id: 1, petName: 'Rex', status: 'Pendente', data: '14/01/2025', hora: '09:00', tipo: 'Castração', pet: mockPet1, responsavel: mockResp1, observacoes: 'Animal dócil, sem restrições.' },
-  { id: 2, petName: 'Thor', status: 'Pendente', data: '14/01/2025', hora: '09:30', tipo: 'Consulta', pet: mockPet2, responsavel: mockResp2, observacoes: '' },
-  { id: 3, petName: 'Nina', status: 'Concluído', data: '14/01/2025', hora: '11:00', tipo: 'Castração', pet: mockPet3, responsavel: mockResp3, observacoes: 'Cirurgia tranquila.' },
-  { id: 4, petName: 'Rex', status: 'Pendente', data: '25/12/2025', hora: '14:00', tipo: 'Consulta', pet: mockPet1, responsavel: mockResp1, observacoes: '' },
-];
+import { AppointmentService, AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
+import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 type AgendamentoForm = {
   animalId: string;
-  tipoAtendimento: string;
-  data: string;
-  horario: string;
-  observacoes: string;
+  startTime: string;
+  endTime: string;
+  serviceType: ServiceType;
+  status: AppointmentStatus;
+  notes: string;
 };
+
 const emptyForm: AgendamentoForm = {
   animalId: '',
-  tipoAtendimento: '',
-  data: '',
-  horario: '',
-  observacoes: '',
+  startTime: '',
+  endTime: '',
+  serviceType: ServiceType.triage,
+  status: AppointmentStatus.scheduled,
+  notes: '',
 };
+
+type AnimalOption = { id: number; name: string; petOwnerId: number; ownerName: string; species: string; };
 
 export default function PaginaAgendamentos() {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockAgendamentosIniciais);
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [animaisDisponiveis, setAnimaisDisponiveis] = useState<AnimalOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
-  // Estados dos modais
   const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<AgendamentoForm>(emptyForm);
   const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
   const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
 
-  // Filtros
-  const agendamentosFiltrados = agendamentos.filter(ag => {
-    const matchBusca = (ag.petName.toLowerCase().includes(busca.toLowerCase()) ||
-                        ag.responsavel.nome.toLowerCase().includes(busca.toLowerCase()));
-    const matchStatus = () => {
-      if (statusFiltro === '') return true;
-      if (statusFiltro === 'Castração' || statusFiltro === 'Consulta') return ag.tipo === statusFiltro;
-      if (statusFiltro === 'Concluído') return ag.status === statusFiltro;
-      return false;
-    };
-    return matchBusca && matchStatus();
-  });
+  const fetchAgendamentos = async () => {
+    setLoading(true);
+    try {
+      const data = await AppointmentService.getAll();
+      const agendamentosUI: Agendamento[] = data.map(apt => {
+        const dataObj = new Date(apt.startTime);
+        const statusEnum = apt.status as AppointmentStatus;
+        const statusLabel = STATUS_LABELS[statusEnum] ?? apt.status;
+        return {
+          id: apt.id, backendId: apt.id, petName: apt.animal?.name || 'Nome indisponível',
+          status: statusLabel as any, backendStatus: statusEnum,
+          data: dataObj.toLocaleDateString('pt-BR'), hora: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          tipo: apt.serviceType ? SERVICE_TYPE_LABELS[apt.serviceType] : 'N/A', backendServiceType: apt.serviceType || undefined,
+          observacoes: apt.notes || '', startTime: apt.startTime, endTime: apt.endTime,
+          pet: { id: apt.animal?.id || 0, name: apt.animal?.name || 'N/A', species: apt.animal?.species ? SPECIES_LABELS[apt.animal.species as Species] : 'N/A',
+            breed: apt.animal?.breed || 'SRD', gender: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender as Gender] : 'N/A',
+            ownerName: apt.petOwner?.user?.completeName || 'N/A', age: '', weight: '' },
+          responsavel: { id: apt.petOwner?.id?.toString() || '0', nome: apt.petOwner?.user?.completeName || 'N/A',
+            cpf: apt.petOwner?.user?.cpf || 'N/A', telefone: apt.petOwner?.user?.phone || 'N/A',
+            email: apt.petOwner?.user?.email || 'N/A', tipo: 'PF', animais: [], senha: '' },
+        };
+      });
+      setAgendamentos(agendamentosUI);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao carregar agendamentos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAnimais = async () => {
+    try {
+      const animais = await AnimalService.getAll();
+      const opcoes: AnimalOption[] = animais.map(a => ({
+        id: a.id, name: a.name || 'Sem nome', petOwnerId: a.petOwnerId,
+        ownerName: a.petOwner?.user?.completeName || 'Tutor Desconhecido', species: a.species
+      }));
+      setAnimaisDisponiveis(opcoes);
+    } catch (error) {
+      console.error('Erro ao carregar animais:', error);
+    }
+  };
+
+  useEffect(() => { fetchAgendamentos(); fetchAnimais(); }, []);
+
+  const agendamentosFiltrados = useMemo(() => {
+    return agendamentos.filter(ag => {
+      const matchBusca = (ag.petName.toLowerCase().includes(busca.toLowerCase()) ||
+                          ag.responsavel.nome.toLowerCase().includes(busca.toLowerCase()));
+      const matchStatus = () => {
+        if (statusFiltro === '') return true;
+        if (statusFiltro === 'Castração' || statusFiltro === 'Consulta') return ag.tipo === statusFiltro;
+        if (statusFiltro === 'Concluído') return ag.status === statusFiltro;
+        return false;
+      };
+      return matchBusca && matchStatus();
+    });
+  }, [agendamentos, busca, statusFiltro]);
 
   // Handlers
   const handleVerDetalhes = (agendamento: Agendamento) => {
@@ -75,62 +118,92 @@ export default function PaginaAgendamentos() {
     setSelectedAgendamento(null);
   };
 
-  const handleCheckIn = () => {
-    if (!selectedAgendamento) return;
-    setAgendamentos(prev =>
-      prev.map(ag =>
-        ag.id === selectedAgendamento.id ? { ...ag, status: 'Concluído' } : ag
-      )
-    );
-    alert('Check-in realizado com sucesso!');
-    handleCloseDetalhes();
-  };
-
-  const handleCancelAgendamento = () => {
-    if (!selectedAgendamento) return;
-    if (window.confirm('Tem certeza que deseja cancelar este agendamento?')) {
-      setAgendamentos(prev => prev.filter(ag => ag.id !== selectedAgendamento.id));
-      alert('Agendamento cancelado (simulação).');
+  const handleCheckIn = async () => {
+    const id = selectedAgendamento?.backendId;
+    if (!id) return;
+    try {
+      await AppointmentService.update(id, { status: AppointmentStatus.completed });
+      toast.success('Check-in realizado!');
+      await fetchAgendamentos();
       handleCloseDetalhes();
+    } catch (error) {
+      toast.error('Erro ao realizar check-in.');
     }
   };
 
-  // Cadastro Handlers
-  const handleNovoAgendamento = () => setIsModalCadastroOpen(true);
+  const handleCancelAgendamento = async () => {
+    const id = selectedAgendamento?.backendId;
+    if (!id) return;
+    if (!window.confirm(`Deletar agendamento de ${selectedAgendamento?.petName}?`)) return;
+    try {
+      await AppointmentService.delete(id);
+      toast.success('Agendamento deletado.');
+      await fetchAgendamentos();
+      handleCloseDetalhes();
+    } catch (error) {
+      toast.error('Erro ao deletar agendamento.');
+    }
+  };
+
+  const handleNovoAgendamento = () => {
+    setFormData(emptyForm);
+    setIsEditing(false);
+    setEditingId(null);
+    setIsModalCadastroOpen(true);
+  };
+  
   const handleCloseCadastro = () => { setIsModalCadastroOpen(false); setFormData(emptyForm); };
+  
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const mockAnimaisSelect = [
-    { id: '101', nome: 'Rex (Ana Paula)' },
-    { id: '102', nome: 'Thor (Bruno Costa)' },
-    { id: '103', nome: 'Nina (Elisa Fernandes)' },
-  ];
-  const mockTiposAtendimento = [
-    { id: '1', nome: 'Castração' },
-    { id: '2', nome: 'Consulta' },
-    { id: '3', nome: 'Retorno' },
-  ];
-
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dataFormatada = formData.data.split('-').reverse().join('/');
-    const novo: Agendamento = {
-      id: Date.now(),
-      petName: mockAnimaisSelect.find(a => a.id === formData.animalId)?.nome.split(' ')[0] || '',
-      status: 'Pendente',
-      data: dataFormatada,
-      hora: formData.horario,
-      tipo: formData.tipoAtendimento,
-      observacoes: formData.observacoes,
-      pet: mockPet1, 
-      responsavel: mockResp1, 
-    };
-    setAgendamentos(prev => [novo, ...prev]);
-    alert('Agendamento criado!');
-    handleCloseCadastro();
+    setLoadingSubmit(true);
+    try {
+      if (!formData.animalId || !formData.startTime || !formData.endTime) {
+        toast.warning('Preencha todos os campos obrigatórios.');
+        setLoadingSubmit(false);
+        return;
+      }
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endTime);
+      if (endDate <= startDate) {
+        toast.warning('A data de término deve ser posterior à data de início.');
+        setLoadingSubmit(false);
+        return;
+      }
+      const animalSelecionado = animaisDisponiveis.find(a => a.id === parseInt(formData.animalId));
+      if (!animalSelecionado) throw new Error("Animal inválido");
+      if (isEditing && editingId) {
+        await AppointmentService.update(editingId, {
+          startTime: startDate.toISOString(), endTime: endDate.toISOString(),
+          serviceType: formData.serviceType, status: formData.status, notes: formData.notes,
+        });
+        toast.success('Agendamento atualizado!');
+      } else {
+        await AppointmentService.create({
+          animalId: parseInt(formData.animalId), petOwnerId: animalSelecionado.petOwnerId,
+          startTime: startDate.toISOString(), endTime: endDate.toISOString(),
+          serviceType: formData.serviceType, status: formData.status, notes: formData.notes,
+        });
+        toast.success('Agendamento criado!');
+      }
+      await fetchAgendamentos();
+      setIsModalCadastroOpen(false);
+      setFormData(emptyForm);
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        toast.error('Conflito de horário!');
+      } else {
+        const msg = error.response?.data?.message || 'Erro ao salvar.';
+        toast.error(msg);
+      }
+    } finally {
+      setLoadingSubmit(false);
+    }
   };
 
   return (
@@ -169,7 +242,11 @@ export default function PaginaAgendamentos() {
           </span>
         </div>
 
-        {agendamentosFiltrados.length > 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : agendamentosFiltrados.length > 0 ? (
           <div className="space-y-3">
             {agendamentosFiltrados.map(ag => (
               <AgendamentoCard
@@ -195,8 +272,8 @@ export default function PaginaAgendamentos() {
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}
         onSubmit={handleCreateSave}
-        title="Novo Agendamento"
-        saveText="Criar Agendamento"
+        title={isEditing ? "Editar Agendamento" : "Novo Agendamento"}
+        saveText={loadingSubmit ? "Salvando..." : (isEditing ? "Atualizar" : "Criar Agendamento")}
       >
         <div>
           <label htmlFor="animalId" className="block text-sm font-medium text-gray-700 mb-1">Animal*</label>
@@ -205,59 +282,80 @@ export default function PaginaAgendamentos() {
             name="animalId"
             value={formData.animalId}
             onChange={handleFormChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            required
+            disabled={isEditing}
+            className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEditing ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
           >
             <option value="">Selecione o animal</option>
-            {mockAnimaisSelect.map(a => (
-              <option key={a.id} value={a.id}>{a.nome}</option>
+            {animaisDisponiveis.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.name} ({a.species === 'canine' ? 'Cão' : 'Gato'}) - {a.ownerName}
+              </option>
             ))}
           </select>
         </div>
-        <div>
-          <label htmlFor="tipoAtendimento" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Atendimento*</label>
-          <select
-            id="tipoAtendimento"
-            name="tipoAtendimento"
-            value={formData.tipoAtendimento}
-            onChange={handleFormChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">Selecione o tipo</option>
-            {mockTiposAtendimento.map(t => (
-              <option key={t.id} value={t.nome}>{t.nome}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="serviceType" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Serviço</label>
+            <select
+              id="serviceType"
+              name="serviceType"
+              value={formData.serviceType}
+              onChange={handleFormChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleFormChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="data" className="block text-sm font-medium text-gray-700 mb-1">Data*</label>
+            <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">Início*</label>
             <input
-              id="data"
-              name="data"
-              type="date"
-              value={formData.data}
+              id="startTime"
+              name="startTime"
+              type="datetime-local"
+              value={formData.startTime}
               onChange={handleFormChange}
+              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label htmlFor="horario" className="block text-sm font-medium text-gray-700 mb-1">Horário*</label>
+            <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">Término*</label>
             <input
-              id="horario"
-              name="horario"
-              type="time"
-              value={formData.horario}
+              id="endTime"
+              name="endTime"
+              type="datetime-local"
+              value={formData.endTime}
               onChange={handleFormChange}
+              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
         <div>
-          <label htmlFor="observacoes" className="block text-sm font-medium text-gray-700 mb-1">Observações:</label>
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Observações:</label>
           <textarea
-            id="observacoes"
-            name="observacoes"
-            value={formData.observacoes}
+            id="notes"
+            name="notes"
+            value={formData.notes}
             onChange={handleFormChange}
             rows={4}
             placeholder="Adicione informações sobre o agendamento"

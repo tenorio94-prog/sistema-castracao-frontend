@@ -1,143 +1,131 @@
-// @/components/AtendenteComponents/ModalDetalhesAgendamento.tsx
 "use client";
 
 import React from 'react';
-import { X, User, Dog, CalendarCheck, AlertCircle } from 'lucide-react';
-import { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard'; 
+import { X, Calendar, Clock, User, Stethoscope, FileText, CheckCircle2, Ban } from 'lucide-react';
+import { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
 
-const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (
-  <div className="flex items-center gap-2 mb-3 text-gray-900">
-    <div className="p-1.5 bg-gray-100 rounded-lg text-gray-600">{icon}</div>
-    <h3 className="text-sm font-bold uppercase tracking-wide">{title}</h3>
-  </div>
-);
-
-const DetailItem: React.FC<{ label: string; value: string | undefined }> = ({ label, value }) => (
-  <div className="flex flex-col">
-    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</span>
-    {/* CORREÇÃO AQUI: Alterado 'break-words' para 'break-all' para evitar erros de lint e quebra de layout */}
-    <span className="text-sm font-medium text-gray-800 break-all">{value || '—'}</span>
-  </div>
-);
-
-const formatarData = (dataString: string) => {
-  if (dataString && dataString.includes('-') && dataString.length === 10) { 
-    const partes = dataString.split('-');
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-  return dataString; 
-};
-
-type ModalDetalhesProps = {
+interface ModalDetalhesProps {
   isOpen: boolean;
-  agendamento: Agendamento | null;
   onClose: () => void;
-  onCheckIn: () => void;
-  onCancelAgendamento: () => void;
-};
+  agendamento: Agendamento | null;
+  onCheckIn?: () => void;
+  onCancelAgendamento?: () => void;
+  children?: React.ReactNode; // Propriedade essencial para aceitar o botão de Editar
+}
 
 export default function ModalDetalhesAgendamento({
   isOpen,
-  agendamento,
   onClose,
+  agendamento,
   onCheckIn,
-  onCancelAgendamento
+  onCancelAgendamento,
+  children
 }: ModalDetalhesProps) {
-  
   if (!isOpen || !agendamento) return null;
 
-  const { responsavel, pet, tipo, data, hora, observacoes, status } = agendamento;
-  const isPendente = status === 'Pendente';
-  
-  const statusStyles: { [key: string]: string } = {
-    Pendente: 'bg-amber-50 text-amber-700 border-amber-100',
-    Concluído: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    Confirmado: 'bg-blue-50 text-blue-700 border-blue-100',
-  };
-  const badgeStyle = statusStyles[status] || 'bg-gray-50 text-gray-700 border-gray-100';
-
   return (
-    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="flex justify-between items-start p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Detalhes do Agendamento</h2>
-            <p className="text-sm text-gray-500 mt-1">Protocolo #{agendamento.id}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${badgeStyle}`}>
-              {status}
+        {/* Cabeçalho */}
+        <div className="bg-blue-600 p-6 relative">
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/20 p-1 rounded-full transition-colors"
+          >
+            <X size={20} />
+          </button>
+          
+          <h2 className="text-2xl font-bold text-white mb-1">{agendamento.petName}</h2>
+          <div className="flex items-center gap-2 text-blue-100 text-sm">
+            <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wider">
+              {agendamento.pet.species}
             </span>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-              <X size={24} />
-            </button>
+            <span>•</span>
+            <span>{agendamento.pet.breed}</span>
           </div>
         </div>
 
         {/* Corpo */}
-        <div className="p-6 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
-              <SectionHeader icon={<User size={16} />} title="Responsável" />
-              <div className="space-y-3">
-                <DetailItem label="Nome" value={responsavel.nome} />
-                <div className="grid grid-cols-2 gap-2">
-                  <DetailItem label="CPF" value={responsavel.cpf} />
-                  <DetailItem label="Telefone" value={responsavel.telefone} />
-                </div>
-                <DetailItem label="Email" value={responsavel.email} />
-              </div>
-            </div>
-
-            <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
-              <SectionHeader icon={<Dog size={16} />} title="Paciente" />
-              <div className="grid grid-cols-2 gap-4">
-                <DetailItem label="Nome" value={pet.name} />
-                <DetailItem label="Espécie" value={pet.species} />
-                <DetailItem label="Raça" value={pet.breed} />
-                <DetailItem label="Sexo" value={pet.gender} />
-                <DetailItem label="Idade" value={pet.age} />
-                <DetailItem label="Peso" value={pet.weight} />
-              </div>
-            </div>
-
-            <div className="lg:col-span-2 bg-blue-50/30 p-5 rounded-xl border border-blue-100/50">
-              <SectionHeader icon={<CalendarCheck size={16} />} title="Dados do Serviço" />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <DetailItem label="Procedimento" value={tipo} />
-                <DetailItem label="Data" value={formatarData(data)} />
-                <DetailItem label="Horário" value={hora} />
-              </div>
-              {observacoes && (
-                <div className="mt-4 pt-4 border-t border-blue-100/50 flex gap-3">
-                  <AlertCircle size={16} className="text-blue-400 shrink-0 mt-0.5" />
-                  <DetailItem label="Observações Clínicas" value={observacoes} />
-                </div>
-              )}
-            </div>
+        <div className="p-6 space-y-5">
+          
+          {/* Status Badge */}
+          <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+             <span className="text-sm font-medium text-gray-500">Status Atual</span>
+             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide
+                ${agendamento.status === 'Agendado' ? 'bg-blue-50 text-blue-700' : 
+                  agendamento.status === 'Confirmado' ? 'bg-green-50 text-green-700' :
+                  agendamento.status === 'Cancelado' ? 'bg-red-50 text-red-700' :
+                  agendamento.status === 'Concluído' ? 'bg-gray-100 text-gray-700' :
+                  'bg-gray-50 text-gray-600'
+                }`}
+             >
+               {agendamento.status}
+             </span>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-100 bg-gray-50/30 rounded-b-2xl flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancelAgendamento}
-            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
-          >
-            Cancelar Agendamento
-          </button>
-          <button
-            type="button"
-            onClick={onCheckIn}
-            disabled={!isPendente}
-            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-lg shadow-gray-200"
-          >
-            Confirmar Check-in
-          </button>
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+             <div className="space-y-1">
+               <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase">
+                 <Calendar size={14} /> Data
+               </div>
+               <p className="font-medium text-gray-800">{agendamento.data}</p>
+             </div>
+             <div className="space-y-1">
+               <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase">
+                 <Clock size={14} /> Horário
+               </div>
+               <p className="font-medium text-gray-800">{agendamento.hora}</p>
+             </div>
+             <div className="col-span-2 space-y-1">
+               <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase">
+                 <Stethoscope size={14} /> Serviço
+               </div>
+               <p className="font-medium text-gray-800">{agendamento.tipo}</p>
+             </div>
+             <div className="col-span-2 space-y-1">
+               <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase">
+                 <User size={14} /> Responsável
+               </div>
+               <p className="font-medium text-gray-800">{agendamento.responsavel.nome}</p>
+               <p className="text-gray-500 text-xs">{agendamento.responsavel.telefone}</p>
+             </div>
+          </div>
+
+          {/* Observações */}
+          {agendamento.observacoes && (
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+               <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase">
+                 <FileText size={14} /> Observações
+               </div>
+               <p className="text-sm text-gray-700 italic">"{agendamento.observacoes}"</p>
+            </div>
+          )}
+
+          {/* Botões de Ação Padrão */}
+          <div className="pt-2 grid grid-cols-2 gap-3">
+             {onCancelAgendamento && (
+               <button 
+                 onClick={onCancelAgendamento}
+                 className="flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+               >
+                 <Ban size={16} /> Cancelar
+               </button>
+             )}
+             
+             {onCheckIn && agendamento.status !== 'Concluído' && agendamento.status !== 'Cancelado' && (
+               <button 
+                 onClick={onCheckIn}
+                 className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm hover:shadow"
+               >
+                 <CheckCircle2 size={16} /> Check-in
+               </button>
+             )}
+          </div>
+
+          {children}
+
         </div>
       </div>
     </div>

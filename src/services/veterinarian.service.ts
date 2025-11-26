@@ -4,22 +4,23 @@ import { Role } from '@/types/auth.types';
 
 /**
  * Interface para Veterinário do backend
+ * Baseada na resposta do endpoint GET /veterinarian
  */
 export interface Veterinarian {
   id: number;
   userId: number;
-  crmv: string;
-  specialty?: string | null;
+  crmv: string | null;
+  specialty: string | null;
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
   user?: {
-    id: number;
+    id?: number;
     completeName: string;
     email: string;
     cpf: string;
     phone: string;
-    role: string;
+    role?: string;
   };
   _count?: {
     clinicalRecords: number;
@@ -28,19 +29,26 @@ export interface Veterinarian {
 
 /**
  * Interface para criar veterinário no backend
+ * O veterinário deve ser criado APÓS a criação do usuário
  */
 export interface CreateVeterinarianData {
-  crmv: string;
+  crmv?: string;
+  specialty?: string;
   active?: boolean;
 }
 
 /**
  * Interface para atualizar veterinário
+ * Baseada no UpdateVeterinarianDto do backend
+ * Permite atualizar tanto campos do veterinarian quanto do user relacionado
  */
 export interface UpdateVeterinarianData {
+  // Campos do Veterinarian
   crmv?: string;
   specialty?: string;
   active?: boolean;
+  
+  // Campos do User (podem ser atualizados junto)
   email?: string;
   password?: string;
   phone?: string;
@@ -67,37 +75,44 @@ export class VeterinarianService {
 
   /**
    * Buscar todos os veterinários
+   * Retorna veterinários com dados do user relacionado
    */
   static async getAll(): Promise<Veterinarian[]> {
     try {
-      // Incluir o user relacionado via query param
-      const response = await api.get<Veterinarian[]>(`${this.BASE_PATH}?include=user`);
+      const response = await api.get<Veterinarian[]>(this.BASE_PATH);
       console.log('✅ Veterinários recebidos do backend:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ Erro ao buscar veterinários');
       throw this.handleError(error);
     }
   }
 
   /**
    * Buscar veterinário por ID
+   * @param userId - ID do usuário (não é o veterinarianId)
    */
-  static async getById(id: number): Promise<Veterinarian> {
+  static async getById(userId: number): Promise<Veterinarian> {
     try {
-      const response = await api.get<Veterinarian>(`${this.BASE_PATH}/${id}`);
+      console.log('🔍 Buscando veterinário por userId:', userId);
+      const response = await api.get<Veterinarian>(`${this.BASE_PATH}/${userId}`);
+      console.log('✅ Veterinário encontrado:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ Erro ao buscar veterinário por ID');
       throw this.handleError(error);
     }
   }
 
   /**
-   * Criar novo veterinário
-   * Usa o endpoint /veterinarian com apenas crmv e active
+   * Criar novo veterinário vinculado a um usuário existente
+   * Este método NÃO deve ser usado para criar novos veterinários do zero.
+   * Use AuthService.register() que cria o usuário E o veterinário automaticamente.
+   * Este método é apenas para casos especiais onde o usuário já existe.
    */
-  static async create(data: CreateVeterinarianData): Promise<Veterinarian> {
+  static async createForExistingUser(userId: number, data: CreateVeterinarianData): Promise<Veterinarian> {
     try {
-      console.log('🔄 Criando veterinário com dados:', data);
+      console.log('🔄 Criando veterinário para usuário existente:', { userId, data });
       
       const response = await api.post<Veterinarian>(this.BASE_PATH, data);
       
@@ -110,22 +125,31 @@ export class VeterinarianService {
 
   /**
    * Atualizar veterinário
+   * @param userId - ID do usuário (não é o veterinarianId)
+   * @param data - Dados a serem atualizados (campos do user e/ou veterinarian)
    */
-  static async update(id: number, data: UpdateVeterinarianData): Promise<Veterinarian> {
+  static async update(userId: number, data: UpdateVeterinarianData): Promise<Veterinarian> {
     try {
-      const response = await api.patch<Veterinarian>(`${this.BASE_PATH}/${id}`, data);
+      console.log('🔄 Atualizando veterinário:', { userId, data });
+      const response = await api.patch<Veterinarian>(`${this.BASE_PATH}/${userId}`, data);
+      console.log('✅ Veterinário atualizado:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ Erro ao atualizar veterinário');
       throw this.handleError(error);
     }
   }
 
   /**
    * Deletar veterinário
+   * Deleta o usuário e automaticamente deleta o veterinarian relacionado (cascade)
+   * @param userId - ID do usuário (não é o veterinarianId)
    */
-  static async delete(id: number): Promise<void> {
+  static async delete(userId: number): Promise<void> {
     try {
-      await api.delete(`${this.BASE_PATH}/${id}`);
+      console.log('🗑️ Deletando veterinário com userId:', userId);
+      await api.delete(`${this.BASE_PATH}/${userId}`);
+      console.log('✅ Veterinário deletado com sucesso');
     } catch (error) {
       throw this.handleError(error);
     }

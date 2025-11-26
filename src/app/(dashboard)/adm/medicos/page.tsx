@@ -63,13 +63,14 @@ export default function PaginaMedicos() {
         cpf: vet.user?.cpf || '',
         telefone: vet.user?.phone || '',
         crmv: vet.crmv || '',
-        especialidade: vet.specialty || 'Clínica Geral', // Default se vazio
-        ativo: vet.active,
+        especialidade: vet.specialty || 'Clínica Geral',
+        ativo: vet.active ?? true, // Default true se undefined
       }));
 
       setMedicos(medicosFormatados);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar médicos');
+      console.error('Erro ao carregar médicos:', err);
     } finally {
       setLoading(false);
     }
@@ -122,33 +123,108 @@ export default function PaginaMedicos() {
     e.preventDefault();
     try {
       setLoading(true);
-      // Validações simplificadas (adicione as suas completas aqui)
-      if (!validateCPF(createFormData.cpf)) { alert('CPF inválido'); setLoading(false); return; }
       
+      // Validações
+      if (!validateCPF(createFormData.cpf)) { 
+        alert('CPF inválido'); 
+        setLoading(false); 
+        return; 
+      }
+      
+      if (!createFormData.senha || createFormData.senha.length < 6) {
+        alert('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
+      
+      if (!createFormData.crmv || createFormData.crmv.trim() === '') {
+        alert('CRMV é obrigatório para médicos veterinários');
+        setLoading(false);
+        return;
+      }
+      
+      // auth/register cria o usuário E o veterinarian automaticamente
       const createUserDto: CreateUserDto = {
-        completeName: createFormData.nome, email: createFormData.email, password: createFormData.senha,
-        cpf: unmask(createFormData.cpf), phone: unmask(createFormData.telefone), role: Role.veterinarian,
-        crmv: createFormData.crmv, specialty: createFormData.especialidade || undefined,
+        completeName: createFormData.nome, 
+        email: createFormData.email, 
+        password: createFormData.senha,
+        cpf: unmask(createFormData.cpf), 
+        phone: unmask(createFormData.telefone), 
+        role: Role.veterinarian,
+        crmv: createFormData.crmv, 
+        specialty: createFormData.especialidade || undefined,
       };
+      
       await AuthService.register(createUserDto);
-      await loadMedicos(); setIsCreateModalOpen(false); setCreateFormData(emptyForm);
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+      await loadMedicos(); 
+      setIsCreateModalOpen(false); 
+      setCreateFormData(emptyForm);
+      alert('Médico cadastrado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData || !selectedMedico) return;
+    
     try {
       setLoading(true);
-      const updateData: UpdateVeterinarianData = {
-        completeName: editFormData.nome, email: editFormData.email, cpf: unmask(editFormData.cpf),
-        phone: unmask(editFormData.telefone), crmv: editFormData.crmv, specialty: editFormData.especialidade || undefined,
-      };
-      if (editFormData.senha) updateData.password = editFormData.senha;
+      
+      // Validações
+      if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
+        alert('CPF inválido');
+        setLoading(false);
+        return;
+      }
+      
+      if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
+        alert('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
+      
+      // Monta o objeto apenas com campos que foram modificados
+      const updateData: UpdateVeterinarianData = {};
+      
+      // Campos do User
+      if (editFormData.nome && editFormData.nome !== selectedMedico.nome) {
+        updateData.completeName = editFormData.nome;
+      }
+      if (editFormData.email && editFormData.email !== selectedMedico.email) {
+        updateData.email = editFormData.email;
+      }
+      if (editFormData.cpf && unmask(editFormData.cpf) !== selectedMedico.cpf) {
+        updateData.cpf = unmask(editFormData.cpf);
+      }
+      if (editFormData.telefone && unmask(editFormData.telefone) !== selectedMedico.telefone) {
+        updateData.phone = unmask(editFormData.telefone);
+      }
+      if (editFormData.senha && editFormData.senha.trim() !== '') {
+        updateData.password = editFormData.senha;
+      }
+      
+      // Campos do Veterinarian
+      if (editFormData.crmv && editFormData.crmv !== selectedMedico.crmv) {
+        updateData.crmv = editFormData.crmv;
+      }
+      if (editFormData.especialidade !== selectedMedico.especialidade) {
+        updateData.specialty = editFormData.especialidade || undefined;
+      }
       
       await VeterinarianService.update(selectedMedico.userId, updateData);
-      await loadMedicos(); setIsEditModalOpen(false); setSelectedMedico(null);
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+      await loadMedicos(); 
+      setIsEditModalOpen(false); 
+      setSelectedMedico(null);
+      alert('Médico atualizado com sucesso!');
+    } catch (err: any) { 
+      alert(err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   // Handlers de Input Controlado
@@ -190,8 +266,8 @@ export default function PaginaMedicos() {
 
       {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
       
-      <CrudDisplay
-        data={filteredMedicos}
+      <CrudDisplay<MedicoUI>
+        data={medicos}
         columns={columns}
         searchPlaceholder="Buscar por nome, CRMV ou especialidade..."
         emptyMessage="Nenhum médico encontrado com os filtros atuais."
