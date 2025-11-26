@@ -20,6 +20,8 @@ export interface PetOwner {
     cpf: string;
     phone: string;
     role?: string;
+    createdAt?: string;
+    updatedAt?: string;
   };
   _count?: {
     animals: number;

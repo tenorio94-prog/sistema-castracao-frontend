@@ -65,17 +65,24 @@ export default function ResponsavelDashboardPage() {
       setAnimals(animalsData);
       
       // Transformar agendamentos para UI
-      const appointmentsUI: ConsultaResponsavelUI[] = appointmentsData.map(apt => {
+      const appointmentsUI: ConsultaResponsavelUI[] = appointmentsData.map((apt: any) => {
         const dataObj = new Date(apt.startTime);
+        const statusLabel = STATUS_LABELS[apt.status as AppointmentStatus] || 'Agendado';
+        
+        // Fallback seguro para serviceType (pode vir null ou undefined)
+        const serviceLabel = apt.serviceType && SERVICE_TYPE_LABELS[apt.serviceType as ServiceType]
+          ? SERVICE_TYPE_LABELS[apt.serviceType as ServiceType]
+          : 'Consulta Geral';
+
         return {
           id: apt.id.toString(),
-          title: apt.serviceType ? SERVICE_TYPE_LABELS[apt.serviceType as ServiceType] : 'Consulta',
+          title: serviceLabel,
           petName: apt.animal?.name || 'Animal',
           date: dataObj.toLocaleDateString('pt-BR'),
           time: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           veterinarian: 'Veterinário a definir',
           clinic: 'Clínica Veterinária',
-          status: STATUS_LABELS[apt.status as AppointmentStatus] || 'Agendado',
+          status: statusLabel as 'Agendado' | 'Concluído' | 'Cancelado' | 'Em Andamento',
           backendData: apt
         };
       });
@@ -104,9 +111,9 @@ export default function ResponsavelDashboardPage() {
       },
       paciente: {
         nome: apt.animal?.name || 'N/A',
-        especie: apt.animal?.species ? SPECIES_LABELS[apt.animal.species] : 'N/A',
+        especie: apt.animal?.species ? SPECIES_LABELS[apt.animal.species as keyof typeof SPECIES_LABELS] : 'N/A',
         raca: apt.animal?.breed || 'SRD',
-        sexo: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender] : 'N/A',
+        sexo: apt.animal?.gender ? GENDER_LABELS[apt.animal.gender as keyof typeof GENDER_LABELS] : 'N/A',
         idade: apt.animal?.estimatedAge || 'N/A',
         peso: apt.animal?.sizeWeight || 'N/A'
       },
@@ -123,31 +130,91 @@ export default function ResponsavelDashboardPage() {
 
   const handleSaveConsulta = async (data: any) => {
     try {
+      // Validação: Animal selecionado existe
       const animal = animals.find(a => a.id === parseInt(data.animal));
       if (!animal) {
-        toast.error('Animal não encontrado');
+        toast.error('Animal não encontrado. Selecione um animal válido.');
         return;
       }
 
+      // Validação: Profile existe (petOwnerId)
+      if (!profile?.id) {
+        toast.error('Erro ao identificar responsável. Faça login novamente.');
+        return;
+      }
+
+      // Criar datas
       const startDate = new Date(data.data + 'T' + data.horario);
       const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
+      // Validação: Data válida
+      if (isNaN(startDate.getTime())) {
+        toast.error('Data ou horário inválido');
+        return;
+      }
+
+      // Validação: Não permitir agendamento no passado
+      if (startDate < new Date()) {
+        toast.error('Não é possível agendar consultas no passado');
+        return;
+      }
+
+      // Mapear tipo de consulta para ServiceType do backend
+      // Backend aceita: 'triage', 'castrationSurgery', 'postOperative'
+      let serviceType: ServiceType;
+      
+      switch (data.tipo) {
+        case 'Castração':
+          serviceType = ServiceType.castrationSurgery;
+          break;
+        case 'Consulta de Retorno':
+        case 'Pós-Operatório':
+          serviceType = ServiceType.postOperative;
+          break;
+        case 'Primeira Consulta':
+        case 'Triagem':
+        default:
+          serviceType = ServiceType.triage;
+          break;
+      }
+
+      // Criar agendamento
       await AppointmentService.create({
         animalId: animal.id,
         petOwnerId: profile.id,
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
-        serviceType: data.tipo === 'Castração' ? ServiceType.castrationSurgery : ServiceType.triage,
+        serviceType: serviceType,
         status: AppointmentStatus.scheduled,
         notes: data.observacoes || ''
       });
 
-      toast.success('Solicitação enviada com sucesso!');
+      toast.success('Agendamento criado com sucesso!');
       setIsNewConsultModalOpen(false);
-      fetchData();
+      await fetchData();
+      
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
-      toast.error(error.response?.data?.message || 'Erro ao agendar consulta');
+      
+      // Tratamento robusto de erros do NestJS
+      let errorMessage = 'Erro ao agendar consulta';
+      
+      if (error.response?.data) {
+        const apiError = error.response.data;
+        
+        // NestJS retorna arrays de erros de validação (class-validator)
+        if (Array.isArray(apiError.message)) {
+          errorMessage = apiError.message.join(', ');
+        } else if (typeof apiError.message === 'string') {
+          errorMessage = apiError.message;
+        } else if (apiError.error) {
+          errorMessage = apiError.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -185,7 +252,16 @@ export default function ResponsavelDashboardPage() {
         <CardBaseDash title="Meus Animais" value={animals.length} subtitle="Pets cadastrados" icon={Dog} color="green" />
         <CardBaseDash title="Consultas" value={upcomingAppointments.length} subtitle="Agendamentos futuros" icon={Calendar} color="blue" />
         
-        <button onClick={() => setIsNewConsultModalOpen(true)} className="group flex flex-col justify-between bg-white p-6 rounded-2xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all text-left">
+        <button 
+          onClick={() => {
+            if (animals.length === 0) {
+              toast.error('Você precisa cadastrar um animal antes de agendar consultas');
+              return;
+            }
+            setIsNewConsultModalOpen(true);
+          }} 
+          className="group flex flex-col justify-between bg-white p-6 rounded-2xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all text-left"
+        >
           <div className="flex justify-between items-start w-full">
             <div><p className="text-sm font-medium text-gray-500">Ações Rápidas</p><h3 className="text-xl font-bold text-gray-900 mt-1 group-hover:text-green-700">Nova Consulta</h3></div>
             <div className="p-3 rounded-xl bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors"><Plus size={22} strokeWidth={2.5} /></div>

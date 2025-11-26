@@ -33,12 +33,12 @@ export default function MeusAnimaisPage() {
 
       setProfile(profileData);
       
-      const petsUI: PetResponsavelUI[] = animalsData.map(animal => ({
+      const petsUI: PetResponsavelUI[] = animalsData.map((animal: any) => ({
         id: animal.id.toString(),
         name: animal.name || 'Sem nome',
-        species: animal.species ? SPECIES_LABELS[animal.species] : 'N/A',
+        species: (animal.species ? SPECIES_LABELS[animal.species as keyof typeof SPECIES_LABELS] : 'Cachorro') as 'Cachorro' | 'Gato',
         breed: animal.breed || 'SRD',
-        gender: animal.gender ? GENDER_LABELS[animal.gender] : 'N/A',
+        gender: (animal.gender ? GENDER_LABELS[animal.gender as keyof typeof GENDER_LABELS] : 'Macho') as 'Macho' | 'Fêmea',
         age: animal.estimatedAge || 'N/A',
         weight: animal.sizeWeight || 'N/A',
         status: 'Cadastrado',
@@ -76,10 +76,17 @@ export default function MeusAnimaisPage() {
       
       toast.success('Dados do animal atualizados!');
       setIsEditOpen(false);
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       console.error('Erro ao atualizar animal:', error);
-      toast.error(error.response?.data?.message || 'Erro ao atualizar animal');
+      
+      // Backend pode retornar 403 se o PetOwner não tiver permissão
+      if (error.response?.status === 403) {
+        toast.error('Você não tem permissão para editar este animal. Entre em contato com a administração.');
+      } else {
+        const errorMsg = error.response?.data?.message || 'Erro ao atualizar animal';
+        toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
+      }
     }
   };
 

@@ -25,8 +25,14 @@ export default function ResponsavelProfilePage() {
         role: 'Responsável',
         memberSince: data.user?.createdAt ? new Date(data.user.createdAt).toLocaleDateString('pt-BR') : 'N/A',
         lastAccess: 'Agora',
-        address: data.fullAddress,
-        nis: data.nis || undefined
+        address: {
+          street: data.fullAddress || '',
+          number: '',
+          district: '',
+          city: '',
+          state: '',
+          zip: ''
+        }
       };
       
       setProfileData(formattedData);
@@ -40,13 +46,22 @@ export default function ResponsavelProfilePage() {
 
   const handleSave = async (data: ProfileData) => {
     try {
-      await PetOwnerService.updateMe({
+      const fullAddress = data.address ? 
+        `${data.address.street}${data.address.number ? ', ' + data.address.number : ''}${data.address.district ? ' - ' + data.address.district : ''}, ${data.address.city || ''} - ${data.address.state || ''}`.trim() 
+        : '';
+      
+      const updateData: any = {
         completeName: data.name,
         email: data.email,
         phone: data.phone,
-        fullAddress: data.address,
-        ...(data.password && { password: data.password })
-      });
+        fullAddress: fullAddress
+      };
+      
+      if ((data as any).password) {
+        updateData.password = (data as any).password;
+      }
+      
+      await PetOwnerService.updateMe(updateData);
       
       toast.success('Perfil atualizado com sucesso!');
       fetchProfile();

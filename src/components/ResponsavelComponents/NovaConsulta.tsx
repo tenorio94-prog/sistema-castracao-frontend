@@ -103,9 +103,9 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
   if (!isOpen) return null;
 
   // Transformar animais para options do select
-  const animalOptions = animais.map(animal => ({
+  const animalOptions = animais.map((animal: any) => ({
     value: animal.id.toString(),
-    label: `${animal.name || 'Sem nome'} (${animal.species ? SPECIES_LABELS[animal.species] : 'N/A'})`
+    label: `${animal.name || 'Sem nome'} (${animal.species ? SPECIES_LABELS[animal.species as keyof typeof SPECIES_LABELS] : 'N/A'})`
   }));
 
   return (
