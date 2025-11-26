@@ -107,7 +107,6 @@
   --chart-5: oklch(0.645 0.246 16.439);
 
   /* --- INÍCIO DA MODIFICAÇÃO (DARK) --- */
-  /* (Vamos manter o verde, como discutido) */
   --sidebar: theme(colors.green.700);
   --sidebar-foreground: theme(colors.white);
   --sidebar-primary: theme(colors.green.800);
@@ -123,6 +122,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  /* CORREÇÃO DO SCROLL/BOUNCE */
+  html, body {
+    overscroll-behavior-y: none; /* Impede o efeito elástico vertical */
+    height: 100%;                /* Garante que o container ocupe toda a altura */
+  }
+
   body {
     @apply bg-background text-foreground;
   }

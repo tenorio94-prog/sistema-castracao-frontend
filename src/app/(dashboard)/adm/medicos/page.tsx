@@ -266,8 +266,9 @@ export default function PaginaMedicos() {
 
       {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
       
+      {/* CORREÇÃO AQUI: Trocado 'data={medicos}' por 'data={filteredMedicos}' */}
       <CrudDisplay<MedicoUI>
-        data={medicos}
+        data={filteredMedicos}
         columns={columns}
         searchPlaceholder="Buscar por nome, CRMV ou especialidade..."
         emptyMessage="Nenhum médico encontrado com os filtros atuais."

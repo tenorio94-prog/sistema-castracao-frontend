@@ -1,4 +1,3 @@
-// app/adm/layout.tsx (Verifique se sua pasta é 'adm' ou 'admin')
 "use client";
 
 import { 
@@ -14,7 +13,7 @@ import { Command } from "lucide-react";
 import AdmSidebarButtons from "@/components/Sidebars/AdmSidebarButtons";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/types/auth.types";
-import TopBar from '@/components/Sidebars/TopBarDashboard'; // Caminho corrigido para Layout/TopBar
+import TopBar from '@/components/Sidebars/TopBarDashboard';
 
 export default function AdmLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -48,10 +47,17 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="bg-gray-50 flex flex-col h-screen overflow-hidden">
+        {/* ALTERAÇÃO DE SCROLL:
+          1. Removido 'h-screen' e 'overflow-hidden' que travavam a tela.
+          2. Adicionado 'min-h-screen' para garantir fundo em telas grandes.
+        */}
+        <SidebarInset className="bg-gray-50 flex flex-col min-h-screen">
           <TopBar />
           
-          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* ALTERAÇÃO DE SCROLL:
+             1. Removido 'overflow-y-auto'. O scroll agora é responsabilidade do body/navegador.
+          */}
+          <main className="flex-1 p-6 md:p-8">
             {children}
           </main>
         </SidebarInset>

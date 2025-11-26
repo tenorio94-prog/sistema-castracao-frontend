@@ -3,11 +3,9 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
-  // Define o diretório raiz do projeto para evitar conflitos com múltiplos lockfiles
   outputFileTracingRoot: path.join(__dirname),
   reactStrictMode: true,
   
-  // Configurações de imagem (se necessário no futuro)
   images: {
     remotePatterns: [
       {
@@ -15,6 +13,16 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+  },
+
+  // Adicione esta configuração de Proxy
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*', // Quando o front chamar /api/...
+        destination: 'https://sistema-castracao-backend.onrender.com/api/:path*', // O Next.js redireciona para o backend
+      },
+    ];
   },
 };
 
