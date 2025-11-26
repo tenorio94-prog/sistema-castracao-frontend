@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { 
-  User, Camera, Mail, Phone, MapPin, Shield, 
-  Calendar, Clock, Lock, Save 
+  User, Camera, Calendar, Clock, Lock, Save, MapPin, Shield
 } from 'lucide-react';
 import FormInput from '@/components/forms/FormInput';
 
 // --- Tipos Flexíveis ---
 export type ProfileData = {
+  // Adicionado ID opcional para facilitar updates
+  id?: string | number;
+
   // Dados Básicos
   name: string;
   email: string;
@@ -17,15 +19,15 @@ export type ProfileData = {
   avatarUrl?: string;
   
   // Metadados do Sistema (Read-only)
-  role: string; // 'Administrador', 'Médico', etc.
+  role: string; 
   memberSince: string;
   lastAccess?: string;
 
-  // Dados Específicos (Opcionais)
-  crmv?: string;      // Apenas Médicos
-  specialty?: string; // Apenas Médicos
+  // Dados Específicos (Médicos)
+  crmv?: string;      
+  specialty?: string; 
   
-  // Endereço (Apenas Responsáveis/Alguns perfis)
+  // Endereço (Responsáveis)
   address?: {
     street: string;
     number: string;
@@ -39,13 +41,12 @@ export type ProfileData = {
 type Props = {
   initialData: ProfileData;
   onSave: (data: ProfileData) => void;
-  onPasswordChange?: (data: any) => void; // Lógica separada para senha
+  onPasswordChange?: (data: any) => void;
 };
 
 export default function UserProfile({ initialData, onSave, onPasswordChange }: Props) {
   const [formData, setFormData] = useState<ProfileData>(initialData);
   
-  // Estado separado para o formulário de senha
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
@@ -54,7 +55,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
   
   const [isEditingPassword, setIsEditingPassword] = useState(false);
 
-  // Helpers para verificar o tipo de perfil e exibir campos condicionalmente
+  // Helpers de renderização condicional
   const hasAddress = formData.address !== undefined;
   const hasProfessionalData = formData.crmv !== undefined;
 
@@ -63,13 +64,13 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
   };
 
   const handleAddressChange = (field: string, value: string) => {
+    if (!formData.address) return;
     setFormData(prev => ({
       ...prev,
       address: { ...prev.address!, [field]: value }
     }));
   };
 
-  // Handler para os campos de senha
   const handlePasswordInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
@@ -86,14 +87,13 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
   return (
     <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
       
-      {/* --- COLUNA ESQUERDA: CARTÃO DE IDENTIDADE --- */}
+      {/* --- COLUNA ESQUERDA: INFO --- */}
       <div className="lg:col-span-1 space-y-6">
         
         {/* Card Principal */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-100 to-gray-200"></div>
           
-          {/* Avatar */}
           <div className="relative mt-8 mb-4 group">
             <div className="w-28 h-28 rounded-full border-4 border-white bg-gray-50 flex items-center justify-center shadow-md overflow-hidden">
                {formData.avatarUrl ? (
@@ -112,7 +112,6 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
             {formData.role}
           </span>
 
-          {/* Metadados */}
           <div className="w-full mt-6 pt-6 border-t border-gray-100 space-y-3 text-sm text-gray-500 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -131,12 +130,11 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
           </div>
         </div>
 
-        {/* Card de Status/Segurança Rápida */}
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-start gap-3">
           <Shield className="text-blue-600 shrink-0" size={20} />
           <div>
             <h4 className="text-sm font-bold text-blue-900">Conta Segura</h4>
-            <p className="text-xs text-blue-700 mt-1">Sua senha foi alterada há 3 meses. Recomendamos atualizar regularmente.</p>
+            <p className="text-xs text-blue-700 mt-1">Recomendamos atualizar sua senha periodicamente.</p>
           </div>
         </div>
       </div>
@@ -163,7 +161,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                 label="CPF" 
                 value={formData.cpf || ''} 
                 onChange={(e) => handleInputChange('cpf', e.target.value)} 
-                disabled // CPF geralmente não se muda
+                disabled 
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -180,14 +178,14 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
               />
             </div>
 
-            {/* Campos Condicionais para Médicos */}
+            {/* Campos de Médico */}
             {hasProfessionalData && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t border-gray-100 mt-4">
                  <FormInput 
                   label="CRMV" 
                   value={formData.crmv || ''} 
                   onChange={(e) => handleInputChange('crmv', e.target.value)} 
-                  disabled // Geralmente não editável pelo user
+                  disabled
                 />
                  <FormInput 
                   label="Especialidade" 
@@ -209,7 +207,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
           </div>
         </section>
 
-        {/* Seção 2: Endereço (Condicional) */}
+        {/* Seção 2: Endereço (Apenas se existir no perfil) */}
         {hasAddress && formData.address && (
           <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -232,7 +230,6 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                <FormInput label="CEP" value={formData.address.zip} onChange={(e) => handleAddressChange('zip', e.target.value)} />
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
-               <button className="text-gray-600 hover:text-gray-900 text-sm font-medium px-4 py-2">Cancelar</button>
                <button 
                  onClick={() => onSave(formData)}
                  className="ml-2 flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-5 py-2 rounded-xl text-sm font-medium transition-all"

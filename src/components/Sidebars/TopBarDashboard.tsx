@@ -1,19 +1,57 @@
-// @/components/Layout/TopBar.tsx
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { SidebarTrigger } from "@/components/ui/sidebar"; // Importe o Trigger aqui
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { AuthService } from '@/services/auth.service';
+import { Role } from '@/types/auth.types'; // Certifique-se que este import existe, ou use strings diretas
 
 export default function TopBar() {
   const router = useRouter();
+  const [profileRoute, setProfileRoute] = useState('/login'); // Rota padrão de segurança
 
-  const handleVerPerfil = () => router.push('/perfil');
+  // Lógica para descobrir a rota correta baseada no usuário logado
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role || (user.user && user.user.role);
+
+        switch (role) {
+          case Role.administrator: // 'administrator'
+            setProfileRoute('/adm/perfil');
+            break;
+          case Role.veterinarian: // 'veterinarian'
+            setProfileRoute('/medico/perfil');
+            break;
+          case Role.receptionist: // 'receptionist'
+            setProfileRoute('/atendente/perfil');
+            break;
+          case Role.semas: // 'semas'
+            setProfileRoute('/semas/perfil');
+            break;
+          case Role.student: // 'student'
+            setProfileRoute('/estudante/perfil');
+            break;
+          default:
+            setProfileRoute('/perfil'); // Fallback genérico
+        }
+      } catch (error) {
+        console.error("Erro ao ler cargo do usuário", error);
+      }
+    }
+  }, []);
+
+  const handleVerPerfil = () => {
+    router.push(profileRoute);
+  };
 
   const handleSair = () => {
     if (window.confirm('Tem certeza que deseja sair do sistema?')) {
-      router.push('/');
+      AuthService.logout();
+      router.push('/login'); // Garante que vá para a rota correta de login
     }
   };
 
