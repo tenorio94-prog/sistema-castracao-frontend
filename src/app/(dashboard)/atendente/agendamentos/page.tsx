@@ -1,8 +1,7 @@
-// app/atendente/agendamentos/page.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, CalendarX } from 'lucide-react';
+import { Plus, CalendarX, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import AgendamentoCard, { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
@@ -12,6 +11,7 @@ import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamen
 import { AppointmentService, AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
 import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
+// --- TIPOS ---
 type AgendamentoForm = {
   animalId: string;
   startTime: string;
@@ -31,6 +31,16 @@ const emptyForm: AgendamentoForm = {
 };
 
 type AnimalOption = { id: number; name: string; petOwnerId: number; ownerName: string; species: string; };
+
+// --- FUNÇÃO AUXILIAR (A que estava faltando) ---
+const formatIsoToInput = (isoString: string) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  // Ajusta o fuso horário para exibir corretamente no input datetime-local
+  const offset = date.getTimezoneOffset() * 60000;
+  const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+  return localISOTime;
+};
 
 export default function PaginaAgendamentos() {
   const [busca, setBusca] = useState('');
@@ -99,11 +109,10 @@ export default function PaginaAgendamentos() {
                           ag.responsavel.nome.toLowerCase().includes(busca.toLowerCase()));
       const matchStatus = () => {
         if (statusFiltro === '') return true;
-        if (statusFiltro === 'Castração' || statusFiltro === 'Consulta') return ag.tipo === statusFiltro;
-        if (statusFiltro === 'Concluído') return ag.status === statusFiltro;
-        return false;
+        if (statusFiltro === 'Castração' || statusFiltro === 'Consulta' || statusFiltro === 'Triagem') return ag.tipo === statusFiltro;
+        return Object.values(STATUS_LABELS).includes(statusFiltro);
       };
-      return matchBusca && matchStatus();
+      return matchBusca && (statusFiltro === '' ? true : matchStatus());
     });
   }, [agendamentos, busca, statusFiltro]);
 
@@ -206,10 +215,29 @@ export default function PaginaAgendamentos() {
     }
   };
 
+  const handleOpenEdit = (agendamento: Agendamento) => {
+    const safeServiceType = (agendamento.backendServiceType as unknown as ServiceType) || ServiceType.triage;
+    const safeStatus = (agendamento.backendStatus as unknown as AppointmentStatus) || AppointmentStatus.scheduled;
+
+    // Agora a função existe neste escopo!
+    setFormData({
+      animalId: agendamento.pet.id.toString(),
+      startTime: formatIsoToInput(agendamento.startTime || ''),
+      endTime: formatIsoToInput(agendamento.endTime || ''),
+      serviceType: safeServiceType,
+      status: safeStatus,
+      notes: agendamento.observacoes || '',
+    });
+    
+    setIsEditing(true);
+    setEditingId(agendamento.backendId || null);
+    setIsModalCadastroOpen(true);
+    handleCloseDetalhes();
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* Header Row com Flexbox */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <PageHeader
           title="Gestão de Agendamentos"
@@ -225,7 +253,6 @@ export default function PaginaAgendamentos() {
         </button>
       </div>
 
-      {/* Barra de Filtros */}
       <AgendamentoFilter
         busca={busca}
         onBuscaChange={setBusca}
@@ -233,7 +260,6 @@ export default function PaginaAgendamentos() {
         onStatusChange={setStatusFiltro}
       />
 
-      {/* Container da Lista */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900">Todos os Agendamentos</h2>
@@ -267,7 +293,6 @@ export default function PaginaAgendamentos() {
         )}
       </div>
 
-      {/* Modais (Mantidos) */}
       <CadastroModal
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}
@@ -284,7 +309,7 @@ export default function PaginaAgendamentos() {
             onChange={handleFormChange}
             required
             disabled={isEditing}
-            className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEditing ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEditing ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
           >
             <option value="">Selecione o animal</option>
             {animaisDisponiveis.map(a => (
@@ -302,7 +327,7 @@ export default function PaginaAgendamentos() {
               name="serviceType"
               value={formData.serviceType}
               onChange={handleFormChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -316,7 +341,7 @@ export default function PaginaAgendamentos() {
               name="status"
               value={formData.status}
               onChange={handleFormChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               {Object.entries(STATUS_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -334,7 +359,7 @@ export default function PaginaAgendamentos() {
               value={formData.startTime}
               onChange={handleFormChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
@@ -346,7 +371,7 @@ export default function PaginaAgendamentos() {
               value={formData.endTime}
               onChange={handleFormChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -359,7 +384,7 @@ export default function PaginaAgendamentos() {
             onChange={handleFormChange}
             rows={4}
             placeholder="Adicione informações sobre o agendamento"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
           />
         </div>
       </CadastroModal>
@@ -370,7 +395,20 @@ export default function PaginaAgendamentos() {
         agendamento={selectedAgendamento}
         onCheckIn={handleCheckIn}
         onCancelAgendamento={handleCancelAgendamento}
-      />
+      >
+        {selectedAgendamento && (
+            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end w-full">
+               {/* BOTÃO CINZA + HOVER VERDE */}
+               <button 
+                 onClick={() => handleOpenEdit(selectedAgendamento)}
+                 className="px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-sm font-bold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-all w-full flex items-center justify-center gap-2 shadow-sm"
+               >
+                 <Edit3 size={16} />
+                 Editar Agendamento
+               </button>
+            </div>
+         )}
+      </ModalDetalhesAgendamento>
     </div>
   );
 }
