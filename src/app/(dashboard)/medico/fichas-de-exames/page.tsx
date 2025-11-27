@@ -1,64 +1,70 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Syringe, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, Microscope, CheckCircle, Clock, Eye } from "lucide-react";
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import FichaAnestesicaModal from '@/components/MedicoComponents/FichaAnestesicaModal'; 
-import VisualizarProntuarioModal from '@/components/MedicoComponents/VisualizarProntuarioModal';
+import FichaExameModal from '@/components/MedicoComponents/FichaExameModal'; 
+import VisualizarProntuarioModal from '@/components//MedicoComponents/VisualizarProntuarioModal';
 
-// Mocks de Fichas Anestésicas
-const mockFichas = [
+// Mocks
+const mockExames = [
   { 
-    id: "ANE-055", 
+    id: "LAB-881", 
     date: "27/09/2025", 
-    status: "Monitoramento", 
-    anestesista: "Dra. Marina", 
+    status: "Concluído", 
+    vet: "Dr. House", 
     petName: "Amora", 
-    weight: "22.2kg",
-    asa: "II",
+    ownerName: "Marcella",
+    examType: "Hemograma Completo",
     // Dados Detalhados
-    pre_fc: '120', pre_fr: '+AQ', pre_mucosas: 'Normo', pre_tpc: '2"', pre_temp: '38.5',
-    mpa: ['Butorfanol 0,22ml IM', 'Acepromazina 0,16ml IM'],
-    induction: ['Propofol IV'],
-    intubation: 'Sim (7.5)', tubeSize: '7.5', maintenanceAgent: 'Isoflurano', maintenanceType: 'Inalatória',
-    extubationTime: '10:15', recoveryQuality: 'Rápida', painScore: '0',
-    postOpMeds: 'Dipirona + Meloxicam',
-    freeText: 'Paciente estável.'
+    results: "Eritrócitos: 6.2 mi/mm³\nHemoglobina: 14 g/dL\nLeucócitos: 9.500 /mm³\nPlaquetas: 280.000 /mm³\n\nBioquímica:\nUreia: 45 mg/dL\nCreatinina: 1.1 mg/dL",
+    freeText: "Amostra de boa qualidade."
+  },
+  { 
+    id: "LAB-882", 
+    date: "28/09/2025", 
+    status: "Processando", 
+    vet: "Dra. Cameron", 
+    petName: "Thor", 
+    ownerName: "João",
+    examType: "Ultrassom Abdominal",
+    results: "Aguardando laudo do imaginologista...",
+    freeText: ""
   },
 ];
 
-const FichaAnestesicaItem = ({ data, onView }: { data: any, onView: (d: any) => void }) => {
-  const statusColor = data.status === 'Finalizada' 
+const FichaExameItem = ({ data, onView }: { data: any, onView: (d: any) => void }) => {
+  const statusColor = data.status === 'Concluído' 
     ? 'bg-green-50 text-green-700 border-green-100' 
-    : 'bg-purple-50 text-purple-700 border-purple-100';
+    : 'bg-amber-50 text-amber-700 border-amber-100';
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-gray-300 transition-all flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shrink-0">
-          <Syringe size={24} />
+        <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 shrink-0">
+          <Microscope size={24} />
         </div>
         <div>
           <h4 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            Anestesia - {data.petName}
+            {data.examType}
             <span className="text-xs font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{data.id}</span>
           </h4>
           <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-            <span>{data.date}</span>
+            <span>{data.petName}</span>
             <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <span>{data.anestesista}</span>
+            <span>{data.date}</span>
           </div>
         </div>
       </div>
       
       <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${statusColor} flex items-center gap-1.5`}>
-          {data.status === 'Finalizada' ? <CheckCircle size={12} /> : <Clock size={12} />}
+          {data.status === 'Concluído' ? <CheckCircle size={12} /> : <Clock size={12} />}
           {data.status}
         </span>
         <button 
           onClick={() => onView(data)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
         >
           <Eye size={16} />
           Ver Detalhes
@@ -68,14 +74,14 @@ const FichaAnestesicaItem = ({ data, onView }: { data: any, onView: (d: any) => 
   );
 };
 
-export default function FichasAnestesicasPage() {
-  const [fichas, setFichas] = useState(mockFichas);
+export default function FichasExamesPage() {
+  const [exames, setExames] = useState(mockExames);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
-  const [selectedFicha, setSelectedFicha] = useState<any>(null);
+  const [selectedExame, setSelectedExame] = useState<any>(null);
 
   const handleView = (ficha: any) => {
-    setSelectedFicha(ficha);
+    setSelectedExame(ficha);
     setIsViewOpen(true);
   };
 
@@ -84,8 +90,8 @@ export default function FichasAnestesicasPage() {
       
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <PageHeader 
-          title="Fichas Anestésicas"
-          description="Monitoramento e protocolos anestésicos."
+          title="Exames & Laudos"
+          description="Gestão de solicitações e resultados laboratoriais."
         />
         <button 
           onClick={() => setIsCreateOpen(true)}
@@ -97,24 +103,25 @@ export default function FichasAnestesicasPage() {
       </div>
 
       <div className="space-y-4">
-        {fichas.map((ficha) => (
-          <FichaAnestesicaItem key={ficha.id} data={ficha} onView={handleView} />
+        {exames.map((exame) => (
+          <FichaExameItem key={exame.id} data={exame} onView={handleView} />
         ))}
       </div>
 
       {/* Modal de Preenchimento */}
-      <FichaAnestesicaModal 
+      <FichaExameModal 
         isOpen={isCreateOpen} 
         onClose={() => setIsCreateOpen(false)} 
-        patientName="Selecione..." 
+        patientName="Selecione..." // Em produção, viria de um select ou contexto
+        ownerName=""
       />
 
       {/* Modal de Visualização */}
       <VisualizarProntuarioModal 
         isOpen={isViewOpen} 
         onClose={() => setIsViewOpen(false)} 
-        data={selectedFicha} 
-        type="Anestesica" 
+        data={selectedExame} 
+        type="Exame" 
       />
 
     </div>
