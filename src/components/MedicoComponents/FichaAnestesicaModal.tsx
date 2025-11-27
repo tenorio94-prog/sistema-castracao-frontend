@@ -45,7 +45,7 @@ const DrugTable = ({ title, rows = 3 }: any) => (
   </div>
 );
 
-// Tabela de Monitoramento Complexa (Img 3)
+// Tabela de Monitoramento Complexa
 const MonitoringTable = () => (
   <div className="border border-gray-400 rounded overflow-hidden bg-white">
     <div className="bg-gray-100 border-b border-gray-400 px-2 py-1 flex justify-between items-center">
@@ -133,11 +133,28 @@ export default function FichaAnestesicaModal({ isOpen, onClose, patientName }: P
                <div className="grid grid-cols-12 gap-4 mt-2 items-end">
                   <div className="col-span-4"><PaperLine label="Anestesista" /></div>
                   <div className="col-span-4"><PaperLine label="Cirurgião" /></div>
-                  <div className="col-span-4 flex items-center gap-3 pl-4 border-l border-gray-300">
-                     <span className="text-[10px] font-bold uppercase text-gray-600">ASA:</span>
-                     {['I', 'II', 'III', 'IV', 'V'].map(asa => (
-                        <label key={asa} className="flex items-center gap-0.5 text-xs font-bold cursor-pointer"><input type="radio" name="asa" className="accent-purple-700"/> {asa}</label>
-                     ))}
+                  
+                  {/* CLASSIFICAÇÃO ASA & RISCO */}
+                  <div className="col-span-4 pl-4 border-l border-gray-300 space-y-2">
+                     
+                     {/* ASA */}
+                     <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold uppercase text-gray-600">ASA:</span>
+                        {['I', 'II', 'III', 'IV', 'V'].map(asa => (
+                           <label key={asa} className="flex items-center gap-0.5 text-xs font-bold cursor-pointer"><input type="radio" name="asa" className="accent-purple-700"/> {asa}</label>
+                        ))}
+                     </div>
+
+                     {/* NOVO: Risco Anestésico (Alterado para "Risco Anestésico") */}
+                     <div className="flex items-center gap-3 pt-1 border-t border-gray-200">
+                        <span className="text-[10px] font-bold uppercase text-gray-600">Risco Anestésico:</span>
+                        {['Leve', 'Moderado', 'Alto'].map(risco => (
+                           <label key={risco} className="flex items-center gap-0.5 text-[10px] font-medium cursor-pointer">
+                              <input type="radio" name="risco" className="accent-red-600"/> {risco}
+                           </label>
+                        ))}
+                     </div>
+
                   </div>
                </div>
             </div>
@@ -209,7 +226,7 @@ export default function FichaAnestesicaModal({ isOpen, onClose, patientName }: P
                      </div>
                   </div>
 
-                  <div className="border border-gray-400 rounded overflow-hidden bg-white flex flex-col">
+                  <div className="border border-gray-400 rounded p-0 overflow-hidden bg-white flex flex-col">
                      <div className="bg-gray-100 p-1 text-center font-bold text-xs uppercase border-b border-gray-400">Medicação Pós-Cirúrgica</div>
                      <textarea className="w-full flex-1 p-2 text-xs resize-none outline-none" placeholder="Analgésicos, Anti-inflamatórios..."></textarea>
                   </div>

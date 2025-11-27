@@ -1,39 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Scissors, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, Scissors, CheckCircle, Clock, Eye, Search } from "lucide-react";
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
-import FichaCirurgicaModal from '@/components/MedicoComponents/FichaCirurgicaModal'; // Novo modal
+import FichaCirurgicaModal from '@/components/MedicoComponents/FichaCirurgicaModal'; 
 import VisualizarProntuarioModal from '@/components/MedicoComponents/VisualizarProntuarioModal';
 
-// --- Mocks de Fichas Cirúrgicas ---
 const mockFichas = [
   { 
-    id: "CIR-099", 
-    date: "27/09/2025", 
-    status: "Em Andamento", 
-    cirurgiao: "Dr. House", 
-    procedimento: "Ovariohisterectomia (OSH)",
-    // Dados Detalhados
+    id: "CIR-099", date: "27/09/2025", status: "Em Andamento", cirurgiao: "Dr. House", procedimento: "Ovariohisterectomia (OSH)",
     registro: '25059', petName: 'Amora', species: 'Canina', breed: 'SRD', weight: '22kg', ownerName: 'Marcella',
-    anesthetist: 'Marina', assistant1: 'João', assistant2: '-', instrumentator: 'Ana',
-    startTime: '09:19', endTime: '-', duration: 'Em curso',
-    preOpDiagnosis: 'Eletiva', opDescription: 'Procedimento em curso...',
-    freeText: 'Animal estável.'
+    anesthetist: 'Marina', startTime: '09:19', preOpDiagnosis: 'Eletiva', opDescription: 'Procedimento em curso...',
   },
   { 
-    id: "CIR-098", 
-    date: "25/09/2025", 
-    status: "Finalizada", 
-    cirurgiao: "Dr. Wilson", 
-    procedimento: "Orquiectomia",
-    // Dados Detalhados
+    id: "CIR-098", date: "25/09/2025", status: "Finalizada", cirurgiao: "Dr. Wilson", procedimento: "Orquiectomia",
     registro: '25050', petName: 'Thor', species: 'Canina', breed: 'Golden', weight: '30kg', ownerName: 'Pedro',
-    anesthetist: 'Dra. Cuddy', assistant1: '-', assistant2: '-', instrumentator: 'Lucas',
-    startTime: '14:00', endTime: '14:45', duration: '45min',
-    preOpDiagnosis: 'Eletiva', realSurgery: 'Orquiectomia Bilateral',
-    opDescription: 'Incisão pré-escrotal, exposição dos testículos, ligadura do cordão espermático...',
-    freeText: 'Recuperação tranquila.'
+    anesthetist: 'Dra. Cuddy', startTime: '14:00', endTime: '14:45', preOpDiagnosis: 'Eletiva', realSurgery: 'Orquiectomia',
+    opDescription: 'Incisão pré-escrotal...',
   },
 ];
 
@@ -53,7 +36,7 @@ const FichaCirurgicaItem = ({ data, onView }: { data: any, onView: (d: any) => v
           <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
             <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">#{data.id}</span>
             <span>•</span>
-            <span>{data.date}</span>
+            <span>{data.petName}</span>
             <span>•</span>
             <span>{data.cirurgiao}</span>
           </div>
@@ -65,12 +48,8 @@ const FichaCirurgicaItem = ({ data, onView }: { data: any, onView: (d: any) => v
           {data.status === 'Finalizada' ? <CheckCircle size={12} /> : <Clock size={12} />}
           {data.status}
         </span>
-        <button 
-          onClick={() => onView(data)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-        >
-          <Eye size={16} />
-          Ver Detalhes
+        <button onClick={() => onView(data)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+          <Eye size={16} /> Ver Detalhes
         </button>
       </div>
     </div>
@@ -78,7 +57,7 @@ const FichaCirurgicaItem = ({ data, onView }: { data: any, onView: (d: any) => v
 };
 
 export default function FichasCirurgicasPage() {
-  const [fichas, setFichas] = useState(mockFichas);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any>(null);
@@ -88,45 +67,40 @@ export default function FichasCirurgicasPage() {
     setIsViewOpen(true);
   };
 
+  const filteredFichas = mockFichas.filter(f => 
+    f.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.procedimento.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
-        <PageHeader 
-          title="Fichas Cirúrgicas"
-          description="Relatórios de procedimentos cirúrgicos realizados."
-        />
-        <button 
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95"
-        >
-          <Plus size={18} />
-          <span>Registrar Cirurgia</span>
+        <PageHeader title="Fichas Cirúrgicas" description="Relatórios de procedimentos cirúrgicos realizados." />
+        <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95">
+          <Plus size={18} /> <span>Registrar Cirurgia</span>
         </button>
       </div>
 
+      {/* BARRA DE BUSCA PADRONIZADA */}
+      <div className="relative w-full md:w-1/2 group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={18} />
+        <input 
+          type="text" 
+          placeholder="Buscar por paciente ou procedimento..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all shadow-sm placeholder-gray-400"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <div className="space-y-4">
-        {fichas.map((ficha) => (
+        {filteredFichas.map((ficha) => (
           <FichaCirurgicaItem key={ficha.id} data={ficha} onView={handleView} />
         ))}
       </div>
 
-      {/* Modal de Preenchimento */}
-      <FichaCirurgicaModal 
-        isOpen={isCreateOpen} 
-        onClose={() => setIsCreateOpen(false)} 
-        patientName="Selecione..." // Mock
-        ownerName=""
-      />
-
-      {/* Modal de Visualização */}
-      <VisualizarProntuarioModal 
-        isOpen={isViewOpen} 
-        onClose={() => setIsViewOpen(false)} 
-        data={selectedFicha} 
-        type="Cirurgica" 
-      />
-
+      <FichaCirurgicaModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} patientName="Selecione..." ownerName="" />
+      <VisualizarProntuarioModal isOpen={isViewOpen} onClose={() => setIsViewOpen(false)} data={selectedFicha} type="Cirurgica" />
     </div>
   );
 }

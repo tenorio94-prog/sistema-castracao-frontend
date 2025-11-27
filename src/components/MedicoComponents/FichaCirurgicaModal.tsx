@@ -134,16 +134,25 @@ export default function FichaCirurgicaModal({ isOpen, onClose, patientName, owne
                      <PaperLine label="Fim" width="w-20" className="col-span-4" />
                   </div>
 
-                  <PaperLine label="Diagnóstico Pré-operatório" className="mt-4" />
-                  <PaperLine label="Diagnóstico Pós-operatório" />
-                  <PaperLine label="Operação Proposta" />
-                  <PaperLine label="Operação Realizada" />
+                  <div className="mt-6 space-y-4">
+                     <PaperLine label="Diagnóstico Pré-operatório" />
+                     <PaperLine label="Diagnóstico Pós-operatório" />
+                     <PaperLine label="Operação Proposta" />
+                     <PaperLine label="Operação Realizada" />
+                  </div>
+                  
+                  {/* --- NOVOS CAMPOS ADICIONADOS --- */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                     <LinedTextArea label="Materiais Utilizados" rows={4} />
+                     <LinedTextArea label="Controle Pós-Cirúrgico / Alta Cirúrgica" rows={4} />
+                  </div>
+
                </div>
             </div>
 
             {/* Descrição do Ato */}
-            <div className="mt-8">
-               <LinedTextArea label="Descrição do Ato Operatório" rows={15} />
+            <div className="mt-4">
+               <LinedTextArea label="Descrição do Ato Operatório" rows={12} />
             </div>
 
             {/* Campo Extra */}

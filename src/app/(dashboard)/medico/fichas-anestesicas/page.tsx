@@ -1,28 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Syringe, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, Syringe, CheckCircle, Clock, Eye, Search } from "lucide-react";
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import FichaAnestesicaModal from '@/components/MedicoComponents/FichaAnestesicaModal'; 
 import VisualizarProntuarioModal from '@/components/MedicoComponents/VisualizarProntuarioModal';
 
-// Mocks de Fichas Anestésicas
 const mockFichas = [
   { 
-    id: "ANE-055", 
-    date: "27/09/2025", 
-    status: "Monitoramento", 
-    anestesista: "Dra. Marina", 
-    petName: "Amora", 
-    weight: "22.2kg",
-    asa: "II",
-    // Dados Detalhados
+    id: "ANE-055", date: "27/09/2025", status: "Monitoramento", anestesista: "Dra. Marina", 
+    petName: "Amora", weight: "22.2kg", asa: "II",
     pre_fc: '120', pre_fr: '+AQ', pre_mucosas: 'Normo', pre_tpc: '2"', pre_temp: '38.5',
-    mpa: ['Butorfanol 0,22ml IM', 'Acepromazina 0,16ml IM'],
-    induction: ['Propofol IV'],
-    intubation: 'Sim (7.5)', tubeSize: '7.5', maintenanceAgent: 'Isoflurano', maintenanceType: 'Inalatória',
-    extubationTime: '10:15', recoveryQuality: 'Rápida', painScore: '0',
-    postOpMeds: 'Dipirona + Meloxicam',
+    mpa: ['Butorfanol', 'Acepromazina'], induction: ['Propofol'], maintenanceAgent: 'Isoflurano',
     freeText: 'Paciente estável.'
   },
 ];
@@ -56,12 +45,8 @@ const FichaAnestesicaItem = ({ data, onView }: { data: any, onView: (d: any) => 
           {data.status === 'Finalizada' ? <CheckCircle size={12} /> : <Clock size={12} />}
           {data.status}
         </span>
-        <button 
-          onClick={() => onView(data)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
-        >
-          <Eye size={16} />
-          Ver Detalhes
+        <button onClick={() => onView(data)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors">
+          <Eye size={16} /> Ver Detalhes
         </button>
       </div>
     </div>
@@ -69,7 +54,7 @@ const FichaAnestesicaItem = ({ data, onView }: { data: any, onView: (d: any) => 
 };
 
 export default function FichasAnestesicasPage() {
-  const [fichas, setFichas] = useState(mockFichas);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any>(null);
@@ -79,44 +64,40 @@ export default function FichasAnestesicasPage() {
     setIsViewOpen(true);
   };
 
+  const filteredFichas = mockFichas.filter(f => 
+    f.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.anestesista.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
-        <PageHeader 
-          title="Fichas Anestésicas"
-          description="Monitoramento e protocolos anestésicos."
-        />
-        <button 
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95"
-        >
-          <Plus size={18} />
-          <span>Nova Ficha</span>
+        <PageHeader title="Fichas Anestésicas" description="Monitoramento e protocolos anestésicos." />
+        <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95">
+          <Plus size={18} /> <span>Nova Ficha</span>
         </button>
       </div>
 
+      {/* BARRA DE BUSCA PADRONIZADA */}
+      <div className="relative w-full md:w-1/2 group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={18} />
+        <input 
+          type="text" 
+          placeholder="Buscar por paciente ou anestesista..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all shadow-sm placeholder-gray-400"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <div className="space-y-4">
-        {fichas.map((ficha) => (
+        {filteredFichas.map((ficha) => (
           <FichaAnestesicaItem key={ficha.id} data={ficha} onView={handleView} />
         ))}
       </div>
 
-      {/* Modal de Preenchimento */}
-      <FichaAnestesicaModal 
-        isOpen={isCreateOpen} 
-        onClose={() => setIsCreateOpen(false)} 
-        patientName="Selecione..." 
-      />
-
-      {/* Modal de Visualização */}
-      <VisualizarProntuarioModal 
-        isOpen={isViewOpen} 
-        onClose={() => setIsViewOpen(false)} 
-        data={selectedFicha} 
-        type="Anestesica" 
-      />
-
+      <FichaAnestesicaModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} patientName="Selecione..." />
+      <VisualizarProntuarioModal isOpen={isViewOpen} onClose={() => setIsViewOpen(false)} data={selectedFicha} type="Anestesica" />
     </div>
   );
 }

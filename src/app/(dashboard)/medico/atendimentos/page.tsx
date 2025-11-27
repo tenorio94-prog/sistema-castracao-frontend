@@ -39,7 +39,6 @@ export default function PaginaAtendimentosMedico() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Todos' | 'Cirurgia' | 'Consulta' | 'Retorno'>('Todos');
   
-  // Modais
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({ animalId: '', tipo: '', data: '', hora: '', observacoes: '' });
 
@@ -48,7 +47,6 @@ export default function PaginaAtendimentosMedico() {
   const [selectedPatientName, setSelectedPatientName] = useState('');
   const [selectedOwnerName, setSelectedOwnerName] = useState('');
 
-  // HANDLERS
   const handleVerProntuario = (id: string) => {
     const paciente = atendimentos.find(a => a.id === id);
     setSelectedPatientName(paciente?.petName || 'Paciente');
@@ -82,7 +80,6 @@ export default function PaginaAtendimentosMedico() {
           description="Gerencie sua agenda clínica e procedimentos."
         />
         
-        {/* Botão Novo Agendamento */}
         <button 
           onClick={() => setIsCreateModalOpen(true)}
           className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg active:scale-95"
@@ -92,14 +89,14 @@ export default function PaginaAtendimentosMedico() {
         </button>
       </div>
 
-      {/* Filtros e Busca */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
         <div className="relative w-full lg:flex-1 group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-green-600 transition-colors" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={18} />
+          {/* CORREÇÃO VISUAL: Borda cinza e anel cinza suave */}
           <input 
             type="text" 
             placeholder="Buscar paciente pelo nome..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-600 transition-all shadow-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all shadow-sm placeholder-gray-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -122,14 +119,12 @@ export default function PaginaAtendimentosMedico() {
         </div>
       </div>
 
-      {/* Cards */}
       <div className="space-y-4">
         {filteredAtendimentos.map((item, index) => (
           <AtendimentoCard key={index} atendimento={item} onVerProntuario={handleVerProntuario} onPreencherFicha={handlePreencherFicha} />
         ))}
       </div>
 
-      {/* Modais */}
       <CadastroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateSave} title="Novo Agendamento" saveText="Agendar">
          <FormInput label="Nome do Animal *" name="animal" value={formData.animalId} onChange={() => {}} required />
       </CadastroModal>

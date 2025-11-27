@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Microscope, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, Microscope, CheckCircle, Clock, Eye, Search } from "lucide-react";
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import FichaExameModal from '@/components/MedicoComponents/FichaExameModal'; 
-import VisualizarProntuarioModal from '@/components//MedicoComponents/VisualizarProntuarioModal';
+import VisualizarProntuarioModal from '@/components/MedicoComponents/VisualizarProntuarioModal';
 
-// Mocks
 const mockExames = [
   { 
     id: "LAB-881", 
@@ -16,7 +15,6 @@ const mockExames = [
     petName: "Amora", 
     ownerName: "Marcella",
     examType: "Hemograma Completo",
-    // Dados Detalhados
     results: "Eritrócitos: 6.2 mi/mm³\nHemoglobina: 14 g/dL\nLeucócitos: 9.500 /mm³\nPlaquetas: 280.000 /mm³\n\nBioquímica:\nUreia: 45 mg/dL\nCreatinina: 1.1 mg/dL",
     freeText: "Amostra de boa qualidade."
   },
@@ -75,7 +73,7 @@ const FichaExameItem = ({ data, onView }: { data: any, onView: (d: any) => void 
 };
 
 export default function FichasExamesPage() {
-  const [exames, setExames] = useState(mockExames);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedExame, setSelectedExame] = useState<any>(null);
@@ -84,6 +82,12 @@ export default function FichasExamesPage() {
     setSelectedExame(ficha);
     setIsViewOpen(true);
   };
+
+  // --- CORREÇÃO: LÓGICA DE FILTRAGEM IMPLEMENTADA ---
+  const filteredExames = mockExames.filter(f => 
+    f.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.examType.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -102,21 +106,39 @@ export default function FichasExamesPage() {
         </button>
       </div>
 
-      <div className="space-y-4">
-        {exames.map((exame) => (
-          <FichaExameItem key={exame.id} data={exame} onView={handleView} />
-        ))}
+      {/* BARRA DE BUSCA PADRONIZADA (CINZA) */}
+      <div className="relative w-full md:w-1/2 group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={18} />
+        <input 
+          type="text" 
+          placeholder="Buscar por paciente ou tipo de exame..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all shadow-sm placeholder-gray-400"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
-      {/* Modal de Preenchimento */}
+      <div className="space-y-4">
+        {/* Uso da lista filtrada em vez da completa */}
+        {filteredExames.length > 0 ? (
+          filteredExames.map((exame) => (
+            <FichaExameItem key={exame.id} data={exame} onView={handleView} />
+          ))
+        ) : (
+          <div className="py-20 text-center bg-white border border-dashed border-gray-200 rounded-2xl">
+            <p className="text-gray-500 font-medium">Nenhum exame encontrado.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Modais */}
       <FichaExameModal 
         isOpen={isCreateOpen} 
         onClose={() => setIsCreateOpen(false)} 
-        patientName="Selecione..." // Em produção, viria de um select ou contexto
+        patientName="Selecione..." 
         ownerName=""
       />
 
-      {/* Modal de Visualização */}
       <VisualizarProntuarioModal 
         isOpen={isViewOpen} 
         onClose={() => setIsViewOpen(false)} 
