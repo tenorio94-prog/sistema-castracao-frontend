@@ -9,9 +9,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full overflow-hidden">
       {/* A tag <body> é obrigatória no layout raiz */}
-      <body>
+      <body className="h-full overflow-hidden">
 
         {/* A prop {children} é onde o Next.js vai renderizar 
           todas as suas outras páginas e layouts.

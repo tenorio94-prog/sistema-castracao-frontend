@@ -123,29 +123,22 @@
     @apply border-border outline-ring/50;
   }
   
-  /* CORREÇÃO DO SCROLL/BOUNCE */
-  html, body {
-    overscroll-behavior-y: none; /* Impede o efeito elástico vertical */
-    height: 100%;                /* Garante que o container ocupe toda a altura */
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+  /* CORREÇÃO DO SCROLL - Área de dashboard fixa na viewport */
+  html {
+    height: 100%;
+    overflow: hidden;
   }
   
-  html, body {
-    overscroll-behavior-y: none;
+  body {
     height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    @apply bg-background text-foreground;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  /* Previne scroll horizontal em todos os elementos */
+  * {
+    max-width: 100%;
   }
 
   /* --- CORREÇÃO DO AUTOFILL (FUNDO AMARELO) --- */

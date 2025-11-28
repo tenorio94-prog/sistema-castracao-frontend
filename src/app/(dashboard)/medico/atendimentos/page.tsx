@@ -1,43 +1,25 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import AtendimentoCard, { AtendimentoMedicoUI } from '@/components/MedicoComponents/AtendimentoCard';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
 import FichaClinicaModal from '@/components/MedicoComponents/FichaClinicaModal';
 import HistoricoProntuarioModal from '@/components/MedicoComponents/HistoricoProntuarioModal';
-
-// --- Mocks ---
-const mockAtendimentos: AtendimentoMedicoUI[] = [
-  {
-    id: '1',
-    petName: 'Amora',
-    species: 'Canino - SRD',
-    date: '25/09/2024',
-    time: '09:00',
-    type: 'Cirurgia',
-    veterinarian: 'Dr. Mateus',
-    status: 'Realizado'
-  },
-  {
-    id: '2',
-    petName: 'Thor',
-    species: 'Canino - Golden',
-    date: '27/11/2025',
-    time: '10:30',
-    type: 'Consulta',
-    veterinarian: 'Você',
-    status: 'Agendado'
-  }
-];
+import { AppointmentService, Appointment, AppointmentStatus, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
+import { SPECIES_LABELS } from '@/services/animal.service';
 
 export default function PaginaAtendimentosMedico() {
-  const [atendimentos, setAtendimentos] = useState<AtendimentoMedicoUI[]>(mockAtendimentos);
+  const router = useRouter();
+  const [atendimentos, setAtendimentos] = useState<AtendimentoMedicoUI[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Todos' | 'Cirurgia' | 'Consulta' | 'Retorno'>('Todos');
+  const [loading, setLoading] = useState(true);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({ animalId: '', tipo: '', data: '', hora: '', observacoes: '' });
@@ -46,30 +28,100 @@ export default function PaginaAtendimentosMedico() {
   const [isProntuarioOpen, setIsProntuarioOpen] = useState(false);
   const [selectedPatientName, setSelectedPatientName] = useState('');
   const [selectedOwnerName, setSelectedOwnerName] = useState('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState<number | null>(null);
+
+  // Convert backend appointment to UI format
+  const convertToAtendimentoUI = (appointment: Appointment): AtendimentoMedicoUI => {
+    const startDate = new Date(appointment.startTime);
+    const statusMap: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.scheduled]: 'Agendado',
+      [AppointmentStatus.confirmed]: 'Confirmado',
+      [AppointmentStatus.completed]: 'Realizado',
+      [AppointmentStatus.canceled]: 'Cancelado',
+      [AppointmentStatus.absent]: 'Ausente',
+    };
+
+    const typeMap: Record<string, string> = {
+      'Triagem': 'Consulta',
+      'Cirurgia de Castração': 'Cirurgia',
+      'Pós-Operatório': 'Retorno'
+    };
+
+    const serviceLabel = appointment.serviceType ? SERVICE_TYPE_LABELS[appointment.serviceType] : 'Consulta';
+    const type = typeMap[serviceLabel] || 'Consulta';
+
+    return {
+      id: appointment.id.toString(),
+      petName: appointment.animal?.name || 'Sem nome',
+      species: appointment.animal ? `${SPECIES_LABELS[appointment.animal.species as keyof typeof SPECIES_LABELS]} - ${appointment.animal.breed || 'SRD'}` : 'Desconhecido',
+      date: startDate.toLocaleDateString('pt-BR'),
+      time: startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      type: type,
+      veterinarian: 'Você',
+      status: statusMap[appointment.status] || 'Agendado',
+      animalId: appointment.animal?.id,
+      ownerName: appointment.petOwner?.user?.completeName || 'Desconhecido'
+    };
+  };
+
+  // Fetch appointments
+  useEffect(() => {
+    const fetchAtendimentos = async () => {
+      try {
+        setLoading(true);
+        const data = await AppointmentService.getAll();
+        const converted = data.map(convertToAtendimentoUI);
+        setAtendimentos(converted);
+      } catch (error: any) {
+        console.error('Error fetching atendimentos:', error);
+        toast.error('Erro ao carregar atendimentos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAtendimentos();
+  }, []);
 
   const handleVerProntuario = (id: string) => {
     const paciente = atendimentos.find(a => a.id === id);
-    setSelectedPatientName(paciente?.petName || 'Paciente');
-    setIsProntuarioOpen(true);
+    if (paciente) {
+      setSelectedPatientName(paciente.petName);
+      setSelectedAnimalId(paciente.animalId || null);
+      setIsProntuarioOpen(true);
+    }
   };
 
   const handlePreencherFicha = (id: string) => {
     const paciente = atendimentos.find(a => a.id === id);
-    setSelectedPatientName(paciente?.petName || 'Paciente');
-    setSelectedOwnerName("Marcella (Tutor)"); 
-    setIsFichaOpen(true);
+    if (paciente) {
+      setSelectedPatientName(paciente.petName);
+      setSelectedOwnerName(paciente.ownerName || 'Tutor');
+      setSelectedAnimalId(paciente.animalId || null);
+      setIsFichaOpen(true);
+    }
   };
 
   const handleCreateSave = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Agendamento criado com sucesso!');
-    setIsCreateModalOpen(false);
+    router.push('/medico/agenda');
   };
 
   const filteredAtendimentos = atendimentos.filter(item => 
     item.petName.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (activeTab === 'Todos' || item.type === activeTab)
   );
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto" />
+          <p className="text-gray-500">Carregando atendimentos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 relative">
@@ -120,17 +172,23 @@ export default function PaginaAtendimentosMedico() {
       </div>
 
       <div className="space-y-4">
-        {filteredAtendimentos.map((item, index) => (
-          <AtendimentoCard key={index} atendimento={item} onVerProntuario={handleVerProntuario} onPreencherFicha={handlePreencherFicha} />
-        ))}
+        {filteredAtendimentos.length === 0 ? (
+          <div className="text-center py-16 bg-white border border-dashed border-gray-200 rounded-2xl">
+            <p className="text-gray-400 font-medium">Nenhum atendimento encontrado</p>
+          </div>
+        ) : (
+          filteredAtendimentos.map((item) => (
+            <AtendimentoCard key={item.id} atendimento={item} onVerProntuario={handleVerProntuario} onPreencherFicha={handlePreencherFicha} />
+          ))
+        )}
       </div>
 
       <CadastroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateSave} title="Novo Agendamento" saveText="Agendar">
          <FormInput label="Nome do Animal *" name="animal" value={formData.animalId} onChange={() => {}} required />
       </CadastroModal>
 
-      <HistoricoProntuarioModal isOpen={isProntuarioOpen} onClose={() => setIsProntuarioOpen(false)} patientName={selectedPatientName} />
-      <FichaClinicaModal isOpen={isFichaOpen} onClose={() => setIsFichaOpen(false)} patientName={selectedPatientName} ownerName={selectedOwnerName} />
+      <HistoricoProntuarioModal isOpen={isProntuarioOpen} onClose={() => setIsProntuarioOpen(false)} patientName={selectedPatientName} animalId={selectedAnimalId} />
+      <FichaClinicaModal isOpen={isFichaOpen} onClose={() => setIsFichaOpen(false)} patientName={selectedPatientName} ownerName={selectedOwnerName} animalId={selectedAnimalId} />
 
     </div>
   );

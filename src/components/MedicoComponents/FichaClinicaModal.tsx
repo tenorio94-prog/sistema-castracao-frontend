@@ -1,31 +1,37 @@
 "use client";
 
-import React from 'react';
-import { X, Save, Printer, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Printer, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClinicalRecordService, ClinicalRecordType, CreateClinicalRecordData } from '@/services/medical-record.service';
+import { MedicalRecordService } from '@/services/medical-record.service';
+import { AnimalService } from '@/services/animal.service';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   patientName: string;
   ownerName?: string;
+  animalId: number | null;
 };
 
 // Componentes de Layout de Papel (Underline Inputs)
-const PaperLine = ({ label, value, placeholder, width = "w-full", className="" }: any) => (
+const PaperLine = ({ label, value, placeholder, width = "w-full", className="", onChange, name }: any) => (
   <div className={`flex items-end gap-1 ${className}`}>
     <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">{label}:</span>
     <input 
       type="text" 
+      name={name}
       className={`border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none placeholder:text-gray-300 ${width}`}
       defaultValue={value}
       placeholder={placeholder}
+      onChange={onChange}
     />
   </div>
 );
 
 // Área de texto pautada (Caderno)
-const LinedTextArea = ({ label, rows = 5 }: any) => (
+const LinedTextArea = ({ label, rows = 5, name, onChange }: any) => (
   <div className="border border-gray-400 rounded-sm overflow-hidden flex flex-col h-full mb-4">
     <div className="bg-gray-100 border-b border-gray-400 px-2 py-1">
       <span className="text-[10px] font-bold text-gray-800 uppercase block leading-tight">{label}</span>
@@ -39,30 +45,147 @@ const LinedTextArea = ({ label, rows = 5 }: any) => (
       }}
     >
       <textarea 
+        name={name}
         className="w-full h-full bg-transparent border-none focus:ring-0 text-sm leading-[24px] px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
         rows={rows}
+        onChange={onChange}
       />
     </div>
   </div>
 );
 
 // Input de Parâmetros (TR, FC...)
-const ParamInput = ({ label, unit }: any) => (
+const ParamInput = ({ label, unit, name, onChange }: any) => (
   <div className="flex flex-col items-center mx-2">
      <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">{label}</span>
      <div className="flex items-baseline gap-1 border-b border-gray-400">
-       <input type="text" className="w-12 text-center font-medium focus:outline-none bg-transparent text-sm" />
+       <input type="text" name={name} className="w-12 text-center font-medium focus:outline-none bg-transparent text-sm" onChange={onChange} />
        <span className="text-[10px] text-gray-400 mb-0.5">{unit}</span>
      </div>
   </div>
 );
 
-export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerName }: Props) {
+export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerName, animalId }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [medicalRecordId, setMedicalRecordId] = useState<number | null>(null);
+  const [animalData, setAnimalData] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    observations: '',
+  });
+
+  useEffect(() => {
+    if (isOpen && animalId) {
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          
+          // Try to fetch animal data - handle 403 permission error
+          try {
+            const animal = await AnimalService.getById(animalId);
+            setAnimalData(animal);
+          } catch (animalError: any) {
+            if (animalError.message.includes('Acesso negado') || animalError.message.includes('403')) {
+              console.warn('Permission denied for animal details, using basic data');
+              // Set minimal data from props
+              setAnimalData({
+                id: animalId,
+                name: patientName,
+                species: 'canine',
+                gender: 'male',
+                estimatedAge: 'Não informado',
+                sizeWeight: 'Não informado',
+                breed: 'Não informado'
+              });
+            } else {
+              throw animalError;
+            }
+          }
+
+          // Fetch or create medical record
+          try {
+            const medRecord = await MedicalRecordService.getByAnimalId(animalId);
+            setMedicalRecordId(medRecord.id);
+          } catch (error: any) {
+            // Medical record doesn't exist, create one
+            if (error.message.includes('not found') || error.message.includes('404')) {
+              try {
+                const newRecord = await MedicalRecordService.create({ animalId });
+                setMedicalRecordId(newRecord.id);
+              } catch (createError: any) {
+                console.error('Error creating medical record:', createError);
+                toast.error('Não foi possível criar o prontuário médico');
+              }
+            } else {
+              console.error('Error fetching medical record:', error);
+            }
+          }
+        } catch (error: any) {
+          console.error('Error fetching data:', error);
+          toast.error('Erro ao carregar dados do paciente');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchData();
+    }
+  }, [isOpen, animalId, patientName]);
+
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    toast.success("Ficha clínica salva com sucesso!");
-    onClose();
+  const handleSave = async () => {
+    if (!medicalRecordId || !animalId) {
+      toast.error('Dados do paciente não carregados');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Get user data from localStorage
+      const userDataStr = localStorage.getItem('user');
+      if (!userDataStr) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
+
+      const userData = JSON.parse(userDataStr);
+      const userId = parseInt(userData.sub); // JWT sub is the userId
+
+      if (!userId) {
+        toast.error('Usuário não identificado');
+        return;
+      }
+
+      // Get veterinarian by userId
+      let veterinarianId: number;
+      try {
+        const { VeterinarianService } = await import('@/services/veterinarian.service');
+        const veterinarian = await VeterinarianService.getById(userId);
+        veterinarianId = veterinarian.id;
+      } catch (vetError: any) {
+        console.error('Error getting veterinarian:', vetError);
+        toast.error('Não foi possível identificar o veterinário. Verifique suas permissões.');
+        return;
+      }
+
+      const clinicalData: CreateClinicalRecordData = {
+        medicalRecordId,
+        veterinarianId,
+        type: ClinicalRecordType.triage, // Default to triage for clinical records
+        observations: formData.observations || 'Ficha clínica preenchida',
+        treatmentDate: new Date().toISOString(),
+      };
+
+      await ClinicalRecordService.create(clinicalData);
+      toast.success("Ficha clínica salva com sucesso!");
+      onClose();
+    } catch (error: any) {
+      console.error('Error saving clinical record:', error);
+      toast.error(error.message || 'Erro ao salvar ficha clínica');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +206,15 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
 
         {/* Corpo Scrollável (Papel Digital) */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-200">
-          <div className="bg-white shadow-lg border border-gray-300 p-10 mx-auto max-w-[900px] min-h-[1400px] text-gray-900 relative">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center space-y-4">
+                <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto" />
+                <p className="text-gray-500">Carregando dados do paciente...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white shadow-lg border border-gray-300 p-10 mx-auto max-w-[900px] min-h-[1400px] text-gray-900 relative">
             
             {/* --- PARTE 1: IDENTIFICAÇÃO (Baseado na Imagem 1) --- */}
             
@@ -173,13 +304,23 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
 
             </div>
 
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200">Cancelar</button>
-          <button onClick={handleSave} className="px-8 py-2 rounded-lg text-sm font-bold text-white bg-green-700 hover:bg-green-800 shadow-lg">Salvar Ficha</button>
+          <button onClick={onClose} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200" disabled={loading}>
+            Cancelar
+          </button>
+          <button 
+            onClick={handleSave} 
+            className="px-8 py-2 rounded-lg text-sm font-bold text-white bg-green-700 hover:bg-green-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save size={16} />}
+            {loading ? 'Salvando...' : 'Salvar Ficha'}
+          </button>
         </div>
       </div>
     </div>

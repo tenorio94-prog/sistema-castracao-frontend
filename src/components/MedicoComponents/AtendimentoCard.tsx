@@ -13,7 +13,9 @@ export type AtendimentoMedicoUI = {
   veterinarian: string;
   student?: string;
   observations?: string;
-  status: 'Agendado' | 'Realizado' | 'Cancelado' | 'Em Andamento';
+  status: 'Agendado' | 'Realizado' | 'Cancelado' | 'Em Andamento' | 'Confirmado' | 'Ausente';
+  animalId?: number;
+  ownerName?: string;
 };
 
 type Props = {

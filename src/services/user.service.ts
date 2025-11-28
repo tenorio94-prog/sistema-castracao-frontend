@@ -49,6 +49,51 @@ export interface UpdateUserData {
 export class UserService {
   private static readonly BASE_PATH = '/users';
 
+  /**
+   * Buscar perfil do usuário logado (próprio usuário)
+   * Tenta /users/me primeiro, depois /auth/profile como fallback
+   */
+  static async getMe(): Promise<User> {
+    try {
+      // Tentar endpoint /users/me
+      const response = await api.get<User>(`${this.BASE_PATH}/me`);
+      return response.data;
+    } catch (error) {
+      // Se /users/me não existir, tentar /auth/profile
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        try {
+          const response = await api.get<User>('/auth/profile');
+          return response.data;
+        } catch (profileError) {
+          throw this.handleError(profileError);
+        }
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Atualizar perfil do usuário logado (próprio usuário)
+   */
+  static async updateMe(data: UpdateUserData): Promise<User> {
+    try {
+      // Tentar endpoint /users/me
+      const response = await api.patch<User>(`${this.BASE_PATH}/me`, data);
+      return response.data;
+    } catch (error) {
+      // Se /users/me não existir, tentar /auth/profile
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        try {
+          const response = await api.patch<User>('/auth/profile', data);
+          return response.data;
+        } catch (profileError) {
+          throw this.handleError(profileError);
+        }
+      }
+      throw this.handleError(error);
+    }
+  }
+
   static async getAll(): Promise<User[]> {
     try {
       const response = await api.get<User[]>(this.BASE_PATH);

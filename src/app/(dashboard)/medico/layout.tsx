@@ -19,7 +19,7 @@ import { Role } from "@/types/auth.types";
 export default function MedicoLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[Role.veterinarian, Role.student]}>
-      <SidebarProvider>
+      <SidebarProvider className="!h-screen !max-h-screen !overflow-hidden bg-sidebar">
         <Sidebar variant="inset" collapsible="icon">
           
           {/* Header da Sidebar: Identidade Visual Azul para Médico */}
@@ -50,8 +50,8 @@ export default function MedicoLayout({ children }: { children: React.ReactNode }
           <SidebarRail />
         </Sidebar>
 
-        {/* Área de Conteúdo Principal */}
-        <SidebarInset className="bg-gray-50 flex flex-col h-screen overflow-hidden">
+        {/* Área de Conteúdo Principal - com margem para mostrar fundo verde */}
+        <SidebarInset className="bg-gray-50 flex flex-col h-[calc(100vh-16px)] overflow-hidden my-2 mr-2 rounded-xl shadow-sm">
           <TopBar />
           
           <main className="flex-1 overflow-y-auto p-6 md:p-8">

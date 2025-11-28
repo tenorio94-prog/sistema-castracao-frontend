@@ -1,66 +1,103 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, FileText, Dog, Cat } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, FileText, Dog, Cat, Loader2 } from "lucide-react";
+import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import HistoricoProntuarioModal from '@/components/MedicoComponents/HistoricoProntuarioModal';
+import { MedicalRecordService, MedicalRecord } from '@/services/medical-record.service';
+import { SPECIES_LABELS } from '@/services/animal.service';
 
-// Mocks de Pacientes com histórico
-const mockPatients = [
-  { 
-    id: '101', 
-    name: "Amora", 
-    owner: "Marcella", 
-    age: "2 anos", 
-    species: "Canina", 
-    breed: "SRD",
-    lastVisit: "25/09/2024"
-  },
-  { 
-    id: '102', 
-    name: "Thor", 
-    owner: "João Silva", 
-    age: "5 anos", 
-    species: "Canina", 
-    breed: "Golden",
-    lastVisit: "10/09/2024" 
-  },
-  { 
-    id: '103', 
-    name: "Luna", 
-    owner: "Maria Oliveira", 
-    age: "3 anos", 
-    species: "Felina", 
-    breed: "Siamês",
-    lastVisit: "12/08/2024"
-  },
-];
+interface PatientUI {
+  id: string;
+  name: string;
+  owner: string;
+  age: string;
+  species: string;
+  breed: string;
+  lastVisit: string;
+  animalId: number;
+  medicalRecordId: number;
+}
 
 export default function BuscarProntuarioPage() {
+  const [patients, setPatients] = useState<PatientUI[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Todos' | 'Caninos' | 'Felinos'>('Todos');
+  const [loading, setLoading] = useState(true);
   
-  // Estado do Modal de Prontuário
   const [isProntuarioOpen, setIsProntuarioOpen] = useState(false);
   const [selectedPatientName, setSelectedPatientName] = useState('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState<number | null>(null);
 
-  // Handler para abrir o histórico (Igual ao da tela de atendimentos)
-  const handleOpenProntuario = (patientName: string) => {
-    setSelectedPatientName(patientName);
+  // Convert medical record to PatientUI
+  const convertToPatientUI = (record: MedicalRecord): PatientUI => {
+    const lastRecord = record.clinicalRecords?.[0];
+    const lastVisit = lastRecord 
+      ? new Date(lastRecord.treatmentDate).toLocaleDateString('pt-BR')
+      : 'Sem registros';
+
+    return {
+      id: record.id.toString(),
+      name: record.animal?.name || 'Sem nome',
+      owner: record.animal?.petOwner?.user?.completeName || 'Desconhecido',
+      age: record.animal?.estimatedAge || 'Desconhecida',
+      species: record.animal ? SPECIES_LABELS[record.animal.species as keyof typeof SPECIES_LABELS] : 'Desconhecida',
+      breed: record.animal?.breed || 'SRD',
+      lastVisit,
+      animalId: record.animalId,
+      medicalRecordId: record.id
+    };
+  };
+
+  // Fetch medical records
+  useEffect(() => {
+    const fetchMedicalRecords = async () => {
+      try {
+        setLoading(true);
+        const data = await MedicalRecordService.getAll();
+        const converted = data.map(convertToPatientUI);
+        setPatients(converted);
+      } catch (error: any) {
+        console.error('Error fetching medical records:', error);
+        toast.error('Erro ao carregar prontuários');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMedicalRecords();
+  }, []);
+
+  // Handler para abrir o histórico
+  const handleOpenProntuario = (patient: PatientUI) => {
+    setSelectedPatientName(patient.name);
+    setSelectedAnimalId(patient.animalId);
     setIsProntuarioOpen(true);
   };
 
   // Filtragem
-  const filteredPatients = mockPatients.filter(p => {
+  const filteredPatients = patients.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.owner.toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchesTab = true;
-    if (activeTab === 'Caninos') matchesTab = p.species === 'Canina';
-    if (activeTab === 'Felinos') matchesTab = p.species === 'Felina';
+    if (activeTab === 'Caninos') matchesTab = p.species.includes('Canin');
+    if (activeTab === 'Felinos') matchesTab = p.species.includes('Felin');
 
     return matchesSearch && matchesTab;
   });
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto" />
+          <p className="text-gray-500">Carregando prontuários...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -111,7 +148,7 @@ export default function BuscarProntuarioPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
-                  {patient.species === 'Canina' ? <Dog size={28} /> : <Cat size={28} />}
+                  {patient.species.includes('Canin') ? <Dog size={28} /> : <Cat size={28} />}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">{patient.name}</h3>
@@ -132,7 +169,7 @@ export default function BuscarProntuarioPage() {
             </div>
 
             <button
-              onClick={() => handleOpenProntuario(patient.name)}
+              onClick={() => handleOpenProntuario(patient)}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gray-50 text-gray-700 font-bold hover:bg-gray-900 hover:text-white transition-all"
             >
               <FileText size={18} />
@@ -148,11 +185,11 @@ export default function BuscarProntuarioPage() {
         </div>
       )}
 
-      {/* Modal de Histórico (Mesmo usado na tela de atendimentos) */}
       <HistoricoProntuarioModal 
         isOpen={isProntuarioOpen}
         onClose={() => setIsProntuarioOpen(false)}
         patientName={selectedPatientName}
+        animalId={selectedAnimalId}
       />
 
     </div>

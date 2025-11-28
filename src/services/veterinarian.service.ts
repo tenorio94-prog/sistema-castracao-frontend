@@ -74,6 +74,101 @@ export class VeterinarianService {
   private static readonly BASE_PATH = '/veterinarian';
 
   /**
+   * Buscar perfil do veterinário logado
+   * Tenta /veterinarian/me primeiro, depois busca na lista como fallback
+   */
+  static async getMe(): Promise<Veterinarian> {
+    try {
+      // Tentar endpoint /veterinarian/me (se existir no backend)
+      console.log('🔍 Buscando perfil do veterinário logado...');
+      const response = await api.get<Veterinarian>(`${this.BASE_PATH}/me`);
+      console.log('✅ Perfil do veterinário obtido:', response.data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        // Se /veterinarian/me não existir (404), tentar buscar na lista
+        if (error.response?.status === 404) {
+          console.warn('⚠️ Endpoint /veterinarian/me não existe, tentando buscar na lista...');
+          return this.findMeInList();
+        }
+        // Se for 403 (acesso negado), tentar buscar na lista
+        if (error.response?.status === 403) {
+          console.warn('⚠️ Acesso negado ao /veterinarian/me, tentando buscar na lista...');
+          return this.findMeInList();
+        }
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Buscar o veterinário logado na lista de todos os veterinários
+   * Fallback quando /veterinarian/me não está disponível
+   */
+  private static async findMeInList(): Promise<Veterinarian> {
+    try {
+      // Obter userId do token
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (!userStr) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const user = JSON.parse(userStr);
+      const userId = parseInt(user.sub, 10);
+      
+      console.log('🔍 Buscando veterinário na lista pelo userId:', userId);
+      
+      // Buscar todos os veterinários
+      const allVeterinarians = await this.getAll();
+      
+      // Encontrar o veterinário com o userId correspondente
+      const myProfile = allVeterinarians.find(vet => vet.userId === userId);
+      
+      if (!myProfile) {
+        throw new Error('Perfil de veterinário não encontrado para este usuário');
+      }
+      
+      console.log('✅ Veterinário encontrado na lista:', myProfile);
+      return myProfile;
+    } catch (error) {
+      console.error('❌ Erro ao buscar veterinário na lista:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualizar perfil do veterinário logado
+   */
+  static async updateMe(data: UpdateVeterinarianData): Promise<Veterinarian> {
+    try {
+      // Tentar endpoint /veterinarian/me primeiro
+      console.log('🔄 Atualizando perfil do veterinário logado...');
+      const response = await api.patch<Veterinarian>(`${this.BASE_PATH}/me`, data);
+      console.log('✅ Perfil atualizado:', response.data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        // Se /veterinarian/me não existir, tentar pelo userId
+        if (error.response?.status === 404 || error.response?.status === 403) {
+          console.warn('⚠️ Endpoint /veterinarian/me não disponível, tentando pelo userId...');
+          
+          // Obter userId do token
+          const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+          if (!userStr) {
+            throw new Error('Usuário não autenticado');
+          }
+          
+          const user = JSON.parse(userStr);
+          const userId = parseInt(user.sub, 10);
+          
+          return this.update(userId, data);
+        }
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Buscar todos os veterinários
    * Retorna veterinários com dados do user relacionado
    */

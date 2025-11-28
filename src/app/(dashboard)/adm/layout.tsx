@@ -18,7 +18,7 @@ import TopBar from '@/components/Sidebars/TopBarDashboard';
 export default function AdmLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[Role.administrator]}>
-      <SidebarProvider>
+      <SidebarProvider className="!h-screen !max-h-screen !overflow-hidden bg-sidebar">
         <Sidebar variant="inset" collapsible="icon">
           
           {/* Header com Logo */}
@@ -47,17 +47,12 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
           <SidebarRail />
         </Sidebar>
 
-        {/* ALTERAÇÃO DE SCROLL:
-          1. Removido 'h-screen' e 'overflow-hidden' que travavam a tela.
-          2. Adicionado 'min-h-screen' para garantir fundo em telas grandes.
-        */}
-        <SidebarInset className="bg-gray-50 flex flex-col min-h-screen">
+        {/* Área de Conteúdo Principal - com margem para mostrar fundo verde */}
+        <SidebarInset className="bg-gray-50 flex flex-col h-[calc(100vh-16px)] overflow-hidden my-2 mr-2 rounded-xl shadow-sm">
           <TopBar />
           
-          {/* ALTERAÇÃO DE SCROLL:
-             1. Removido 'overflow-y-auto'. O scroll agora é responsabilidade do body/navegador.
-          */}
-          <main className="flex-1 p-6 md:p-8">
+          {/* Main com scroll interno */}
+          <main className="flex-1 overflow-y-auto p-6 md:p-8">
             {children}
           </main>
         </SidebarInset>

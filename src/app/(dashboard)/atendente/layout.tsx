@@ -15,10 +15,8 @@ import TopBar from '@/components/Sidebars/TopBarDashboard';
 
 export default function AtendenteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <Sidebar variant="inset" collapsible="icon">
-        
-        {/* ALTERAÇÃO AQUI: Adicionei 'group-data-[collapsible=icon]:hidden' 
+      <SidebarProvider className="!h-screen !max-h-screen !overflow-hidden bg-sidebar">
+        <Sidebar variant="inset" collapsible="icon">        {/* ALTERAÇÃO AQUI: Adicionei 'group-data-[collapsible=icon]:hidden' 
             Isso remove o Header inteiro (e a logo) quando a sidebar fecha. */}
         <SidebarHeader className="group-data-[collapsible=icon]:hidden">
           <div className="flex items-center gap-2 px-2 py-2">
@@ -45,7 +43,8 @@ export default function AtendenteLayout({ children }: { children: React.ReactNod
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="bg-gray-50 flex flex-col h-screen overflow-hidden">
+      {/* Área de Conteúdo Principal - com margem para mostrar fundo verde */}
+      <SidebarInset className="bg-gray-50 flex flex-col h-[calc(100vh-16px)] overflow-hidden my-2 mr-2 rounded-xl shadow-sm">
         <TopBar />
         
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
