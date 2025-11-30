@@ -9,7 +9,7 @@ import {
   SidebarInset,
   SidebarRail 
 } from "@/components/ui/sidebar";
-import { Command } from "lucide-react";
+import Image from 'next/image';
 
 import MedicoSidebarButtons from "@/components/Sidebars/MedicoSidebarButtons";
 import TopBar from '@/components/Sidebars/TopBarDashboard'; 
@@ -24,13 +24,31 @@ export default function MedicoLayout({ children }: { children: React.ReactNode }
           
           {/* Header da Sidebar: Identidade Visual Azul para Médico */}
           <SidebarHeader className="group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center gap-2 px-2 py-2">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Command className="size-4" />
+            <div className="flex flex-col items-center justify-center gap-3 px-4 py-6">
+              <div className="flex gap-4 items-center justify-center">
+                <div className="relative flex aspect-square size-20 items-center justify-center rounded-full overflow-hidden bg-white shadow-md border-2 border-green-100">
+                  <Image
+                    src="/unipet.png"
+                    alt="Logo UNIPET"
+                    width={80}
+                    height={80}
+                    className="object-contain p-2"
+                    priority
+                  />
+                </div>
+                <div className="flex justify-center">
+                  <div className="relative w-full aspect-square bg-white rounded-full p-3 shadow-sm size-20">
+                    <Image
+                      src="/hospital.png"
+                      alt="UFRPE - Departamento de Medicina Veterinária"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-bold text-gray-900">Sistema Veterinário</span>
-                <span className="truncate text-xs font-medium text-gray-700">Área Médica</span>
+              <div className="text-center">
+                <span className="block text-sm font-bold text-white">Área Médica</span>
               </div>
             </div>
           </SidebarHeader>
@@ -40,13 +58,22 @@ export default function MedicoLayout({ children }: { children: React.ReactNode }
             <MedicoSidebarButtons />
           </SidebarContent>
 
-          {/* Rodapé (Opcional) */}
-          <SidebarFooter>
-             <div className="px-4 py-2 text-xs text-gray-400 text-center opacity-50 hover:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden">
-               v1.0.0
-             </div>
+          {/* Footer com Logos Governamentais */}
+          <SidebarFooter className="border-t border-green-700/30 py-4 px-3 group-data-[collapsible=icon]:hidden">
+            <div className="space-y-4">
+              {/* Logo Governo de Pernambuco */}
+              <div className="flex justify-center">
+                <div className="relative w-full h-14 bg-white rounded-lg p-2.5 shadow-sm">
+                  <Image
+                    src="/semas.png"
+                    alt="Governo de Pernambuco"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            </div>
           </SidebarFooter>
-          
           <SidebarRail />
         </Sidebar>
 

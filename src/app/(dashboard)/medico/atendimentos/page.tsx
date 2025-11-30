@@ -33,7 +33,10 @@ export default function PaginaAtendimentosMedico() {
   // Convert backend appointment to UI format
   const convertToAtendimentoUI = (appointment: Appointment): AtendimentoMedicoUI => {
     const startDate = new Date(appointment.startTime);
-    const statusMap: Record<AppointmentStatus, string> = {
+    
+    // Tipo explícito para garantir que os valores são compatíveis com AtendimentoMedicoUI['status']
+    type UIStatus = AtendimentoMedicoUI['status'];
+    const statusMap: Record<AppointmentStatus, UIStatus> = {
       [AppointmentStatus.scheduled]: 'Agendado',
       [AppointmentStatus.confirmed]: 'Confirmado',
       [AppointmentStatus.completed]: 'Realizado',
@@ -58,7 +61,7 @@ export default function PaginaAtendimentosMedico() {
       time: startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       type: type,
       veterinarian: 'Você',
-      status: statusMap[appointment.status] || 'Agendado',
+      status: statusMap[appointment.status] ?? 'Agendado',
       animalId: appointment.animal?.id,
       ownerName: appointment.petOwner?.user?.completeName || 'Desconhecido'
     };

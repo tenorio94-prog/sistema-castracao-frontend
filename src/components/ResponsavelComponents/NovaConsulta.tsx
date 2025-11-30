@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarCheck, ChevronDown, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { PetOwnerService } from '@/services/petowner.service';
 import { SPECIES_LABELS } from '@/services/animal.service';
 
@@ -65,6 +67,52 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
 
   const [animais, setAnimais] = useState<any[]>([]);
   const [loadingAnimais, setLoadingAnimais] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Save and restore focus
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      // Focus first input after modal opens
+      setTimeout(() => {
+        const firstSelect = modalRef.current?.querySelector('select');
+        firstSelect?.focus();
+      }, 100);
+    } else {
+      previousActiveElement.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Handle ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Prevent body scroll
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
+  // Backdrop click handler
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  }, [onClose]);
 
   // Carregar animais quando o modal abrir
   useEffect(() => {
@@ -87,8 +135,9 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
       setLoadingAnimais(true);
       const data = await PetOwnerService.getMyPets();
       setAnimais(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar animais:', error);
+      toast.error('Erro ao carregar animais', { description: 'Tente novamente.' });
       setAnimais([]);
     } finally {
       setLoadingAnimais(false);
@@ -97,10 +146,29 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validações com feedback específico
+    if (!formData.animal) {
+      toast.warning('Selecione um animal', { description: 'Escolha o pet para a consulta.' });
+      return;
+    }
+    if (!formData.tipo) {
+      toast.warning('Selecione o tipo', { description: 'Informe o tipo de consulta.' });
+      return;
+    }
+    if (!formData.data) {
+      toast.warning('Informe a data', { description: 'Selecione a data desejada.' });
+      return;
+    }
+    if (!formData.horario) {
+      toast.warning('Informe o horário', { description: 'Escolha um horário disponível.' });
+      return;
+    }
+    
     onSave(formData);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   // Transformar animais para options do select
   const animalOptions = animais.map((animal: any) => ({
@@ -108,10 +176,18 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
     label: `${animal.name || 'Sem nome'} (${animal.species ? SPECIES_LABELS[animal.species as keyof typeof SPECIES_LABELS] : 'N/A'})`
   }));
 
-  return (
-    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex justify-center items-center z-9999 p-4"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="p-8 pb-4">
@@ -232,4 +308,6 @@ export default function NovaConsultaModal({ isOpen, onClose, onSave, animais: an
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

@@ -50,7 +50,16 @@ export default function MeusAnimaisPage() {
       setPets(petsUI);
     } catch (error: any) {
       console.error('Erro ao carregar animais:', error);
-      toast.error(error.message || 'Erro ao carregar animais');
+      
+      if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+        toast.error('Sessão expirada', { 
+          description: 'Faça login novamente para continuar.' 
+        });
+      } else {
+        toast.error('Erro ao carregar animais', { 
+          description: error.message || 'Tente novamente mais tarde.' 
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -68,26 +77,33 @@ export default function MeusAnimaisPage() {
   };
 
   const handleSaveEdit = async (data: { id: string, weight: string, age: string }) => {
-    try {
-      await AnimalService.update(parseInt(data.id), {
+    const pet = pets.find(p => p.id === data.id);
+    
+    toast.promise(
+      AnimalService.update(parseInt(data.id), {
         sizeWeight: data.weight,
         estimatedAge: data.age
-      });
-      
-      toast.success('Dados do animal atualizados!');
-      setIsEditOpen(false);
-      await fetchData();
-    } catch (error: any) {
-      console.error('Erro ao atualizar animal:', error);
-      
-      // Backend pode retornar 403 se o PetOwner não tiver permissão
-      if (error.response?.status === 403) {
-        toast.error('Você não tem permissão para editar este animal. Entre em contato com a administração.');
-      } else {
-        const errorMsg = error.response?.data?.message || 'Erro ao atualizar animal';
-        toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
+      }),
+      {
+        loading: 'Salvando alterações...',
+        success: () => {
+          setIsEditOpen(false);
+          fetchData();
+          return `Dados de ${pet?.name || 'animal'} atualizados!`;
+        },
+        error: (err) => {
+          console.error('Erro ao atualizar animal:', err);
+          
+          // Backend pode retornar 403 se o PetOwner não tiver permissão
+          if (err.response?.status === 403) {
+            return 'Sem permissão para editar este animal';
+          }
+          
+          const errorMsg = err.response?.data?.message;
+          return Array.isArray(errorMsg) ? errorMsg[0] : (errorMsg || 'Erro ao atualizar dados');
+        }
       }
-    }
+    );
   };
 
   const filteredPets = pets.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));

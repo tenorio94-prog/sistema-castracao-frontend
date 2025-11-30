@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { User, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AuthService } from '@/services/auth.service';
-import { Role } from '@/types/auth.types'; // Certifique-se que este import existe, ou use strings diretas
+import { Role } from '@/types/auth.types';
 
 export default function TopBar() {
   const router = useRouter();
@@ -49,10 +50,20 @@ export default function TopBar() {
   };
 
   const handleSair = () => {
-    if (window.confirm('Tem certeza que deseja sair do sistema?')) {
-      AuthService.logout();
-      router.push('/login'); // Garante que vá para a rota correta de login
-    }
+    toast('Tem certeza que deseja sair do sistema?', {
+      action: {
+        label: 'Sair',
+        onClick: () => {
+          AuthService.logout();
+          router.push('/login');
+          toast.success('Logout realizado com sucesso!');
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   return (

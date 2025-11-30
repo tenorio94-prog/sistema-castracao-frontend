@@ -217,12 +217,28 @@ export default function AgendamentosSection() {
   };
 
   const handleDelete = async () => {
-    if (selectedAgendamento?.backendId && window.confirm('Cancelar?')) {
-      await AppointmentService.delete(selectedAgendamento.backendId);
-      toast.success('Cancelado.');
-      fetchAgendamentos();
-      setIsModalDetalhesOpen(false);
-    }
+    if (!selectedAgendamento?.backendId) return;
+    
+    toast('Cancelar este agendamento?', {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Cancelar Agendamento',
+        onClick: async () => {
+          try {
+            await AppointmentService.delete(selectedAgendamento.backendId!);
+            toast.success('Cancelado.');
+            fetchAgendamentos();
+            setIsModalDetalhesOpen(false);
+          } catch (error) {
+            toast.error('Erro ao cancelar agendamento.');
+          }
+        },
+      },
+      cancel: {
+        label: 'Manter',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCheckIn = async () => {

@@ -28,14 +28,16 @@ export default function AtendimentoCard({ atendimento, onVerProntuario, onPreenc
   const { petName, species, date, time, type, veterinarian, status } = atendimento;
 
   // Cores de status padronizadas
-  const statusColors = {
+  const statusColors: Record<AtendimentoMedicoUI['status'], string> = {
     'Agendado': 'bg-blue-50 text-blue-700 border-blue-100',
+    'Confirmado': 'bg-indigo-50 text-indigo-700 border-indigo-100',
     'Em Andamento': 'bg-amber-50 text-amber-700 border-amber-100',
     'Realizado': 'bg-green-50 text-green-700 border-green-100',
     'Cancelado': 'bg-red-50 text-red-700 border-red-100',
+    'Ausente': 'bg-gray-50 text-gray-700 border-gray-200',
   };
 
-  const currentStatusColor = statusColors[status] || statusColors['Agendado'];
+  const currentStatusColor = statusColors[status];
 
   return (
     <div className="group bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-gray-300 transition-all duration-200 flex flex-col md:flex-row gap-6 relative overflow-hidden">

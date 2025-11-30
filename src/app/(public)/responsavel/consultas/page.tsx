@@ -62,7 +62,14 @@ export default function ConsultasPage() {
       setConsultas(consultasUI);
     } catch (error: any) {
       console.error('Erro ao carregar consultas:', error);
-      toast.error(error.message || 'Erro ao carregar consultas');
+      
+      if (error.message?.includes('401')) {
+        toast.error('Sessão expirada', { description: 'Faça login novamente.' });
+      } else {
+        toast.error('Erro ao carregar consultas', { 
+          description: error.message || 'Tente novamente mais tarde.' 
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -101,48 +108,59 @@ export default function ConsultasPage() {
   };
 
   const handleSaveConsulta = async (data: any) => {
-    try {
-      const animal = animals.find(a => a.id === parseInt(data.animal));
-      if (!animal) {
-        toast.error('Animal não encontrado');
-        return;
-      }
+    // Validações
+    const animal = animals.find(a => a.id === parseInt(data.animal));
+    if (!animal) {
+      toast.error('Animal não selecionado', { description: 'Selecione um animal para continuar.' });
+      return;
+    }
 
-      if (!profile?.id) {
-        toast.error('Erro ao identificar responsável. Faça login novamente.');
-        return;
-      }
+    if (!data.tipo) {
+      toast.error('Tipo obrigatório', { description: 'Selecione o tipo de consulta.' });
+      return;
+    }
 
-      const startDate = new Date(data.data + 'T' + data.horario);
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    if (!data.data || !data.horario) {
+      toast.error('Data e horário obrigatórios', { description: 'Preencha todos os campos.' });
+      return;
+    }
 
-      if (isNaN(startDate.getTime())) {
-        toast.error('Data ou horário inválido');
-        return;
-      }
+    if (!profile?.id) {
+      toast.error('Sessão inválida', { description: 'Faça login novamente.' });
+      return;
+    }
 
-      if (startDate < new Date()) {
-        toast.error('Não é possível agendar consultas no passado');
-        return;
-      }
+    const startDate = new Date(data.data + 'T' + data.horario);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-      // Mapear tipo para ServiceType do backend
-      let serviceType: ServiceType;
-      
-      switch (data.tipo) {
-        case 'Castração':
-          serviceType = ServiceType.castrationSurgery;
-          break;
-        case 'Consulta de Retorno':
-        case 'Pós-Operatório':
-          serviceType = ServiceType.postOperative;
-          break;
-        default:
-          serviceType = ServiceType.triage;
-          break;
-      }
+    if (isNaN(startDate.getTime())) {
+      toast.error('Data inválida', { description: 'Verifique a data informada.' });
+      return;
+    }
 
-      await AppointmentService.create({
+    if (startDate < new Date()) {
+      toast.error('Data no passado', { description: 'Selecione uma data futura.' });
+      return;
+    }
+
+    // Mapear tipo para ServiceType do backend
+    let serviceType: ServiceType;
+    
+    switch (data.tipo) {
+      case 'Castração':
+        serviceType = ServiceType.castrationSurgery;
+        break;
+      case 'Consulta de Retorno':
+      case 'Pós-Operatório':
+        serviceType = ServiceType.postOperative;
+        break;
+      default:
+        serviceType = ServiceType.triage;
+        break;
+    }
+
+    toast.promise(
+      AppointmentService.create({
         animalId: animal.id,
         petOwnerId: profile.id,
         startTime: startDate.toISOString(),
@@ -150,27 +168,24 @@ export default function ConsultasPage() {
         serviceType: serviceType,
         status: AppointmentStatus.scheduled,
         notes: data.observacoes || ''
-      });
-
-      toast.success('Agendamento criado com sucesso!');
-      setIsNewConsultModalOpen(false);
-      await fetchData();
-    } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
-      
-      let errorMessage = 'Erro ao agendar consulta';
-      
-      if (error.response?.data) {
-        const apiError = error.response.data;
-        if (Array.isArray(apiError.message)) {
-          errorMessage = apiError.message.join(', ');
-        } else if (typeof apiError.message === 'string') {
-          errorMessage = apiError.message;
+      }),
+      {
+        loading: 'Criando agendamento...',
+        success: () => {
+          setIsNewConsultModalOpen(false);
+          fetchData();
+          return `Consulta para ${animal.name} agendada com sucesso!`;
+        },
+        error: (err) => {
+          console.error('Erro ao criar agendamento:', err);
+          const apiError = err.response?.data;
+          if (Array.isArray(apiError?.message)) {
+            return apiError.message[0];
+          }
+          return apiError?.message || 'Erro ao agendar consulta';
         }
       }
-      
-      toast.error(errorMessage);
-    }
+    );
   };
 
   const filteredConsultas = consultas.filter(c => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Stethoscope, ArrowRight, Syringe, Scissors, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ViewModal from '@/components/modals/ViewModal';

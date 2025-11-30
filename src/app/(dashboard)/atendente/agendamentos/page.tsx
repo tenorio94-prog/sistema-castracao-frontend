@@ -143,15 +143,27 @@ export default function PaginaAgendamentos() {
   const handleCancelAgendamento = async () => {
     const id = selectedAgendamento?.backendId;
     if (!id) return;
-    if (!window.confirm(`Deletar agendamento de ${selectedAgendamento?.petName}?`)) return;
-    try {
-      await AppointmentService.delete(id);
-      toast.success('Agendamento deletado.');
-      await fetchAgendamentos();
-      handleCloseDetalhes();
-    } catch (error) {
-      toast.error('Erro ao deletar agendamento.');
-    }
+    
+    toast(`Deletar agendamento de ${selectedAgendamento?.petName}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            await AppointmentService.delete(id);
+            toast.success('Agendamento deletado.');
+            await fetchAgendamentos();
+            handleCloseDetalhes();
+          } catch (error) {
+            toast.error('Erro ao deletar agendamento.');
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleNovoAgendamento = () => {

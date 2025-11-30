@@ -201,17 +201,28 @@ export default function PaginaGestaoUsuarios() {
   };
 
   const handleDelete = async (usuario: UsuarioUI) => {
-    if (!window.confirm(`Deletar usuário ${usuario.email}?`)) return;
-    try {
-      setLoadingTable(true); 
-      await UserService.delete(Number(usuario.id));
-      await loadUsuarios();
-      toast.success('Usuário deletado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao deletar'); 
-    } finally { 
-      setLoadingTable(false); 
-    }
+    toast(`Deletar usuário ${usuario.email}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoadingTable(true); 
+            await UserService.delete(Number(usuario.id));
+            await loadUsuarios();
+            toast.success('Usuário deletado com sucesso!');
+          } catch (err: any) { 
+            toast.error(err.message || 'Erro ao deletar'); 
+          } finally { 
+            setLoadingTable(false); 
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {

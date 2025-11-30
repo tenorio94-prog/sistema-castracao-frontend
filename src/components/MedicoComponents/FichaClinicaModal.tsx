@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Printer, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClinicalRecordService, ClinicalRecordType, CreateClinicalRecordData } from '@/services/medical-record.service';
@@ -46,7 +47,7 @@ const LinedTextArea = ({ label, rows = 5, name, onChange }: any) => (
     >
       <textarea 
         name={name}
-        className="w-full h-full bg-transparent border-none focus:ring-0 text-sm leading-[24px] px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
+        className="w-full h-full bg-transparent border-none focus:ring-0 text-sm leading-6 px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
         rows={rows}
         onChange={onChange}
       />
@@ -72,6 +73,51 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
   const [formData, setFormData] = useState({
     observations: '',
   });
+  const [isMounted, setIsMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Save and restore focus when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      modalRef.current?.focus();
+    } else {
+      previousActiveElement.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const handleBackdropClick = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen && animalId) {
@@ -131,7 +177,7 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
     }
   }, [isOpen, animalId, patientName]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   const handleSave = async () => {
     if (!medicalRecordId || !animalId) {
@@ -188,9 +234,16 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      ref={modalRef}
+      tabIndex={-1}
+    >
+      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header Modal */}
         <div className="px-6 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
@@ -247,8 +300,8 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
               {/* Anamnese */}
               <div className="mt-4">
                 <label className="block text-[10px] font-bold text-gray-800 uppercase mb-1">ANAMNESE (História atual, tratamento prévio, antecedentes)</label>
-                <div className="w-full h-40 border border-gray-300 bg-[linear-gradient(transparent_23px,#e5e7eb_24px)] bg-[length:100%_24px]">
-                   <textarea className="w-full h-full bg-transparent border-none outline-none resize-none text-sm leading-[24px] px-2 text-blue-900"></textarea>
+                <div className="w-full h-40 border border-gray-300 bg-[linear-gradient(transparent_23px,#e5e7eb_24px)] bg-size-[100%_24px]">
+                   <textarea className="w-full h-full bg-transparent border-none outline-none resize-none text-sm leading-6 px-2 text-blue-900"></textarea>
                 </div>
               </div>
 
@@ -263,7 +316,7 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
             <div>
                <div className="text-center mb-6 relative">
                  <span className="bg-white px-4 relative z-10 text-lg font-bold uppercase text-gray-900">Exame Clínico</span>
-                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-900 -z-0"></div>
+                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-900 z-0"></div>
                </div>
                
                {/* Parâmetros */}
@@ -325,4 +378,6 @@ export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerN
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

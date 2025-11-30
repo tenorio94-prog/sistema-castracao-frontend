@@ -2,7 +2,8 @@
 "use client";
 
 import { X } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 type Props = {
   isOpen: boolean;
@@ -12,18 +13,69 @@ type Props = {
 };
 
 export default function ViewModal({ isOpen, onClose, title, children }: Props) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+
+  // Salva o elemento focado antes de abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement;
+    } else {
+      // Restaura o foco ao fechar
+      (previousActiveElement.current as HTMLElement)?.focus?.();
+    }
+  }, [isOpen]);
+
+  // Fecha com ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Impede scroll do body quando modal está aberto
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Handler para clique no backdrop
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
   if (!isOpen) {
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 flex flex-col max-h-[90vh]">
-        
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-center items-center z-9999 p-4"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Cabeçalho */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h2>
+          <h2 id="modal-title" className="text-xl font-bold text-gray-900 tracking-tight">{title}</h2>
           <button 
             onClick={onClose} 
             className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
@@ -49,4 +101,11 @@ export default function ViewModal({ isOpen, onClose, title, children }: Props) {
       </div>
     </div>
   );
+
+  // Renderiza no portal para evitar conflitos de z-index
+  if (typeof window !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }

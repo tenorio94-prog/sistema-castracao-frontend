@@ -6,7 +6,8 @@ import {
   AlertTriangle, 
   Siren, 
   ArrowRightLeft 
-} from "lucide-react"; 
+} from "lucide-react";
+import { toast } from 'sonner';
 
 import CrudHeader from '@/components/CRUD/CrudHeader';
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
@@ -118,7 +119,7 @@ export default function PaginaEstoque() {
       })
     );
     setIsMovimentacaoModalOpen(false);
-    alert('Movimentação registrada com sucesso!');
+    toast.success('Movimentação registrada com sucesso!');
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
@@ -134,7 +135,7 @@ export default function PaginaEstoque() {
       })
     );
     setIsEditModalOpen(false); setSelectedItem(null);
-    alert('Item atualizado com sucesso!');
+    toast.success('Item atualizado com sucesso!');
   };
 
   // --- COLUNAS DA TABELA ---

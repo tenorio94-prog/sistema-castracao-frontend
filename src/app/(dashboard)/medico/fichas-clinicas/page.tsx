@@ -115,7 +115,7 @@ export default function FichasClinicasPage() {
         ))}
       </div>
 
-      <FichaClinicaModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} patientName="Selecione..." ownerName="" />
+      <FichaClinicaModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} patientName="Selecione..." ownerName="" animalId={null} />
       <VisualizarProntuarioModal isOpen={isViewOpen} onClose={() => setIsViewOpen(false)} data={selectedFicha} type="Clinica" />
 
     </div>

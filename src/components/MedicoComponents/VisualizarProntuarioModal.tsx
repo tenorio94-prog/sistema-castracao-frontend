@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, FileText, Microscope, FileSignature } from 'lucide-react';
 
 export type DocumentType = 'Clinica' | 'Cirurgica' | 'Anestesica' | 'Exame';
@@ -117,11 +118,64 @@ const FichaExameView = ({ data }: any) => <div className="p-4">Ficha Exame View 
 
 
 export default function VisualizarProntuarioModal({ isOpen, onClose, data, type }: Props) {
-  if (!isOpen || !data) return null;
+  const [isMounted, setIsMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
-  return (
-    <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex justify-center items-center z-[60] p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-4xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Save and restore focus when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      modalRef.current?.focus();
+    } else {
+      previousActiveElement.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const handleBackdropClick = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  if (!isOpen || !data || !isMounted) return null;
+
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      ref={modalRef}
+      tabIndex={-1}
+    >
+      <div className="bg-white w-full max-w-4xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         <div className="px-6 py-3 bg-gray-900 text-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
@@ -149,4 +203,6 @@ export default function VisualizarProntuarioModal({ isOpen, onClose, data, type 
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

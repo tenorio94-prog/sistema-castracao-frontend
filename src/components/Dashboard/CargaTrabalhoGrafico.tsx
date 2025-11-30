@@ -10,6 +10,7 @@ import {
   Legend, 
   CartesianGrid 
 } from 'recharts';
+import { BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
 
 // Dados padrão caso não sejam fornecidos
 const defaultData = [
@@ -30,9 +31,44 @@ type CargaTrabalhoChartProps = {
 };
 
 export default function CargaTrabalhoChart({ data = defaultData }: CargaTrabalhoChartProps) {
+  // Verificar se há dados válidos para exibir
+  const hasValidData = data && data.length > 0 && data.some(item => item.Consultas > 0 || item.Cirurgias > 0);
+
+  // Estado vazio quando não há dados
+  if (!hasValidData) {
+    return (
+      <div className="w-full h-full min-h-[300px] flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 mb-4">
+            <BarChart3 className="w-8 h-8 text-indigo-400" />
+          </div>
+          
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
+            Nenhum Dado Disponível
+          </h3>
+          
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            Os dados de produtividade serão exibidos automaticamente após o cadastro de veterinários e o registro de atendimentos no sistema.
+          </p>
+          
+          <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-4 text-left">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-blue-900 mb-1">
+                Como funciona?
+              </p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                Este gráfico compara consultas e cirurgias realizadas por cada veterinário. Cadastre profissionais e registre atendimentos para visualizar as estatísticas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Gráfico normal quando há dados
   return (
-    // Removemos o container com bg-white e shadow daqui.
-    // O gráfico agora ocupa 100% do espaço que o pai der a ele.
     <div className="w-full h-full min-h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart

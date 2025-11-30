@@ -90,7 +90,22 @@ export default function ResponsavelDashboardPage() {
       setAppointments(appointmentsUI);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
-      toast.error(error.message || 'Erro ao carregar informações');
+      
+      // Tratamento específico de erros
+      if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+        toast.error('Sessão expirada', { 
+          description: 'Faça login novamente para continuar.',
+          duration: 5000
+        });
+      } else if (error.message?.includes('Network') || error.message?.includes('rede')) {
+        toast.error('Erro de conexão', { 
+          description: 'Verifique sua internet e tente novamente.' 
+        });
+      } else {
+        toast.error('Erro ao carregar dados', { 
+          description: error.message || 'Tente novamente mais tarde.' 
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -129,57 +144,75 @@ export default function ResponsavelDashboardPage() {
   };
 
   const handleSaveConsulta = async (data: any) => {
-    try {
-      // Validação: Animal selecionado existe
-      const animal = animals.find(a => a.id === parseInt(data.animal));
-      if (!animal) {
-        toast.error('Animal não encontrado. Selecione um animal válido.');
-        return;
-      }
+    // Validações com toasts específicos
+    const animal = animals.find(a => a.id === parseInt(data.animal));
+    if (!animal) {
+      toast.error('Animal não selecionado', { 
+        description: 'Por favor, selecione um animal para continuar.' 
+      });
+      return;
+    }
 
-      // Validação: Profile existe (petOwnerId)
-      if (!profile?.id) {
-        toast.error('Erro ao identificar responsável. Faça login novamente.');
-        return;
-      }
+    if (!data.tipo) {
+      toast.error('Tipo de consulta obrigatório', { 
+        description: 'Selecione o tipo de consulta desejada.' 
+      });
+      return;
+    }
 
-      // Criar datas
-      const startDate = new Date(data.data + 'T' + data.horario);
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    if (!data.data || !data.horario) {
+      toast.error('Data e horário obrigatórios', { 
+        description: 'Preencha a data e o horário da consulta.' 
+      });
+      return;
+    }
 
-      // Validação: Data válida
-      if (isNaN(startDate.getTime())) {
-        toast.error('Data ou horário inválido');
-        return;
-      }
+    if (!profile?.id) {
+      toast.error('Sessão inválida', { 
+        description: 'Faça login novamente para continuar.' 
+      });
+      return;
+    }
 
-      // Validação: Não permitir agendamento no passado
-      if (startDate < new Date()) {
-        toast.error('Não é possível agendar consultas no passado');
-        return;
-      }
+    // Criar datas
+    const startDate = new Date(data.data + 'T' + data.horario);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-      // Mapear tipo de consulta para ServiceType do backend
-      // Backend aceita: 'triage', 'castrationSurgery', 'postOperative'
-      let serviceType: ServiceType;
-      
-      switch (data.tipo) {
-        case 'Castração':
-          serviceType = ServiceType.castrationSurgery;
-          break;
-        case 'Consulta de Retorno':
-        case 'Pós-Operatório':
-          serviceType = ServiceType.postOperative;
-          break;
-        case 'Primeira Consulta':
-        case 'Triagem':
-        default:
-          serviceType = ServiceType.triage;
-          break;
-      }
+    if (isNaN(startDate.getTime())) {
+      toast.error('Data inválida', { 
+        description: 'Verifique a data e horário informados.' 
+      });
+      return;
+    }
 
-      // Criar agendamento
-      await AppointmentService.create({
+    if (startDate < new Date()) {
+      toast.error('Data no passado', { 
+        description: 'Selecione uma data futura para o agendamento.' 
+      });
+      return;
+    }
+
+    // Mapear tipo de consulta para ServiceType do backend
+    let serviceType: ServiceType;
+    
+    switch (data.tipo) {
+      case 'Castração':
+        serviceType = ServiceType.castrationSurgery;
+        break;
+      case 'Consulta de Retorno':
+      case 'Pós-Operatório':
+        serviceType = ServiceType.postOperative;
+        break;
+      case 'Primeira Consulta':
+      case 'Triagem':
+      default:
+        serviceType = ServiceType.triage;
+        break;
+    }
+
+    // Usar toast.promise para feedback visual de loading
+    toast.promise(
+      AppointmentService.create({
         animalId: animal.id,
         petOwnerId: profile.id,
         startTime: startDate.toISOString(),
@@ -187,35 +220,30 @@ export default function ResponsavelDashboardPage() {
         serviceType: serviceType,
         status: AppointmentStatus.scheduled,
         notes: data.observacoes || ''
-      });
-
-      toast.success('Agendamento criado com sucesso!');
-      setIsNewConsultModalOpen(false);
-      await fetchData();
-      
-    } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
-      
-      // Tratamento robusto de erros do NestJS
-      let errorMessage = 'Erro ao agendar consulta';
-      
-      if (error.response?.data) {
-        const apiError = error.response.data;
-        
-        // NestJS retorna arrays de erros de validação (class-validator)
-        if (Array.isArray(apiError.message)) {
-          errorMessage = apiError.message.join(', ');
-        } else if (typeof apiError.message === 'string') {
-          errorMessage = apiError.message;
-        } else if (apiError.error) {
-          errorMessage = apiError.error;
+      }),
+      {
+        loading: 'Criando agendamento...',
+        success: () => {
+          setIsNewConsultModalOpen(false);
+          fetchData();
+          return `Agendamento para ${animal.name} criado com sucesso!`;
+        },
+        error: (err) => {
+          console.error('Erro ao criar agendamento:', err);
+          
+          // Tratamento robusto de erros do NestJS
+          if (err.response?.data) {
+            const apiError = err.response.data;
+            if (Array.isArray(apiError.message)) {
+              return apiError.message[0];
+            } else if (typeof apiError.message === 'string') {
+              return apiError.message;
+            }
+          }
+          return err.message || 'Erro ao criar agendamento. Tente novamente.';
         }
-      } else if (error.message) {
-        errorMessage = error.message;
       }
-      
-      toast.error(errorMessage);
-    }
+    );
   };
 
   const mockNotifications = [
@@ -255,7 +283,13 @@ export default function ResponsavelDashboardPage() {
         <button 
           onClick={() => {
             if (animals.length === 0) {
-              toast.error('Você precisa cadastrar um animal antes de agendar consultas');
+              toast.warning('Nenhum animal cadastrado', {
+                description: 'Cadastre um animal antes de agendar consultas.',
+                action: {
+                  label: 'Meus Animais',
+                  onClick: () => router.push('/responsavel/animais')
+                }
+              });
               return;
             }
             setIsNewConsultModalOpen(true);

@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { Eye, EyeOff, Copy, RefreshCw, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  hidePasswordGenerators?: boolean; // Nova prop para esconder botões de gerar/copiar
+  hidePasswordGenerators?: boolean;
 };
 
-const FormInput: React.FC<FormInputProps> = (props) => {
-  const { label, type, value, onChange, placeholder, hidePasswordGenerators, ...rest } = props;
+const FormInput = forwardRef<HTMLInputElement, FormInputProps>((props, ref) => {
+  const { label, type, value, onChange, placeholder, hidePasswordGenerators, className, ...rest } = props;
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -55,17 +55,18 @@ const FormInput: React.FC<FormInputProps> = (props) => {
       <div className="relative w-full">
         <input
           {...rest}
+          ref={ref}
           id={props.id || props.name}
           type={isPassword ? (showPassword ? 'text' : 'password') : type}
           value={value ?? ''}
           onChange={onChange}
           placeholder={finalPlaceholder}
-          // Ajusta o padding dependendo se mostra os botões extras ou só o olho
           className={`w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 
             focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm
             disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
             ${props.disabled ? 'bg-gray-50' : ''}
             ${isPassword ? (hidePasswordGenerators ? 'pr-10' : 'pr-28') : ''} 
+            ${className || ''}
           `}
         />
         
@@ -110,6 +111,8 @@ const FormInput: React.FC<FormInputProps> = (props) => {
       </div>
     </div>
   );
-};
+});
+
+FormInput.displayName = 'FormInput';
 
 export default FormInput;

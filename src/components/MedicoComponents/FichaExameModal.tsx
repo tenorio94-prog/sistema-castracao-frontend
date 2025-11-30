@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Printer, Microscope, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,7 +37,7 @@ const LinedTextArea = ({ label, rows = 10 }: any) => (
       }}
     >
       <textarea 
-        className="w-full bg-transparent border-none focus:ring-0 text-sm leading-[24px] px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
+        className="w-full bg-transparent border-none focus:ring-0 text-sm leading-6 px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
         rows={rows}
       />
     </div>
@@ -44,16 +45,69 @@ const LinedTextArea = ({ label, rows = 10 }: any) => (
 );
 
 export default function FichaExameModal({ isOpen, onClose, patientName, ownerName }: Props) {
-  if (!isOpen) return null;
+  const [isMounted, setIsMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Save and restore focus when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      modalRef.current?.focus();
+    } else {
+      previousActiveElement.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const handleBackdropClick = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  if (!isOpen || !isMounted) return null;
 
   const handleSave = () => {
     toast.success("Ficha de exame salva com sucesso!");
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      ref={modalRef}
+      tabIndex={-1}
+    >
+      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="px-6 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
@@ -138,4 +192,6 @@ export default function FichaExameModal({ isOpen, onClose, patientName, ownerNam
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
