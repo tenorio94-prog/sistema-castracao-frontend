@@ -1,62 +1,100 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dog, 
   Stethoscope, 
   CheckCircle, 
   Clock, 
   Activity,
-  Play
+  Play,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import CardBaseDash from '@/components/Dashboard/CardBaseDash';
 import ViewModal from '@/components/modals/ViewModal';
-// Importando o card padronizado e os tipos
 import AgendamentoCard, { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
-
-// --- Mocks Adaptados para a Interface Agendamento ---
-const mockAppointments: Agendamento[] = [
-  {
-    id: 1,
-    petName: 'Luna',
-    status: 'Pendente', // Usando status que o componente reconhece para colorir
-    data: '2025-11-20',
-    hora: '09:00',
-    tipo: 'Cirurgia - Castração',
-    observacoes: 'Jejum de 12h realizado. Animal calmo.',
-    pet: { id: 101, name: 'Luna', species: 'Gato', breed: 'Siamês', gender: 'Fêmea', weight: '4kg', age: '2 anos', ownerName: 'Ana' },
-    responsavel: { id: 'r1', tipo: 'PF', nome: 'Ana Souza', animais: ['Luna'], senha: '123', telefone: '(81) 98888-1111', email: 'ana@gmail.com' }
-  },
-  {
-    id: 2,
-    petName: 'Thor',
-    status: 'Pendente', 
-    data: '2025-11-20',
-    hora: '09:30',
-    tipo: 'Consulta de Rotina',
-    observacoes: 'Vacinação anual e check-up geral.',
-    pet: { id: 102, name: 'Thor', species: 'Cachorro', breed: 'Golden', gender: 'Macho', weight: '28kg', age: '4 anos', ownerName: 'Carlos' },
-    responsavel: { id: 'r2', tipo: 'PF', nome: 'Carlos Silva', animais: ['Thor'], senha: '123', telefone: '(81) 97777-2222', email: 'carlos@gmail.com' }
-  },
-  {
-    id: 3,
-    petName: 'Simba',
-    status: 'Concluído', 
-    data: '2025-11-20',
-    hora: '10:00',
-    tipo: 'Retorno Pós-Cirúrgico',
-    observacoes: 'Revisão de pontos da cirurgia ortopédica.',
-    pet: { id: 103, name: 'Simba', species: 'Gato', breed: 'Persa', gender: 'Macho', weight: '5kg', age: '5 anos', ownerName: 'Mariana' },
-    responsavel: { id: 'r3', tipo: 'PF', nome: 'Mariana X.', animais: ['Simba'], senha: '123', telefone: '(81) 96666-3333', email: 'mariana@gmail.com' }
-  },
-];
+import { AppointmentService, Appointment, AppointmentStatus, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
+import { SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 export default function MedicoDashboardPage() {
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(mockAppointments);
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Convert backend appointment to UI Agendamento format
+  const convertToAgendamento = (appointment: Appointment): Agendamento => {
+    const startDate = new Date(appointment.startTime);
+    const statusMap: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.scheduled]: 'Pendente',
+      [AppointmentStatus.confirmed]: 'Confirmado',
+      [AppointmentStatus.completed]: 'Concluído',
+      [AppointmentStatus.canceled]: 'Cancelado',
+      [AppointmentStatus.absent]: 'Ausente',
+    };
+
+    return {
+      id: appointment.id,
+      petName: appointment.animal?.name || 'Animal sem nome',
+      status: statusMap[appointment.status] || 'Pendente',
+      data: startDate.toISOString().split('T')[0],
+      hora: startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      tipo: appointment.serviceType ? SERVICE_TYPE_LABELS[appointment.serviceType] : 'Não especificado',
+      observacoes: appointment.notes || 'Sem observações',
+      pet: {
+        id: appointment.animal?.id || 0,
+        name: appointment.animal?.name || 'Sem nome',
+        species: appointment.animal ? SPECIES_LABELS[appointment.animal.species as keyof typeof SPECIES_LABELS] : 'Desconhecido',
+        breed: appointment.animal?.breed || 'SRD',
+        gender: appointment.animal ? GENDER_LABELS[appointment.animal.gender as keyof typeof GENDER_LABELS] : 'Desconhecido',
+        weight: '0kg',
+        age: '0 anos',
+        ownerName: appointment.petOwner?.user?.completeName || 'Desconhecido'
+      },
+      responsavel: {
+        id: appointment.petOwner?.id.toString() || '0',
+        tipo: 'PF',
+        nome: appointment.petOwner?.user?.completeName || 'Desconhecido',
+        animais: [appointment.animal?.name || 'Sem nome'],
+        senha: '',
+        telefone: appointment.petOwner?.user?.phone || 'Sem telefone',
+        email: appointment.petOwner?.user?.email || 'Sem email'
+      }
+    };
+  };
+
+  // Fetch appointments
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        const data = await AppointmentService.getAll();
+        
+        // Filter today's appointments
+        const today = new Date().toISOString().split('T')[0];
+        const todayAppointments = data.filter(apt => {
+          const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
+          return aptDate === today;
+        });
+        
+        const converted = todayAppointments.map(convertToAgendamento);
+        setAgendamentos(converted);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching appointments:', err);
+        setError(err.message || 'Erro ao carregar agendamentos');
+        toast.error('Erro ao carregar agendamentos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAppointments();
+  }, []);
 
   // --- Handlers ---
   const handleVerDetalhes = (agendamento: Agendamento) => {
@@ -70,9 +108,21 @@ export default function MedicoDashboardPage() {
   };
 
   const handleIniciarAtendimento = () => {
-    alert(`Iniciando atendimento de ${selectedAgendamento?.petName}... Redirecionando para prontuário.`);
+    toast.success(`Iniciando atendimento de ${selectedAgendamento?.petName}...`);
+    // TODO: Navigate to prontuário page
     handleCloseDetalhes();
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto" />
+          <p className="text-gray-500">Carregando agendamentos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -87,22 +137,22 @@ export default function MedicoDashboardPage() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <CardBaseDash
           title="Pacientes Hoje"
-          value={mockAppointments.length} 
+          value={agendamentos.length} 
           subtitle="Agendados na sua fila"
           icon={Dog} 
           color="blue"
-          trend="Agenda cheia"
+          trend={agendamentos.length > 0 ? "Agenda ativa" : "Sem agendamentos"}
         />
         <CardBaseDash
           title="Cirurgias"
-          value={mockAppointments.filter(a => a.tipo.includes('Cirurgia')).length}
+          value={agendamentos.filter(a => a.tipo.includes('Cirurgia')).length}
           subtitle="Procedimentos cirúrgicos"
           icon={Stethoscope}
           color="purple"
         />
         <CardBaseDash
           title="Realizados"
-          value={mockAppointments.filter(a => a.status === 'Concluído').length} 
+          value={agendamentos.filter(a => a.status === 'Concluído').length} 
           subtitle="Atendimentos concluídos"
           icon={CheckCircle}
           color="green"
@@ -119,14 +169,21 @@ export default function MedicoDashboardPage() {
         </div>
 
         <div className="space-y-3">
-          {agendamentos.map((appt) => (
-            // Usando o AgendamentoCard padronizado
-            <AgendamentoCard
-              key={appt.id}
-              agendamento={appt}
-              onVerDetalhes={handleVerDetalhes}
-            />
-          ))}
+          {agendamentos.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+              <Clock className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-400 font-medium">Nenhum agendamento para hoje</p>
+              <p className="text-sm text-gray-400 mt-1">Os próximos atendimentos aparecerão aqui</p>
+            </div>
+          ) : (
+            agendamentos.map((appt) => (
+              <AgendamentoCard
+                key={appt.id}
+                agendamento={appt}
+                onVerDetalhes={handleVerDetalhes}
+              />
+            ))
+          )}
         </div>
       </section>
 

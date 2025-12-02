@@ -250,21 +250,31 @@ export default function PaginaGestaoAnimais() {
   };
 
   const handleDelete = async (animal: AnimalUI) => {
-    if (!window.confirm(`Tem certeza que deseja deletar o animal "${animal.nome}"?`)) return;
-    
-    try {
-      setLoadingTable(true);
-      await AnimalService.delete(Number(animal.id));
-      
-      // Remove apenas o animal deletado da lista local
-      setAnimais(prev => prev.filter(a => a.id !== animal.id));
-      
-      toast.success('Animal deletado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao deletar'); 
-    } finally { 
-      setLoadingTable(false); 
-    }
+    toast(`Tem certeza que deseja deletar o animal "${animal.nome}"?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoadingTable(true);
+            await AnimalService.delete(Number(animal.id));
+            
+            // Remove apenas o animal deletado da lista local
+            setAnimais(prev => prev.filter(a => a.id !== animal.id));
+            
+            toast.success('Animal deletado com sucesso!');
+          } catch (err: any) { 
+            toast.error(err.message || 'Erro ao deletar'); 
+          } finally { 
+            setLoadingTable(false); 
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {

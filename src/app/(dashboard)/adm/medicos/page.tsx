@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Stethoscope, Syringe, Activity } from 'lucide-react'; // Ícones para filtros
+import { Stethoscope, Syringe, Activity } from 'lucide-react';
+import { toast } from 'sonner';
 
 import CrudDisplay, { ColumnDefinition } from '@/components/CRUD/CrudDisplayAdm';
 import CrudHeader from '@/components/CRUD/CrudHeader';
@@ -111,10 +112,29 @@ export default function PaginaMedicos() {
   };
 
   const handleDelete = async (medico: MedicoUI) => {
-    if (!window.confirm(`Deletar ${medico.nome}?`)) return;
-    try {
-      setLoading(true); await VeterinarianService.delete(medico.userId); await loadMedicos();
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+    // Usando toast para confirmação com ação
+    toast(`Deseja deletar ${medico.nome}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoading(true);
+            await VeterinarianService.delete(medico.userId);
+            await loadMedicos();
+            toast.success('Médico deletado com sucesso!');
+          } catch (err: any) {
+            toast.error(err.message || 'Erro ao deletar médico');
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleOpenCreate = () => { setCreateFormData(emptyForm); setIsCreateModalOpen(true); };
@@ -126,19 +146,19 @@ export default function PaginaMedicos() {
       
       // Validações
       if (!validateCPF(createFormData.cpf)) { 
-        alert('CPF inválido'); 
+        toast.error('CPF inválido'); 
         setLoading(false); 
         return; 
       }
       
       if (!createFormData.senha || createFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
+        toast.error('A senha deve ter pelo menos 6 caracteres');
         setLoading(false);
         return;
       }
       
       if (!createFormData.crmv || createFormData.crmv.trim() === '') {
-        alert('CRMV é obrigatório para médicos veterinários');
+        toast.error('CRMV é obrigatório para médicos veterinários');
         setLoading(false);
         return;
       }
@@ -159,9 +179,9 @@ export default function PaginaMedicos() {
       await loadMedicos(); 
       setIsCreateModalOpen(false); 
       setCreateFormData(emptyForm);
-      alert('Médico cadastrado com sucesso!');
+      toast.success('Médico cadastrado com sucesso!');
     } catch (err: any) { 
-      alert(err.message); 
+      toast.error(err.message || 'Erro ao cadastrar médico'); 
     } finally { 
       setLoading(false); 
     }
@@ -176,13 +196,13 @@ export default function PaginaMedicos() {
       
       // Validações
       if (editFormData.cpf && !validateCPF(editFormData.cpf)) {
-        alert('CPF inválido');
+        toast.error('CPF inválido');
         setLoading(false);
         return;
       }
       
       if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
-        alert('A senha deve ter pelo menos 6 caracteres');
+        toast.error('A senha deve ter pelo menos 6 caracteres');
         setLoading(false);
         return;
       }
@@ -219,9 +239,9 @@ export default function PaginaMedicos() {
       await loadMedicos(); 
       setIsEditModalOpen(false); 
       setSelectedMedico(null);
-      alert('Médico atualizado com sucesso!');
+      toast.success('Médico atualizado com sucesso!');
     } catch (err: any) { 
-      alert(err.message); 
+      toast.error(err.message || 'Erro ao atualizar médico'); 
     } finally { 
       setLoading(false); 
     }
@@ -266,8 +286,9 @@ export default function PaginaMedicos() {
 
       {error && <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">{error}</div>}
       
+      {/* CORREÇÃO AQUI: Trocado 'data={medicos}' por 'data={filteredMedicos}' */}
       <CrudDisplay<MedicoUI>
-        data={medicos}
+        data={filteredMedicos}
         columns={columns}
         searchPlaceholder="Buscar por nome, CRMV ou especialidade..."
         emptyMessage="Nenhum médico encontrado com os filtros atuais."

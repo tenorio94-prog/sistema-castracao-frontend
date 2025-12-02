@@ -38,37 +38,52 @@ export default function ResponsavelProfilePage() {
       setProfileData(formattedData);
     } catch (error: any) {
       console.error('Erro ao carregar perfil:', error);
-      toast.error(error.message || 'Erro ao carregar perfil');
+      
+      if (error.message?.includes('401')) {
+        toast.error('Sessão expirada', { 
+          description: 'Faça login novamente para continuar.' 
+        });
+      } else {
+        toast.error('Erro ao carregar perfil', { 
+          description: error.message || 'Tente novamente mais tarde.' 
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async (data: ProfileData) => {
-    try {
-      const fullAddress = data.address ? 
-        `${data.address.street}${data.address.number ? ', ' + data.address.number : ''}${data.address.district ? ' - ' + data.address.district : ''}, ${data.address.city || ''} - ${data.address.state || ''}`.trim() 
-        : '';
-      
-      const updateData: any = {
-        completeName: data.name,
-        email: data.email,
-        phone: data.phone,
-        fullAddress: fullAddress
-      };
-      
-      if ((data as any).password) {
-        updateData.password = (data as any).password;
-      }
-      
-      await PetOwnerService.updateMe(updateData);
-      
-      toast.success('Perfil atualizado com sucesso!');
-      fetchProfile();
-    } catch (error: any) {
-      console.error('Erro ao atualizar perfil:', error);
-      toast.error(error.response?.data?.message || 'Erro ao atualizar perfil');
+    const fullAddress = data.address ? 
+      `${data.address.street}${data.address.number ? ', ' + data.address.number : ''}${data.address.district ? ' - ' + data.address.district : ''}, ${data.address.city || ''} - ${data.address.state || ''}`.trim() 
+      : '';
+    
+    const updateData: any = {
+      completeName: data.name,
+      email: data.email,
+      phone: data.phone,
+      fullAddress: fullAddress
+    };
+    
+    if ((data as any).password) {
+      updateData.password = (data as any).password;
     }
+    
+    toast.promise(
+      PetOwnerService.updateMe(updateData),
+      {
+        loading: 'Salvando alterações...',
+        success: () => {
+          fetchProfile();
+          return 'Perfil atualizado com sucesso!';
+        },
+        error: (err) => {
+          console.error('Erro ao atualizar perfil:', err);
+          const message = err.response?.data?.message;
+          return Array.isArray(message) ? message[0] : (message || 'Erro ao atualizar perfil');
+        }
+      }
+    );
   };
 
   if (loading) {

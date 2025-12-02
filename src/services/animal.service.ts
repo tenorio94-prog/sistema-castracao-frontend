@@ -85,7 +85,15 @@ export const AnimalService = {
       return response.data;
     } catch (error: any) {
       console.error('Error fetching animal:', error);
-      throw new Error(error.response?.data?.message || 'Erro ao buscar animal');
+      const statusCode = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      
+      // Tratamento específico para erro 403
+      if (statusCode === 403) {
+        throw new Error('Acesso negado: permissão insuficiente');
+      }
+      
+      throw new Error(message || 'Erro ao buscar animal');
     }
   },
 

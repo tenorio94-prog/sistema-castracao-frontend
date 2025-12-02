@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 type PetData = {
   id: string;
@@ -67,6 +69,13 @@ const NumberInput = ({ label, value, onChange }: { label: string, value: number,
 export default function EditarPetModal({ isOpen, onClose, pet, onSave }: Props) {
   const [weight, setWeight] = useState<number>(0);
   const [age, setAge] = useState<number>(0);
+  const [isMounted, setIsMounted] = useState(false);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   useEffect(() => {
     if (pet) {
@@ -75,19 +84,58 @@ export default function EditarPetModal({ isOpen, onClose, pet, onSave }: Props) 
     }
   }, [pet, isOpen]);
 
-  if (!isOpen || !pet) return null;
+  // Gerenciamento de foco e ESC
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      document.body.style.overflow = 'hidden';
+      
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      document.addEventListener('keydown', handleEsc);
+      
+      return () => {
+        document.removeEventListener('keydown', handleEsc);
+        document.body.style.overflow = '';
+        previousActiveElement.current?.focus();
+      };
+    }
+  }, [isOpen, onClose]);
+
+  if (!isMounted || !isOpen || !pet) return null;
 
   const handleSave = () => {
+    // Validações
+    if (weight <= 0) {
+      toast.error('Peso inválido', {
+        description: 'O peso deve ser maior que zero.'
+      });
+      return;
+    }
+    
+    if (age < 0) {
+      toast.error('Idade inválida', {
+        description: 'A idade não pode ser negativa.'
+      });
+      return;
+    }
+
     onSave({
       id: pet.id,
       weight: `${weight}kg`,
       age: `${age} anos`
     });
+    
+    toast.success('Dados atualizados!', {
+      description: `As informações de ${pet.name} foram salvas.`
+    });
+    
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex justify-center items-center z-[70] p-4 animate-in fade-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in zoom-in-95 duration-200">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
         
         {/* Header */}
@@ -134,4 +182,6 @@ export default function EditarPetModal({ isOpen, onClose, pet, onSave }: Props) 
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

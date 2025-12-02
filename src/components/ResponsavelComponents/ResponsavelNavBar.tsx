@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { 
   Menu, X, LayoutDashboard, Dog, Calendar, 
-  User, PawPrint, Bell, LogOut, Info, AlertTriangle, CheckCircle 
+  User, Bell, LogOut, Info, AlertTriangle, CheckCircle 
 } from 'lucide-react';
 import ViewModal from '@/components/modals/ViewModal';
 
@@ -38,9 +40,26 @@ export default function ResponsibleNavBar() {
   };
 
   const handleLogout = () => {
-    if (confirm('Deseja realmente sair?')) {
-      router.push('/'); // Ou sua lógica de logout
-    }
+    toast('Deseja realmente sair?', {
+      action: {
+        label: 'Sair',
+        onClick: () => {
+          // Limpar autenticação
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Redirecionar para login
+          router.push('/login');
+          
+          // Toast de sucesso
+          toast.success('Logout realizado com sucesso!');
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   return (
@@ -58,13 +77,38 @@ export default function ResponsibleNavBar() {
                 <Menu size={24} />
               </button>
               
-              <div className="flex items-center gap-2">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-green-600 text-white">
-                  <PawPrint size={18} />
+              <div className="flex items-center gap-4">
+                <div className="relative flex aspect-square items-center justify-center rounded-full overflow-hidden bg-white shadow-sm border-2 border-green-100">
+                  <Image
+                    src="/unipet.png"
+                    alt="Logo UNIPET"
+                    width={50}
+                    height={50}
+                    className="object-contain p-1"
+                    priority
+                  />
                 </div>
-                <span className="font-bold text-gray-900 text-lg tracking-tight hidden sm:block">
-                  VetCare <span className="text-green-600 font-normal text-sm">Tutor</span>
-                </span>
+                <div className="relative flex aspect-square items-center justify-center rounded-full overflow-hidden bg-white shadow-sm border-2 border-green-100">
+                  <Image
+                      src="/hospital.png"
+                      alt="UFRPE - Departamento de Medicina Veterinária"
+                      width={50}
+                      height={50}
+                      className="object-contain"
+                      priority
+                    />
+                </div>
+                <div className="flex justify-center">
+                  <div className="relative w-full h-14 bg-white rounded-lg p-2.5 shadow-sm">
+                    <Image
+                      src="/semas.png"
+                      alt="Governo de Pernambuco"
+                      width={120}
+                      height={40}
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -105,7 +149,17 @@ export default function ResponsibleNavBar() {
                 className="h-9 w-9 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-sm border border-green-200 hover:bg-green-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 title="Meu Perfil"
               >
-                AP
+                <User size={20} />
+              </button>
+
+              {/* Botão de Logout */}
+              <button 
+                onClick={handleLogout}
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                title="Sair"
+              >
+                <LogOut size={18} />
+                <span>Sair</span>
               </button>
             </div>
           </div>

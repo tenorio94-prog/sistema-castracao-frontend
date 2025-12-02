@@ -1,102 +1,119 @@
 "use client";
 
-import React from "react";
-import { Calendar, Clock, ChevronLeft } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarCheck, Save, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from 'sonner';
+import PageHeader from '@/components/AtendenteComponents/PageHeader';
+import FormInput from '@/components/forms/FormInput';
 
 export default function NovoAgendamentoPage() {
   const router = useRouter();
+  const [formData, setFormData] = useState({
+    animal: '',
+    tipo: '',
+    data: '',
+    hora: '',
+    observacoes: ''
+  });
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast.success('Agendamento realizado com sucesso!');
+    setTimeout(() => router.back(), 1000);
+  };
 
   return (
-    <>
-      {/* Botão Voltar */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center text-green-700 hover:underline mb-6 font-medium"
-      >
-        <ChevronLeft className="mr-1 w-4 h-4" />
-        Voltar
-      </button>
+    <div className="max-w-3xl mx-auto space-y-8 pb-12">
+      
+      {/* Header com Voltar */}
+      <div>
+        <button 
+          onClick={() => router.back()} 
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-4 transition-colors"
+        >
+          <ArrowLeft size={16} /> Voltar
+        </button>
+        <PageHeader 
+          title="Novo Agendamento"
+          description="Preencha os dados para agendar um procedimento ou consulta."
+        />
+      </div>
 
-      {/* Título */}
-      <h1 className="text-3xl font-bold text-green-700">Novo Agendamento</h1>
-      <p className="text-gray-600 mt-1 mb-8">
-        Agende uma consulta, cirurgia ou retorno para um paciente.
-      </p>
-
-      {/* FORMULÁRIO (como no dashboard, sem centralizar) */}
-      <form className="space-y-6 max-w-4xl">
+      {/* Formulário Card */}
+      <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm space-y-6">
         
-        {/* Animal */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Animal *
-          </label>
-          <select className="border border-gray-300 rounded-md p-3 w-full">
-            <option>Selecione o animal</option>
-          </select>
+        <FormInput 
+          label="Nome do Animal"
+          name="animal"
+          value={formData.animal}
+          onChange={(e) => setFormData({...formData, animal: e.target.value})}
+          placeholder="Buscar paciente..."
+          required
+        />
+
+        <div className="space-y-1.5">
+           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Tipo de Procedimento</label>
+           <select 
+             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+             value={formData.tipo}
+             onChange={(e) => setFormData({...formData, tipo: e.target.value})}
+             required
+           >
+             <option value="">Selecione...</option>
+             <option value="Consulta">Consulta Clínica</option>
+             <option value="Cirurgia">Cirurgia</option>
+             <option value="Retorno">Retorno</option>
+           </select>
         </div>
 
-        {/* Tipo */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Tipo de Atendimento *
-          </label>
-          <select className="border border-gray-300 rounded-md p-3 w-full">
-            <option>Selecione o tipo</option>
-          </select>
+        <div className="grid grid-cols-2 gap-6">
+          <FormInput 
+            label="Data"
+            type="date"
+            name="data"
+            value={formData.data}
+            onChange={(e) => setFormData({...formData, data: e.target.value})}
+            required
+          />
+          <FormInput 
+            label="Horário"
+            type="time"
+            name="hora"
+            value={formData.hora}
+            onChange={(e) => setFormData({...formData, hora: e.target.value})}
+            required
+          />
         </div>
 
-        {/* Data + Hora */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Data *
-            </label>
-            <div className="flex items-center px-3 border border-gray-300 rounded-md">
-              <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-              <input type="date" className="py-2.5 bg-transparent w-full" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Horário *
-            </label>
-            <div className="flex items-center px-3 border border-gray-300 rounded-md">
-              <Clock className="w-4 h-4 text-gray-400 mr-2" />
-              <input type="time" className="py-2.5 bg-transparent w-full" />
-            </div>
-          </div>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Observações Clínicas</label>
+          <textarea 
+            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900 min-h-[120px] resize-none placeholder-gray-400"
+            placeholder="Descreva o motivo do agendamento ou observações preliminares..."
+            value={formData.observacoes}
+            onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+          />
         </div>
 
-        {/* Observações */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Observações
-          </label>
-          <textarea
-            rows={4}
-            className="border border-gray-300 rounded-md p-3 w-full"
-            placeholder="Informações adicionais"
-          ></textarea>
-        </div>
-
-        {/* Botões */}
-        <div className="flex justify-end gap-3 pt-4">
+        <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
           <button
             type="button"
             onClick={() => router.back()}
-            className="border border-gray-300 px-6 py-2.5 rounded-md"
+            className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-colors"
           >
             Cancelar
           </button>
-
-          <button className="bg-green-700 text-white px-6 py-2.5 rounded-md">
-            Criar Agendamento
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-8 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 active:scale-95"
+          >
+            <CalendarCheck size={18} />
+            Confirmar Agendamento
           </button>
         </div>
+
       </form>
-    </>
+    </div>
   );
 }

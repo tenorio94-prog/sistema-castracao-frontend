@@ -107,7 +107,6 @@
   --chart-5: oklch(0.645 0.246 16.439);
 
   /* --- INÍCIO DA MODIFICAÇÃO (DARK) --- */
-  /* (Vamos manter o verde, como discutido) */
   --sidebar: theme(colors.green.700);
   --sidebar-foreground: theme(colors.white);
   --sidebar-primary: theme(colors.green.800);
@@ -123,7 +122,33 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  /* CORREÇÃO DO SCROLL - Área de dashboard fixa na viewport */
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+  
   body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
     @apply bg-background text-foreground;
+  }
+
+  /* Previne scroll horizontal em todos os elementos */
+  * {
+    max-width: 100%;
+  }
+
+  /* --- CORREÇÃO DO AUTOFILL (FUNDO AMARELO) --- */
+  /* Isso força o fundo a ficar branco mesmo quando o navegador preenche os dados */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active{
+      -webkit-box-shadow: 0 0 0 30px white inset !important;
+      -webkit-text-fill-color: #111827 !important; /* Cor do texto (Gray-900) */
+      transition: background-color 5000s ease-in-out 0s;
   }
 }

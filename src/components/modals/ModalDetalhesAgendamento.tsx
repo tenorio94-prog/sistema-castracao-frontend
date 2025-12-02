@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, User, Stethoscope, FileText, CheckCircle2, Ban } from 'lucide-react';
 import { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
 
@@ -21,11 +22,62 @@ export default function ModalDetalhesAgendamento({
   onCancelAgendamento,
   children
 }: ModalDetalhesProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+
+  // Salva o elemento focado antes de abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement;
+    } else {
+      (previousActiveElement.current as HTMLElement)?.focus?.();
+    }
+  }, [isOpen]);
+
+  // Fecha com ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Impede scroll do body quando modal está aberto
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Handler para clique no backdrop
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
   if (!isOpen || !agendamento) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Cabeçalho */}
         <div className="bg-blue-600 p-6 relative">
@@ -130,4 +182,11 @@ export default function ModalDetalhesAgendamento({
       </div>
     </div>
   );
+
+  // Renderiza no portal para evitar conflitos de z-index
+  if (typeof window !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }

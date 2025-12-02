@@ -135,16 +135,27 @@ export default function PaginaGestaoResponsaveis() {
   };
 
   const handleDelete = async (responsavel: ResponsavelAdmUI) => {
-    if (!window.confirm(`Deletar ${responsavel.nome}?`)) return;
-    try {
-      setLoadingTable(true); // Aqui queremos bloquear a tabela pois ela vai mudar
-      await PetOwnerService.delete(Number(responsavel.id));
-      await loadResponsaveis(); // Já gerencia o loadingTable internamente, mas ok manter
-      toast.success('Responsável deletado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message); 
-      setLoadingTable(false);
-    }
+    toast(`Deletar ${responsavel.nome}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoadingTable(true);
+            await PetOwnerService.delete(Number(responsavel.id));
+            await loadResponsaveis();
+            toast.success('Responsável deletado com sucesso!');
+          } catch (err: any) { 
+            toast.error(err.message); 
+            setLoadingTable(false);
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {

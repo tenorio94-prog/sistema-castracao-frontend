@@ -106,17 +106,28 @@ export default function PaginaAtendentes() {
   };
 
   const handleDelete = async (item: AtendenteUI) => {
-    if (!window.confirm(`Deletar atendente ${item.nome}?`)) return;
-    try {
-      setLoading(true); 
-      await UserService.delete(item.userId); 
-      await loadAtendentes();
-      toast.success('Atendente deletado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao deletar'); 
-    } finally { 
-      setLoading(false); 
-    }
+    toast(`Deletar atendente ${item.nome}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoading(true); 
+            await UserService.delete(item.userId); 
+            await loadAtendentes();
+            toast.success('Atendente deletado com sucesso!');
+          } catch (err: any) { 
+            toast.error(err.message || 'Erro ao deletar'); 
+          } finally { 
+            setLoading(false); 
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {

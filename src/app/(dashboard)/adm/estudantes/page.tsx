@@ -121,20 +121,31 @@ export default function PaginaEstudantes() {
   };
 
   const handleDelete = async (item: EstudanteUI) => {
-    if (!window.confirm(`Deletar estudante ${item.nome}?`)) return;
-    try {
-      setLoading(true); 
-      await StudentService.delete(item.userId); 
-      
-      // Remove apenas o estudante deletado da lista (sem recarregar)
-      setEstudantes(prev => prev.filter(est => est.userId !== item.userId));
-      
-      toast.success('Estudante deletado com sucesso!');
-    } catch (err: any) { 
-      toast.error(err.message || 'Erro ao deletar'); 
-    } finally { 
-      setLoading(false); 
-    }
+    toast(`Deletar estudante ${item.nome}?`, {
+      description: 'Esta ação não pode ser desfeita.',
+      action: {
+        label: 'Deletar',
+        onClick: async () => {
+          try {
+            setLoading(true); 
+            await StudentService.delete(item.userId); 
+            
+            // Remove apenas o estudante deletado da lista (sem recarregar)
+            setEstudantes(prev => prev.filter(est => est.userId !== item.userId));
+            
+            toast.success('Estudante deletado com sucesso!');
+          } catch (err: any) { 
+            toast.error(err.message || 'Erro ao deletar'); 
+          } finally { 
+            setLoading(false); 
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   const handleCreateSave = async (e: React.FormEvent) => {

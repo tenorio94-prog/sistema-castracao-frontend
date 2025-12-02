@@ -71,7 +71,7 @@ export default function MedicoSidebarButtons() {
       active: normalizedPath.startsWith("/medico/fichas-anestesicas")
     },
     { 
-      href: "/medico/exames", 
+      href: "/medico/fichas-de-exames", 
       icon: FlaskConical, 
       label: "Exames",
       active: normalizedPath.startsWith("/medico/exames")

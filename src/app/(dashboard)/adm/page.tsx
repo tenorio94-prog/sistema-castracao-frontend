@@ -7,10 +7,11 @@ import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import CargaTrabalhoChart from "@/components/Dashboard/CargaTrabalhoGrafico";
 import { Calendar, Dog, Users, Activity, Stethoscope, Loader2 } from "lucide-react";
 
-import { AppointmentService, AppointmentStatus, ServiceType } from '@/services/appointment.service';
-import { AnimalService } from '@/services/animal.service';
+import { AppointmentService, Appointment, AppointmentStatus, ServiceType } from '@/services/appointment.service';
+import { AnimalService, Animal } from '@/services/animal.service';
 import { PetOwnerService } from '@/services/petowner.service';
-import { VeterinarianService } from '@/services/veterinarian.service';
+import { VeterinarianService, Veterinarian } from '@/services/veterinarian.service';
+import { ClinicalRecordService, ClinicalRecord, ClinicalRecordType } from '@/services/medical-record.service';
 
 // --- TIPOS ---
 type DashboardStats = {
@@ -20,6 +21,7 @@ type DashboardStats = {
   totalTutores: number;
   totalCirurgiasAno: number;
   cirurgiasConcluidasMes: number;
+  totalAnimais: number;
 };
 
 type VetChartData = {
@@ -36,6 +38,7 @@ export default function AdminPage() {
     totalTutores: 0,
     totalCirurgiasAno: 0,
     cirurgiasConcluidasMes: 0,
+    totalAnimais: 0,
   });
   
   const [chartData, setChartData] = useState<VetChartData[]>([]);
@@ -56,22 +59,35 @@ export default function AdminPage() {
         VeterinarianService.getAll(),
       ]);
 
-      console.log('🐾 Animais recebidos:', animais);
-      console.log('📅 Primeiro animal createdAt:', animais[0]?.createdAt);
+      // Tentar buscar clinical records (pode falhar se endpoint não existir)
+      let clinicalRecords: ClinicalRecord[] = [];
+      try {
+        clinicalRecords = await ClinicalRecordService.getAll();
+      } catch (err) {
+        console.warn('⚠️ Não foi possível buscar clinical records:', err);
+      }
+
+      console.log('📊 Dados recebidos:', {
+        agendamentos: agendamentos.length,
+        animais: animais.length,
+        tutores: tutores.length,
+        veterinarios: veterinarios.length,
+        clinicalRecords: clinicalRecords.length
+      });
 
       // --- CALCULAR MÉTRICAS ---
       
-      // Data atual (UTC para comparação correta)
+      // Data atual
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
       const amanha = new Date(hoje);
       amanha.setDate(amanha.getDate() + 1);
 
-      // Primeiro dia do mês atual (UTC)
+      // Primeiro dia do mês atual
       const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
       inicioMes.setHours(0, 0, 0, 0);
       
-      // Primeiro dia do ano atual (UTC)
+      // Primeiro dia do ano atual
       const inicioAno = new Date(hoje.getFullYear(), 0, 1);
       inicioAno.setHours(0, 0, 0, 0);
 
@@ -91,7 +107,7 @@ export default function AdminPage() {
                dataAgendamento >= inicioMes;
       }).length;
 
-      // 3. Cirurgias CONCLUÍDAS do mês (para validação)
+      // 3. Cirurgias CONCLUÍDAS do mês
       const cirurgiasConcluidasMes = agendamentos.filter(apt => {
         const dataAgendamento = new Date(apt.startTime);
         return apt.serviceType === ServiceType.castrationSurgery &&
@@ -100,67 +116,110 @@ export default function AdminPage() {
       }).length;
 
       // 4. Novos animais cadastrados no MÊS
-      const novosAnimaisMes = animais.filter(animal => {
-        if (!animal.createdAt) return false;
+      // Verificar se o animal tem createdAt, updatedAt ou usar fallback
+      const novosAnimaisMes = animais.filter((animal: Animal) => {
+        // Tentar usar createdAt primeiro
+        const dataCadastroStr = animal.createdAt || animal.updatedAt;
         
-        // Parse da data do backend (pode vir como ISO string)
-        const dataCadastro = new Date(animal.createdAt);
+        if (!dataCadastroStr) {
+          // Se não tem data, assume que foi criado recentemente (fallback)
+          return false;
+        }
         
-        // Log para debug
-        if (animais.indexOf(animal) === 0) {
-          console.log('📅 Debug data cadastro:', {
-            raw: animal.createdAt,
-            parsed: dataCadastro,
-            inicioMes,
-            isAfter: dataCadastro >= inicioMes
-          });
+        const dataCadastro = new Date(dataCadastroStr);
+        
+        // Verificar se a data é válida
+        if (isNaN(dataCadastro.getTime())) {
+          console.warn('⚠️ Data inválida para animal:', animal.id, dataCadastroStr);
+          return false;
         }
         
         return dataCadastro >= inicioMes;
       }).length;
-      
-      console.log('📊 Novos animais no mês:', novosAnimaisMes, 'de', animais.length, 'total');
 
       // 5. Total de tutores cadastrados
       const totalTutores = tutores.length;
+      
+      // 6. Total de animais cadastrados
+      const totalAnimais = animais.length;
 
-      // 6. Total de cirurgias do ANO
+      // 7. Total de cirurgias do ANO
       const totalCirurgiasAno = agendamentos.filter(apt => {
         const dataAgendamento = new Date(apt.startTime);
         return apt.serviceType === ServiceType.castrationSurgery &&
                dataAgendamento >= inicioAno;
       }).length;
 
-      // 7. Dados do gráfico de veterinários
+      // 8. Dados do gráfico de veterinários
+      // Usar clinical records se disponível, senão estimar pelos agendamentos
       const chartDataCalculado: VetChartData[] = veterinarios
-        .filter(vet => vet.active && vet.user?.completeName)
-        .slice(0, 6) // Limitar a 6 veterinários para não poluir o gráfico
-        .map(vet => {
-          // Contar agendamentos de consulta deste veterinário
-          const consultas = agendamentos.filter(apt => 
-            apt.serviceType === ServiceType.triage || 
-            apt.serviceType === ServiceType.postOperative
+        .filter((vet: Veterinarian) => vet.active && vet.user?.completeName)
+        .slice(0, 6) // Limitar a 6 veterinários
+        .map((vet: Veterinarian) => {
+          // Contar registros clínicos deste veterinário
+          const registrosDoVet = clinicalRecords.filter(
+            (cr: ClinicalRecord) => cr.veterinarianId === vet.id
+          );
+          
+          // Separar por tipo
+          const consultas = registrosDoVet.filter(
+            (cr: ClinicalRecord) => cr.type === ClinicalRecordType.triage || cr.type === ClinicalRecordType.followUp
           ).length;
           
-          // Contar cirurgias agendadas
-          const cirurgias = agendamentos.filter(apt => 
-            apt.serviceType === ServiceType.castrationSurgery
+          const cirurgias = registrosDoVet.filter(
+            (cr: ClinicalRecord) => cr.type === ClinicalRecordType.surgery
           ).length;
           
-          // Normalizar para dividir entre os veterinários
-          const numVets = veterinarios.filter(v => v.active).length || 1;
+          // Extrair primeiro e segundo nome
+          const nomes = vet.user?.completeName.split(' ') || ['Veterinário'];
+          const nomeExibicao = nomes.length > 1 
+            ? `${nomes[0]} ${nomes[1].charAt(0)}.` 
+            : nomes[0];
           
           return {
-            name: vet.user?.completeName.split(' ')[0] + ' ' + (vet.user?.completeName.split(' ')[1] || ''),
-            Consultas: Math.round(consultas / numVets),
-            Cirurgias: Math.round(cirurgias / numVets)
+            name: nomeExibicao,
+            Consultas: consultas,
+            Cirurgias: cirurgias
           };
         });
       
-      // Se não houver veterinários, usar dados de exemplo
-      const chartDataFinal = chartDataCalculado.length > 0 ? chartDataCalculado : [
-        { name: 'Equipe', Consultas: agendamentos.filter(a => a.serviceType !== ServiceType.castrationSurgery).length, Cirurgias: cirurgiasMes }
-      ];
+      // Se não houver veterinários ou registros clínicos, criar dados de resumo
+      let chartDataFinal: VetChartData[];
+      
+      if (chartDataCalculado.length === 0) {
+        // Não há veterinários ativos - gráfico mostrará estado vazio
+        chartDataFinal = [];
+      } else if (!clinicalRecords.length) {
+        // Há veterinários mas não há registros clínicos - usar dados gerais dos agendamentos
+        const totalConsultas = agendamentos.filter(
+          (a: Appointment) => a.serviceType === ServiceType.triage || a.serviceType === ServiceType.postOperative
+        ).length;
+        
+        const totalCirurgias = agendamentos.filter(
+          (a: Appointment) => a.serviceType === ServiceType.castrationSurgery
+        ).length;
+        
+        // Só mostrar dados gerais se houver pelo menos algum atendimento
+        if (totalConsultas > 0 || totalCirurgias > 0) {
+          chartDataFinal = [{
+            name: 'Equipe Geral',
+            Consultas: totalConsultas,
+            Cirurgias: totalCirurgias
+          }];
+        } else {
+          chartDataFinal = [];
+        }
+      } else {
+        // Filtrar veterinários que têm pelo menos algum atendimento
+        chartDataFinal = chartDataCalculado.filter(
+          (v: VetChartData) => v.Consultas > 0 || v.Cirurgias > 0
+        );
+        
+        // Se todos os veterinários têm 0, mostrar estado vazio
+        if (chartDataFinal.length === 0) {
+          chartDataFinal = [];
+        }
+      }
 
       setChartData(chartDataFinal);
       setStats({
@@ -170,16 +229,17 @@ export default function AdminPage() {
         totalTutores,
         totalCirurgiasAno,
         cirurgiasConcluidasMes,
+        totalAnimais,
       });
 
-      console.log('📊 Dashboard Stats:', {
+      console.log('📊 Dashboard Stats calculadas:', {
         agendamentosHoje,
         cirurgiasMes,
         cirurgiasConcluidasMes,
         novosAnimaisMes,
         totalTutores,
+        totalAnimais,
         totalCirurgiasAno,
-        veterinarios: veterinarios.length,
         chartData: chartDataFinal
       });
 
@@ -268,9 +328,9 @@ export default function AdminPage() {
         />
 
         <CardBaseDash
-          title="Novos Animais"
-          value={stats.novosAnimaisMes}
-          subtitle={`Cadastrados em ${getMesAtual()}`}
+          title="Animais Cadastrados"
+          value={stats.totalAnimais}
+          subtitle={stats.novosAnimaisMes > 0 ? `+${stats.novosAnimaisMes} em ${getMesAtual()}` : 'Total no sistema'}
           icon={Dog}
           color="green"
         />
@@ -309,7 +369,7 @@ export default function AdminPage() {
         </div>
         
         {/* Altura fixa para o gráfico renderizar corretamente */}
-        <div className="w-full h-[350px]">
+        <div className="w-full h-[400px]">
           <CargaTrabalhoChart data={chartData} />
         </div>
       </section>  
