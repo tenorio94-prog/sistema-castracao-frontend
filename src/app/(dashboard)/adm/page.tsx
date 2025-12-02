@@ -369,7 +369,7 @@ export default function AdminPage() {
         </div>
         
         {/* Altura fixa para o gráfico renderizar corretamente */}
-        <div className="w-full h-[350px]">
+        <div className="w-full h-[400px]">
           <CargaTrabalhoChart data={chartData} />
         </div>
       </section>  

@@ -47,7 +47,7 @@ export default function AdmSidebarButtons() {
   // Grupo 3: Gestão e Sistema
   const menuGestao = [
     { href: "/adm/agendamentos", icon: CalendarDays, label: "Agendamentos", active: normalizedPath.startsWith("/adm/agendamentos") },
-    { href: "/adm/estoque", icon: Package, label: "Estoque", active: normalizedPath.startsWith("/adm/estoque") },
+    // { href: "/adm/estoque", icon: Package, label: "Estoque", active: normalizedPath.startsWith("/adm/estoque") },
     { href: "/adm/usuarios", icon: Settings, label: "Usuários", active: normalizedPath.startsWith("/adm/usuarios") },
   ];
 

@@ -82,6 +82,42 @@ export class AuthService {
   }
 
   /**
+   * Solicita recuperação de senha
+   * Envia um email com link para redefinir senha
+   * @param email - Email do usuário
+   * @returns Mensagem de confirmação
+   */
+  static async forgotPassword(email: string): Promise<{ message: string }> {
+    try {
+      console.log('📧 AuthService: Enviando requisição de forgot-password para:', email);
+      const response = await api.post<{ message: string }>('/auth/forgot-password', { email });
+      console.log('✅ AuthService: Resposta recebida:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ AuthService: Erro capturado em forgotPassword:', error);
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Redefine a senha do usuário usando o token recebido por email
+   * @param token - Token de recuperação de senha
+   * @param newPassword - Nova senha
+   * @returns Mensagem de confirmação
+   */
+  static async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    try {
+      const response = await api.post<{ message: string }>('/auth/reset-password', {
+        token,
+        newPassword,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Realiza o logout do usuário
    */
   static async logout(): Promise<void> {
@@ -200,17 +236,30 @@ export class AuthService {
     if (error instanceof AxiosError) {
       const apiError = error.response?.data as ApiError;
       
-      // Log apenas em desenvolvimento
+      // Log detalhado em desenvolvimento
       if (process.env.NODE_ENV === 'development') {
         console.error('🔴 Erro de autenticação:', {
           status: error.response?.status,
+          statusText: error.response?.statusText,
           message: apiError?.message || error.message,
+          data: error.response?.data,
+          url: error.config?.url,
+          fullError: apiError,
         });
       }
       
-      // Mensagem de erro da API
+      // Mensagem de erro da API - tentar extrair de diferentes estruturas
       if (apiError?.message) {
         throw new Error(apiError.message);
+      }
+      
+      // Tentar pegar erro de outras estruturas possíveis
+      if (typeof error.response?.data === 'string') {
+        throw new Error(error.response.data);
+      }
+      
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
       }
       
       // Erro de rede ou timeout
@@ -223,6 +272,12 @@ export class AuthService {
       }
       
       // Erros HTTP genéricos
+      if (error.response?.status === 400) {
+        // Para erro 400, tenta extrair a mensagem do backend
+        const message = apiError?.message || error.response?.data?.error || 'Requisição inválida. Verifique os dados informados.';
+        throw new Error(message);
+      }
+      
       if (error.response?.status === 401) {
         throw new Error('Email ou senha incorretos. Por favor, verifique suas credenciais.');
       }
