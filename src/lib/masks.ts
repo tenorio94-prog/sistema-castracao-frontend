@@ -15,6 +15,19 @@ export const maskCPF = (value: string): string => {
 };
 
 /**
+ * Máscara de CNPJ: 00.000.000/0001-00
+ */
+export const maskCNPJ = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  return numbers
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})/, '$1-$2');
+};
+
+/**
  * Máscara de telefone: (00) 00000-0000 ou (00) 0000-0000
  */
 export const maskPhone = (value: string): string => {
@@ -95,6 +108,40 @@ export const validateCPF = (cpf: string): boolean => {
   digit = 11 - (sum % 11);
   if (digit >= 10) digit = 0;
   if (digit !== parseInt(numbers.charAt(10))) return false;
+  
+  return true;
+};
+
+/**
+ * Valida CNPJ
+ */
+export const validateCNPJ = (cnpj: string): boolean => {
+  const numbers = unmask(cnpj);
+  
+  if (numbers.length !== 14) return false;
+  
+  // Verifica se todos os dígitos são iguais
+  if (/^(\d)\1{13}$/.test(numbers)) return false;
+  
+  // Validação do primeiro dígito verificador
+  let sum = 0;
+  let weight = 5;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(numbers.charAt(i)) * weight;
+    weight = weight === 2 ? 9 : weight - 1;
+  }
+  let digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (digit !== parseInt(numbers.charAt(12))) return false;
+  
+  // Validação do segundo dígito verificador
+  sum = 0;
+  weight = 6;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(numbers.charAt(i)) * weight;
+    weight = weight === 2 ? 9 : weight - 1;
+  }
+  digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (digit !== parseInt(numbers.charAt(13))) return false;
   
   return true;
 };

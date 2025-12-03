@@ -77,19 +77,37 @@ export class UserService {
    */
   static async updateMe(data: UpdateUserData): Promise<User> {
     try {
-      // Tentar endpoint /users/me
-      const response = await api.patch<User>(`${this.BASE_PATH}/me`, data);
+      // Primeiro, buscar dados do usuário para obter o ID
+      const currentUser = await this.getMe();
+      
+      console.log('🔄 Atualizando usuário:', {
+        userId: currentUser.id,
+        updates: Object.keys(data)
+      });
+      
+      // Filtrar apenas campos que o backend aceita
+      const allowedFields: UpdateUserData = {};
+      
+      if (data.completeName !== undefined) allowedFields.completeName = data.completeName;
+      if (data.email !== undefined) allowedFields.email = data.email;
+      if (data.phone !== undefined) allowedFields.phone = data.phone;
+      if (data.password !== undefined) allowedFields.password = data.password;
+      if (data.cpf !== undefined) allowedFields.cpf = data.cpf;
+      if (data.role !== undefined) allowedFields.role = data.role;
+      
+      // Usar endpoint /users/:id para atualização
+      const response = await api.patch<User>(`${this.BASE_PATH}/${currentUser.id}`, allowedFields);
+      
+      console.log('✅ Usuário atualizado com sucesso');
       return response.data;
     } catch (error) {
-      // Se /users/me não existir, tentar /auth/profile
-      if (error instanceof AxiosError && error.response?.status === 404) {
-        try {
-          const response = await api.patch<User>('/auth/profile', data);
-          return response.data;
-        } catch (profileError) {
-          throw this.handleError(profileError);
-        }
-      }
+      console.error('❌ Erro ao atualizar perfil:', {
+        error: error instanceof AxiosError ? {
+          status: error.response?.status,
+          message: error.response?.data?.message,
+          data: error.response?.data
+        } : error
+      });
       throw this.handleError(error);
     }
   }
@@ -158,9 +176,18 @@ export class UserService {
 
   private static handleError(error: unknown): Error {
     if (error instanceof AxiosError) {
+      const statusCode = error.response?.status;
       const apiMessage = error.response?.data?.message || error.message;
-      if (error.response?.status === 409) return new Error(`Conflito: ${apiMessage}`);
-      return new Error(apiMessage);
+      
+      // Mensagens específicas por código de erro
+      if (statusCode === 400) return new Error(`Dados inválidos: ${apiMessage}`);
+      if (statusCode === 401) return new Error('Não autorizado. Faça login novamente.');
+      if (statusCode === 403) return new Error('Acesso negado: permissão insuficiente');
+      if (statusCode === 404) return new Error('Usuário não encontrado');
+      if (statusCode === 409) return new Error(`Conflito: ${apiMessage}`);
+      if (statusCode === 500) return new Error('Erro no servidor. Tente novamente mais tarde.');
+      
+      return new Error(apiMessage || 'Erro ao processar requisição');
     }
     return new Error('Erro ao processar requisição de usuários');
   }

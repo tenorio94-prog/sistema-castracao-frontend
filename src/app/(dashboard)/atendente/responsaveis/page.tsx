@@ -1,8 +1,7 @@
-// app/atendente/responsaveis/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Mail, MapPin, Dog, Plus, Search, Users, Building2 } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Dog, Plus, Search, Users, Building2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import ResponsavelCard, { Responsavel } from '@/components/AtendenteComponents/ResponsavelCard';
@@ -12,9 +11,14 @@ import FormInput from '@/components/forms/FormInput';
 import TipoResponsavelRadio from '@/components/forms/TipoResponsavelRadio';
 import { PetOwnerService } from '@/services/petowner.service';
 import { AuthService, Role } from '@/services/auth.service';
-import { maskCPF, maskPhone, validateCPF } from '@/lib/masks';
+import { maskCPF, maskPhone, maskCNPJ, validateCPF, validatePhone, unmask } from '@/lib/masks';
 
 // --- TIPOS ---
+export enum PetOwnerType {
+  individual = 'individual',
+  ngo = 'ngo'
+}
+
 type ResponsavelForm = {
   tipo: 'PF' | 'ONG';
   nome: string;
@@ -39,7 +43,6 @@ const emptyForm: ResponsavelForm = {
   endereco: ''
 };
 
-// Sub-componente para modal
 function DetalheItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) {
   return (
     <div className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0"> 
@@ -71,114 +74,184 @@ export default function PaginaResponsaveis() {
     setLoading(true);
     try {
       const data = await PetOwnerService.getAll();
+      
       const responsaveisUI: Responsavel[] = data.map(owner => {
-        const isSemas = owner.user?.role === Role.semas;
+        const isONG = owner.type === PetOwnerType.ngo;
+        
         return {
           id: owner.id.toString(),
-          tipo: isSemas ? 'ONG' : 'PF',
+          tipo: isONG ? 'ONG' : 'PF',
           nome: owner.user?.completeName || 'N/A',
-          cpf: owner.user?.cpf || 'N/A',
+          cpf: !isONG && owner.user?.cpf ? maskCPF(owner.user.cpf) : '',
           nis: owner.nis || '',
-          cnpj: isSemas ? owner.user?.cpf : '',
-          telefone: owner.user?.phone || 'N/A',
+          cnpj: isONG && owner.user?.cnpj ? maskCNPJ(owner.user.cnpj) : '',
+          telefone: owner.user?.phone ? maskPhone(owner.user.phone) : 'N/A',
           email: owner.user?.email || 'N/A',
           endereco: owner.fullAddress || 'N/A',
-          animais: [], // backend não retorna lista de nomes de animais facilmente
+          animais: [], // Backend não retorna lista de nomes diretamente
+          quantidadeAnimais: owner._count?.animals || 0,
           senha: '',
         };
       });
+      
       setMasterResponsaveis(responsaveisUI);
       setResponsaveisFiltrados(responsaveisUI);
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao carregar responsáveis.');
+    } catch (error: any) {
+      console.error('Erro ao buscar responsáveis:', error);
+      toast.error(error.message || 'Erro ao carregar responsáveis');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchResponsaveis(); }, []);
+  useEffect(() => { 
+    fetchResponsaveis(); 
+  }, []);
 
-  // useEffect para filtragem
+  // Filtragem
   useEffect(() => {
-    setLoading(true);
-    const filtrados = masterResponsaveis.filter(r => 
-      r.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (r.cpf && r.cpf.includes(busca)) ||
-      (r.cnpj && r.cnpj.includes(busca)) ||
-      r.animais.some(pet => pet.toLowerCase().includes(busca.toLowerCase()))
-    );
+    const filtrados = masterResponsaveis.filter(r => {
+      const searchLower = busca.toLowerCase();
+      return (
+        r.nome.toLowerCase().includes(searchLower) ||
+        (r.cpf && r.cpf.includes(busca)) ||
+        (r.cnpj && r.cnpj.includes(busca)) ||
+        (r.email && r.email.toLowerCase().includes(searchLower))
+      );
+    });
     
-    // Simulando delay pequeno para UX
-    const timeout = setTimeout(() => {
-      setResponsaveisFiltrados(filtrados);
-      setLoading(false);
-    }, 300);
-    
-    return () => clearTimeout(timeout);
+    setResponsaveisFiltrados(filtrados);
   }, [busca, masterResponsaveis]); 
   
   // Handlers de Cadastro
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCreateFormData(prev => ({ ...prev, [name]: value }));
+    
+    let maskedValue = value;
+    
+    // Aplicar máscaras conforme o campo
+    if (name === 'cpf') {
+      maskedValue = maskCPF(value);
+    } else if (name === 'telefone') {
+      maskedValue = maskPhone(value);
+    } else if (name === 'cnpj') {
+      maskedValue = maskCNPJ(value);
+    }
+    
+    setCreateFormData(prev => ({ ...prev, [name]: maskedValue }));
   };
   
   const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTipo = e.target.value as 'PF' | 'ONG';
     setCreateFormData(prev => ({ 
-      ...emptyForm, 
-      tipo: newTipo, 
-      nome: prev.nome 
+      ...prev,
+      tipo: newTipo,
+      // Limpar campos específicos ao trocar tipo
+      cpf: '',
+      nis: '',
+      cnpj: ''
     }));
   };
 
-  const handleOpenCreate = () => { setCreateFormData(emptyForm); setIsCreateModalOpen(true); };
-  const handleCloseCreate = () => { setIsCreateModalOpen(false); setCreateFormData(emptyForm); };
+  const handleOpenCreate = () => { 
+    setCreateFormData(emptyForm); 
+    setIsCreateModalOpen(true); 
+  };
+  
+  const handleCloseCreate = () => { 
+    setIsCreateModalOpen(false); 
+    setCreateFormData(emptyForm); 
+  };
 
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingSubmit(true);
     
     try {
-      // Validações
-      if (!createFormData.nome || !createFormData.email || !createFormData.telefone || !createFormData.senha) {
-        toast.warning('Preencha todos os campos obrigatórios.');
-        setLoadingSubmit(false);
+      // Validações básicas
+      if (!createFormData.nome?.trim()) {
+        toast.error('Nome completo é obrigatório');
+        return;
+      }
+
+      if (!createFormData.email?.trim()) {
+        toast.error('Email é obrigatório');
+        return;
+      }
+
+      if (!createFormData.telefone?.trim()) {
+        toast.error('Telefone é obrigatório');
+        return;
+      }
+
+      if (!validatePhone(createFormData.telefone)) {
+        toast.error('Telefone inválido');
+        return;
+      }
+
+      if (!createFormData.senha || createFormData.senha.length < 6) {
+        toast.error('Senha deve ter no mínimo 6 caracteres');
         return;
       }
 
       if (!createFormData.endereco?.trim()) {
-        toast.warning('Endereço é obrigatório.');
-        setLoadingSubmit(false);
+        toast.error('Endereço é obrigatório');
         return;
       }
 
+      // Validações específicas por tipo
       if (createFormData.tipo === 'PF') {
-        if (!createFormData.cpf || !validateCPF(createFormData.cpf)) {
-          toast.warning('CPF inválido.');
-          setLoadingSubmit(false);
+        if (!createFormData.cpf?.trim()) {
+          toast.error('CPF é obrigatório para Pessoa Física');
+          return;
+        }
+        
+        if (!validateCPF(createFormData.cpf)) {
+          toast.error('CPF inválido');
+          return;
+        }
+      } else if (createFormData.tipo === 'ONG') {
+        if (!createFormData.cnpj?.trim()) {
+          toast.error('CNPJ é obrigatório para ONGs');
+          return;
+        }
+        
+        // Validação básica de CNPJ (14 dígitos)
+        if (unmask(createFormData.cnpj).length !== 14) {
+          toast.error('CNPJ deve conter 14 dígitos');
           return;
         }
       }
 
-      const role = createFormData.tipo === 'ONG' ? Role.semas : Role.petOwner;
-
-      const payload = {
-        completeName: createFormData.nome,
-        cpf: createFormData.cpf.replace(/\D/g, ''),
-        phone: createFormData.telefone.replace(/\D/g, ''),
-        email: createFormData.email,
+      // Montar payload
+      const payload: any = {
+        completeName: createFormData.nome.trim(),
+        email: createFormData.email.trim().toLowerCase(),
+        phone: unmask(createFormData.telefone),
         password: createFormData.senha,
-        role: role,
-        address: createFormData.endereco || '',
-        nis: createFormData.nis || undefined,
+        role: Role.petOwner,
+        address: createFormData.endereco.trim(),
+        petOwnerType: createFormData.tipo === 'ONG' ? PetOwnerType.ngo : PetOwnerType.individual,
       };
 
-      console.log('📤 Enviando payload:', payload);
+      if (createFormData.tipo === 'PF') {
+        payload.cpf = unmask(createFormData.cpf);
+        if (createFormData.nis?.trim()) {
+          payload.nis = createFormData.nis.trim();
+        }
+      } else {
+        payload.cnpj = unmask(createFormData.cnpj);
+      }
 
-      // Usar rota específica para recepcionistas/SEMAS cadastrarem responsáveis
-      await AuthService.registerPetOwnerByReceptionist(payload);
+      console.log('📤 Enviando cadastro:', {
+        tipo: createFormData.tipo,
+        nome: payload.completeName,
+        email: payload.email,
+        petOwnerType: payload.petOwnerType
+      });
+
+      // Chamar serviço de registro
+      await AuthService.register(payload);
 
       toast.success('Responsável cadastrado com sucesso!');
       await fetchResponsaveis();
@@ -186,25 +259,18 @@ export default function PaginaResponsaveis() {
     } catch (error: any) {
       console.error('Erro ao cadastrar responsável:', error);
       
-      if (error.response?.status === 409) {
-        const message = error.response?.data?.message;
-        if (message) {
-          toast.error(message);
-        } else {
-          toast.error('CPF ou e-mail já cadastrado no sistema.');
-        }
-      } else if (error.response?.status === 403) {
-        toast.error('Você não tem permissão para cadastrar responsáveis.');
-      } else if (error.response?.status === 400) {
-        const message = error.response?.data?.message;
-        if (Array.isArray(message)) {
-          toast.error(message.join(', '));
-        } else {
-          toast.error(message || 'Dados inválidos. Verifique os campos.');
-        }
+      const errorMessage = error.message || 'Erro ao cadastrar responsável';
+      
+      if (errorMessage.includes('CPF já cadastrado')) {
+        toast.error('CPF já cadastrado no sistema');
+      } else if (errorMessage.includes('CNPJ já cadastrado')) {
+        toast.error('CNPJ já cadastrado no sistema');
+      } else if (errorMessage.includes('Email já cadastrado')) {
+        toast.error('Email já cadastrado no sistema');
+      } else if (errorMessage.includes('inválido')) {
+        toast.error(errorMessage);
       } else {
-        const msg = error.response?.data?.message || error.message || 'Erro ao cadastrar responsável.';
-        toast.error(msg);
+        toast.error(errorMessage);
       }
     } finally {
       setLoadingSubmit(false);
@@ -229,26 +295,26 @@ export default function PaginaResponsaveis() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <PageHeader 
           title="Responsáveis e ONGs"
-          description="Gerencie o cadastro de proprietários e ONGs parceiras."
+          description="Gerencie o cadastro de proprietários e ONGs parceiras"
         />
         <button 
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-gray-200 active:scale-95"
+          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg active:scale-95"
         >
           <Plus size={18} />
           <span>Novo Responsável</span>
         </button>
       </div>
 
-      {/* Barra de Busca Limpa */}
+      {/* Barra de Busca */}
       <div className="relative w-full md:w-96">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por nome, CPF, CNPJ ou animal..."
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent shadow-sm transition-all"
+          placeholder="Buscar por nome, CPF, CNPJ ou email..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent shadow-sm transition-all"
         />
       </div>
 
@@ -257,16 +323,13 @@ export default function PaginaResponsaveis() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-gray-900">Lista de Cadastros</h2>
           <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-            {responsaveisFiltrados.length} registros
+            {responsaveisFiltrados.length} registro{responsaveisFiltrados.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         {loading ? (
           <div className="py-12 flex justify-center">
-            <div className="animate-pulse flex flex-col items-center">
-              <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
-              <div className="h-3 w-24 bg-gray-100 rounded"></div>
-            </div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
           </div>
         ) : responsaveisFiltrados.length > 0 ? (
           <div className="space-y-3">
@@ -284,7 +347,9 @@ export default function PaginaResponsaveis() {
               <Users size={24} className="text-gray-400" />
             </div>
             <p className="text-gray-900 font-medium">Nenhum responsável encontrado</p>
-            <p className="text-sm text-gray-500 mt-1">Tente buscar por outro termo.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {busca ? 'Tente buscar por outro termo' : 'Comece cadastrando um novo responsável'}
+            </p>
           </div>
         )}
       </div>
@@ -297,27 +362,68 @@ export default function PaginaResponsaveis() {
       >
         {selectedResponsavel && (
           <div className="space-y-2">
-            <DetalheItem icon={<User size={16} />} label="Nome Completo" value={selectedResponsavel.nome} />
-            <DetalheItem icon={<Users size={16} />} label="Tipo de Cadastro" value={selectedResponsavel.tipo} />
+            <DetalheItem 
+              icon={<User size={16} />} 
+              label="Nome Completo" 
+              value={selectedResponsavel.nome} 
+            />
+            <DetalheItem 
+              icon={selectedResponsavel.tipo === 'ONG' ? <Building2 size={16} /> : <User size={16} />} 
+              label="Tipo de Cadastro" 
+              value={selectedResponsavel.tipo === 'ONG' ? 'Organização (ONG)' : 'Pessoa Física'} 
+            />
             
             {selectedResponsavel.tipo === 'PF' ? (
               <>
-                <DetalheItem icon={<User size={16} />} label="CPF" value={selectedResponsavel.cpf} />
-                <DetalheItem icon={<User size={16} />} label="NIS" value={selectedResponsavel.nis} />
+                <DetalheItem 
+                  icon={<FileText size={16} />} 
+                  label="CPF" 
+                  value={selectedResponsavel.cpf || 'Não informado'} 
+                />
+                {selectedResponsavel.nis && (
+                  <DetalheItem 
+                    icon={<FileText size={16} />} 
+                    label="NIS" 
+                    value={selectedResponsavel.nis} 
+                  />
+                )}
               </>
             ) : (
-              <DetalheItem icon={<Building2 size={16} />} label="CNPJ" value={selectedResponsavel.cnpj} />
+              <DetalheItem 
+                icon={<Building2 size={16} />} 
+                label="CNPJ" 
+                value={selectedResponsavel.cnpj || 'Não informado'} 
+              />
             )}
             
-            <DetalheItem icon={<Phone size={16} />} label="Telefone" value={selectedResponsavel.telefone} />
-            <DetalheItem icon={<Mail size={16} />} label="Email" value={selectedResponsavel.email} />
-            <DetalheItem icon={<MapPin size={16} />} label="Endereço" value={selectedResponsavel.endereco} />
-            <DetalheItem icon={<Dog size={16} />} label="Pets Vinculados" value={selectedResponsavel.animais.join(', ')} />
+            <DetalheItem 
+              icon={<Phone size={16} />} 
+              label="Telefone" 
+              value={selectedResponsavel.telefone} 
+            />
+            <DetalheItem 
+              icon={<Mail size={16} />} 
+              label="Email" 
+              value={selectedResponsavel.email} 
+            />
+            <DetalheItem 
+              icon={<MapPin size={16} />} 
+              label="Endereço" 
+              value={selectedResponsavel.endereco} 
+            />
+            <DetalheItem 
+              icon={<Dog size={16} />} 
+              label="Pets Vinculados" 
+              value={selectedResponsavel.quantidadeAnimais 
+                ? `${selectedResponsavel.quantidadeAnimais} ${selectedResponsavel.quantidadeAnimais === 1 ? 'animal' : 'animais'}`
+                : 'Nenhum animal cadastrado'
+              } 
+            />
           </div>
         )}
       </DetalhesModal>
 
-      {/* Modal de Cadastro (Mantido a estrutura, apenas alinhado visualmente se necessário) */}
+      {/* Modal de Cadastro */}
       <CadastroModal
         isOpen={isCreateModalOpen}
         onClose={handleCloseCreate}
@@ -325,90 +431,89 @@ export default function PaginaResponsaveis() {
         title="Cadastrar Responsável"
         saveText={loadingSubmit ? "Cadastrando..." : "Salvar Cadastro"}
       >
-        <TipoResponsavelRadio
-          tipo={createFormData.tipo}
-          onChange={handleRadioChange}
-        />
-        
-        <FormInput
-          label="Nome Completo"
-          name="nome"
-          placeholder="Ex: Maria da Silva"
-          value={createFormData.nome}
-          onChange={handleFormChange}
-        />
-        
-        {createFormData.tipo === 'PF' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormInput
-              label="CPF"
-              name="cpf"
-              placeholder="000.000.000-00"
-              value={maskCPF(createFormData.cpf || '')}
-              onChange={handleFormChange}
-            />
-             <FormInput
-              label="Telefone"
-              name="telefone"
-              placeholder="(00) 00000-0000"
-              value={maskPhone(createFormData.telefone || '')}
-              onChange={handleFormChange}
-            />
-          </div>
-        )}
-
-        {createFormData.tipo === 'ONG' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormInput
-              label="CNPJ"
-              name="cnpj"
-              placeholder="00.000.000/0001-00"
-              value={createFormData.cnpj || ''}
-              onChange={handleFormChange}
-            />
-            <FormInput
-              label="Telefone"
-              name="telefone"
-              placeholder="(00) 00000-0000"
-              value={maskPhone(createFormData.telefone || '')}
-              onChange={handleFormChange}
-            />
-          </div>
-        )}
-        
-        {createFormData.tipo === 'PF' && (
+        <div className="space-y-4">
+          <TipoResponsavelRadio
+            tipo={createFormData.tipo}
+            onChange={handleRadioChange}
+          />
+          
           <FormInput
-            label="Número do NIS (Opcional)"
-            name="nis"
-            placeholder="Para programas sociais"
-            value={createFormData.nis || ''}
+            label="Nome Completo *"
+            name="nome"
+            placeholder={createFormData.tipo === 'ONG' ? "Nome da Organização" : "Nome do responsável"}
+            value={createFormData.nome}
             onChange={handleFormChange}
           />
-        )}
+          
+          {createFormData.tipo === 'PF' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="CPF *"
+                name="cpf"
+                placeholder="000.000.000-00"
+                value={createFormData.cpf}
+                onChange={handleFormChange}
+                maxLength={14}
+              />
+              <FormInput
+                label="NIS (Opcional)"
+                name="nis"
+                placeholder="Número de Identificação Social"
+                value={createFormData.nis}
+                onChange={handleFormChange}
+              />
+            </div>
+          ) : (
+            <FormInput
+              label="CNPJ *"
+              name="cnpj"
+              placeholder="00.000.000/0001-00"
+              value={createFormData.cnpj}
+              onChange={handleFormChange}
+              maxLength={18}
+            />
+          )}
 
-        <FormInput
-          label="Email"
-          name="email"
-          type="email"
-          placeholder="email@exemplo.com"
-          value={createFormData.email || ''}
-          onChange={handleFormChange}
-        />
-        <FormInput
-          label="Endereço Completo"
-          name="endereco"
-          placeholder="Rua, Número, Bairro - Cidade"
-          value={createFormData.endereco || ''}
-          onChange={handleFormChange}
-        />
-        <FormInput
-          label="Senha de Acesso" 
-          name="senha"
-          type="password"
-          placeholder="******"
-          value={createFormData.senha}
-          onChange={handleFormChange}
-        />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInput
+              label="Email *"
+              name="email"
+              type="email"
+              placeholder="email@exemplo.com"
+              value={createFormData.email}
+              onChange={handleFormChange}
+            />
+            <FormInput
+              label="Telefone *"
+              name="telefone"
+              placeholder="(00) 00000-0000"
+              value={createFormData.telefone}
+              onChange={handleFormChange}
+              maxLength={15}
+            />
+          </div>
+          
+          <FormInput
+            label="Endereço Completo *"
+            name="endereco"
+            placeholder="Rua, Número, Bairro - Cidade"
+            value={createFormData.endereco}
+            onChange={handleFormChange}
+          />
+          
+          <FormInput
+            label="Senha de Acesso *" 
+            name="senha"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            value={createFormData.senha}
+            onChange={handleFormChange}
+          />
+          
+          <div className="text-xs text-gray-500 mt-2">
+            * Campos obrigatórios
+          </div>
+        </div>
       </CadastroModal>
     </div>
   );

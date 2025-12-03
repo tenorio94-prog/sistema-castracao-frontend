@@ -74,8 +74,21 @@ export const AnimalService = {
       const response = await api.get<Animal[]>('/animals');
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching animals:', error);
-      throw new Error(error.response?.data?.message || 'Erro ao buscar animais');
+      console.error('❌ Erro ao buscar animais:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message
+      });
+      
+      // Se for erro 500, retornar array vazio ao invés de quebrar
+      if (error.response?.status === 500) {
+        console.warn('⚠️ Servidor retornou erro 500, retornando lista vazia');
+        return [];
+      }
+      
+      // Para outros erros, lançar exceção com mensagem amigável
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao buscar animais';
+      throw new Error(errorMessage);
     }
   },
 
@@ -84,11 +97,19 @@ export const AnimalService = {
       const response = await api.get<Animal>(`/animals/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching animal:', error);
+      console.error('❌ Erro ao buscar animal:', {
+        id,
+        status: error.response?.status,
+        message: error.response?.data?.message
+      });
+      
       const statusCode = error.response?.status;
       const message = error.response?.data?.message || error.message;
       
-      // Tratamento específico para erro 403
+      if (statusCode === 404) {
+        throw new Error('Animal não encontrado');
+      }
+      
       if (statusCode === 403) {
         throw new Error('Acesso negado: permissão insuficiente');
       }
@@ -102,8 +123,20 @@ export const AnimalService = {
       const response = await api.post<Animal>('/animals', data);
       return response.data;
     } catch (error: any) {
-      console.error('Error creating animal:', error);
-      throw new Error(error.response?.data?.message || 'Erro ao criar animal');
+      console.error('❌ Erro ao criar animal:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        data
+      });
+      
+      const statusCode = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      
+      if (statusCode === 409) {
+        throw new Error('Animal com este microchip já existe');
+      }
+      
+      throw new Error(message || 'Erro ao criar animal');
     }
   },
 
@@ -112,8 +145,24 @@ export const AnimalService = {
       const response = await api.patch<Animal>(`/animals/${id}`, data);
       return response.data;
     } catch (error: any) {
-      console.error('Error updating animal:', error);
-      throw new Error(error.response?.data?.message || 'Erro ao atualizar animal');
+      console.error('❌ Erro ao atualizar animal:', {
+        id,
+        status: error.response?.status,
+        message: error.response?.data?.message
+      });
+      
+      const statusCode = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      
+      if (statusCode === 404) {
+        throw new Error('Animal não encontrado');
+      }
+      
+      if (statusCode === 409) {
+        throw new Error('Conflito ao atualizar animal');
+      }
+      
+      throw new Error(message || 'Erro ao atualizar animal');
     }
   },
 
@@ -122,8 +171,28 @@ export const AnimalService = {
       const response = await api.delete<{ message: string }>(`/animals/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Error deleting animal:', error);
-      throw new Error(error.response?.data?.message || 'Erro ao deletar animal');
+      console.error('❌ Erro ao deletar animal:', {
+        id,
+        status: error.response?.status,
+        message: error.response?.data?.message
+      });
+      
+      const statusCode = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      
+      if (statusCode === 404) {
+        throw new Error('Animal não encontrado');
+      }
+      
+      if (statusCode === 403) {
+        throw new Error('Acesso negado: permissão insuficiente para deletar');
+      }
+      
+      if (statusCode === 409) {
+        throw new Error('Não foi possível deletar: animal possui registros vinculados');
+      }
+      
+      throw new Error(message || 'Erro ao deletar animal');
     }
   },
 };

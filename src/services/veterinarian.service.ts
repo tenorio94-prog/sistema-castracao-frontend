@@ -21,6 +21,8 @@ export interface Veterinarian {
     cpf: string;
     phone: string;
     role?: string;
+    createdAt?: string;  // Data de criação do usuário (quando se tornou membro)
+    updatedAt?: string;
   };
   _count?: {
     clinicalRecords: number;

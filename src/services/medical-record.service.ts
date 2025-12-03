@@ -185,6 +185,13 @@ export class MedicalRecordService {
   }
 
   /**
+   * Alias for getByAnimalId (for compatibility)
+   */
+  static async findByAnimal(animalId: number): Promise<MedicalRecord> {
+    return this.getByAnimalId(animalId);
+  }
+
+  /**
    * Create medical record
    */
   static async create(data: CreateMedicalRecordData): Promise<MedicalRecord> {

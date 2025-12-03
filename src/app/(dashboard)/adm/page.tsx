@@ -51,13 +51,33 @@ export default function AdminPage() {
       setLoading(true);
       setError(null);
 
-      // Buscar dados em paralelo para máxima performance
-      const [agendamentos, animais, tutores, veterinarios] = await Promise.all([
+      // Buscar dados em paralelo com tratamento individual de erros
+      const results = await Promise.allSettled([
         AppointmentService.getAll(),
         AnimalService.getAll(),
         PetOwnerService.getAll(),
         VeterinarianService.getAll(),
       ]);
+
+      // Extrair dados com valores padrão em caso de erro
+      const agendamentos = results[0].status === 'fulfilled' ? results[0].value : [];
+      const animais = results[1].status === 'fulfilled' ? results[1].value : [];
+      const tutores = results[2].status === 'fulfilled' ? results[2].value : [];
+      const veterinarios = results[3].status === 'fulfilled' ? results[3].value : [];
+
+      // Avisar sobre erros específicos
+      if (results[0].status === 'rejected') {
+        console.error('❌ Erro ao carregar agendamentos:', results[0].reason);
+      }
+      if (results[1].status === 'rejected') {
+        console.error('❌ Erro ao carregar animais:', results[1].reason);
+      }
+      if (results[2].status === 'rejected') {
+        console.error('❌ Erro ao carregar tutores:', results[2].reason);
+      }
+      if (results[3].status === 'rejected') {
+        console.error('❌ Erro ao carregar veterinários:', results[3].reason);
+      }
 
       // Tentar buscar clinical records (pode falhar se endpoint não existir)
       let clinicalRecords: ClinicalRecord[] = [];
@@ -67,7 +87,7 @@ export default function AdminPage() {
         console.warn('⚠️ Não foi possível buscar clinical records:', err);
       }
 
-      console.log('📊 Dados recebidos:', {
+      console.log('📊 Dados carregados:', {
         agendamentos: agendamentos.length,
         animais: animais.length,
         tutores: tutores.length,

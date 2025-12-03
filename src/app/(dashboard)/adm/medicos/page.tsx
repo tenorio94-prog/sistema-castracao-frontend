@@ -10,9 +10,10 @@ import MedicoCard, { MedicoUI } from '@/components/CRUD/MedicoCard';
 import ViewModal from '@/components/modals/ViewModal';
 import CadastroModal from '@/components/modals/CadastroModal';
 import FormInput from '@/components/forms/FormInput';
+import FormSelect from '@/components/forms/FormSelect';
 import { VeterinarianService, Veterinarian, UpdateVeterinarianData } from '@/services/veterinarian.service';
 import { AuthService } from '@/services/auth.service';
-import { CreateUserDto, Role } from '@/types/auth.types';
+import { CreateUserDto, Role, VeterinarySpecialty, VETERINARY_SPECIALTIES } from '@/types/auth.types';
 import { maskCPF, maskPhone, unmask, validateCPF, validatePhone } from '@/lib/masks';
 
 type MedicoForm = {
@@ -26,7 +27,7 @@ type MedicoForm = {
 };
 
 const emptyForm: MedicoForm = {
-  nome: '', email: '', cpf: '', telefone: '', crmv: '', especialidade: '', senha: '',
+  nome: '', email: '', cpf: '', telefone: '', crmv: '', especialidade: VeterinarySpecialty.GENERAL, senha: '',
 };
 
 export default function PaginaMedicos() {
@@ -82,18 +83,15 @@ export default function PaginaMedicos() {
   // --- FILTRAGEM ---
   const filteredMedicos = useMemo(() => {
     return medicos.filter(medico => {
-      const especialidade = medico.especialidade.toLowerCase();
+      const especialidade = medico.especialidade;
       
       // Lógica: Se nenhum filtro ativo, mostra todos. Se algum ativo, filtra por ele.
       let match = true;
       
       if (filterSurgery || filterGeneral) {
-        const isCirurgia = especialidade.includes('cirurgia');
-        const isClinica = especialidade.includes('clínica') || especialidade.includes('clinica') || especialidade.includes('geral');
-        
         match = false; // Reseta para false e verifica qual botão está ativo
-        if (filterSurgery && isCirurgia) match = true;
-        if (filterGeneral && isClinica) match = true;
+        if (filterSurgery && especialidade === VeterinarySpecialty.SURGEON) match = true;
+        if (filterGeneral && especialidade === VeterinarySpecialty.GENERAL) match = true;
       }
 
       return match;
@@ -163,6 +161,14 @@ export default function PaginaMedicos() {
         return;
       }
       
+      // Validar especialidade
+      const especialidadesValidas = Object.values(VeterinarySpecialty);
+      if (!especialidadesValidas.includes(createFormData.especialidade as VeterinarySpecialty)) {
+        toast.error('Especialidade inválida');
+        setLoading(false);
+        return;
+      }
+      
       // auth/register cria o usuário E o veterinarian automaticamente
       const createUserDto: CreateUserDto = {
         completeName: createFormData.nome, 
@@ -203,6 +209,14 @@ export default function PaginaMedicos() {
       
       if (editFormData.senha && editFormData.senha.length > 0 && editFormData.senha.length < 6) {
         toast.error('A senha deve ter pelo menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
+      
+      // Validar especialidade
+      const especialidadesValidas = Object.values(VeterinarySpecialty);
+      if (editFormData.especialidade && !especialidadesValidas.includes(editFormData.especialidade as VeterinarySpecialty)) {
+        toast.error('Especialidade inválida');
         setLoading(false);
         return;
       }
@@ -357,7 +371,14 @@ export default function PaginaMedicos() {
         </div>
         <div className="grid grid-cols-2 gap-4">
            <FormInput label="CRMV" name="crmv" value={createFormData.crmv} onChange={e => setCreateFormData({...createFormData, crmv: e.target.value})} required />
-           <FormInput label="Especialidade" name="especialidade" value={createFormData.especialidade} onChange={e => setCreateFormData({...createFormData, especialidade: e.target.value})} placeholder="Ex: Cirurgia" />
+           <FormSelect 
+             label="Especialidade" 
+             name="especialidade" 
+             value={createFormData.especialidade} 
+             onChange={e => setCreateFormData({...createFormData, especialidade: e.target.value})} 
+             options={VETERINARY_SPECIALTIES}
+             required
+           />
         </div>
         <FormInput label="Senha de Acesso" name="senha" type="password" value={createFormData.senha} onChange={e => setCreateFormData({...createFormData, senha: e.target.value})} required />
       </CadastroModal>
@@ -372,7 +393,13 @@ export default function PaginaMedicos() {
         </div>
         <div className="grid grid-cols-2 gap-4">
            <FormInput label="CRMV" name="crmv" value={editFormData?.crmv || ''} onChange={e => setEditFormData(prev => prev ? {...prev, crmv: e.target.value} : null)} />
-           <FormInput label="Especialidade" name="especialidade" value={editFormData?.especialidade || ''} onChange={e => setEditFormData(prev => prev ? {...prev, especialidade: e.target.value} : null)} />
+           <FormSelect 
+             label="Especialidade" 
+             name="especialidade" 
+             value={editFormData?.especialidade || VeterinarySpecialty.GENERAL} 
+             onChange={e => setEditFormData(prev => prev ? {...prev, especialidade: e.target.value} : null)}
+             options={VETERINARY_SPECIALTIES}
+           />
         </div>
         <div className="pt-4 border-t border-gray-100 mt-2">
           <p className="text-xs text-gray-500 mb-2">Deixe em branco para manter a senha atual.</p>
