@@ -95,12 +95,11 @@ export default function LoginForm() {
             const redirectPath = AuthService.getRoleRoute(user.role);
             const userName = (user as any).completeName || (user as any).name || 'Usuário';
             
-            toast.success(`Bem-vindo, ${userName.split(' ')[0]}!`, {
+            toast.success('Bem-vindo!', {
                 description: 'Redirecionando para o painel...',
                 duration: 2000,
             });
 
-            // Usar router.push para SPA navigation, com fallback para window.location
             setTimeout(() => {
                 router.push(redirectPath);
             }, 800);
@@ -154,7 +153,7 @@ export default function LoginForm() {
             {/* Mensagem de erro inline */}
             {error && (
                 <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <AlertCircle className="h-5 w-5 shrink-0" />
                     <span className="text-sm font-medium">{error}</span>
                 </div>
             )}
