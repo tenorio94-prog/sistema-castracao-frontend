@@ -3,27 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import AtendimentoCard, { AtendimentoMedicoUI } from '@/components/MedicoComponents/AtendimentoCard';
-import CadastroModal from '@/components/modals/CadastroModal';
-import FormInput from '@/components/forms/FormInput';
+import ModalNovoAgendamentoMedico from '@/components/MedicoComponents/ModalNovoAgendamentoMedico';
 import FichaClinicaModal from '@/components/MedicoComponents/FichaClinicaModal';
 import HistoricoProntuarioModal from '@/components/MedicoComponents/HistoricoProntuarioModal';
 import { AppointmentService, Appointment, AppointmentStatus, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
 import { SPECIES_LABELS } from '@/services/animal.service';
 
 export default function PaginaAtendimentosMedico() {
-  const router = useRouter();
   const [atendimentos, setAtendimentos] = useState<AtendimentoMedicoUI[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Todos' | 'Cirurgia' | 'Consulta' | 'Retorno'>('Todos');
   const [loading, setLoading] = useState(true);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ animalId: '', tipo: '', data: '', hora: '', observacoes: '' });
-
   const [isFichaOpen, setIsFichaOpen] = useState(false);
   const [isProntuarioOpen, setIsProntuarioOpen] = useState(false);
   const [selectedPatientName, setSelectedPatientName] = useState('');
@@ -34,7 +29,6 @@ export default function PaginaAtendimentosMedico() {
   const convertToAtendimentoUI = (appointment: Appointment): AtendimentoMedicoUI => {
     const startDate = new Date(appointment.startTime);
     
-    // Tipo explícito para garantir que os valores são compatíveis com AtendimentoMedicoUI['status']
     type UIStatus = AtendimentoMedicoUI['status'];
     const statusMap: Record<AppointmentStatus, UIStatus> = {
       [AppointmentStatus.scheduled]: 'Agendado',
@@ -68,21 +62,21 @@ export default function PaginaAtendimentosMedico() {
   };
 
   // Fetch appointments
-  useEffect(() => {
-    const fetchAtendimentos = async () => {
-      try {
-        setLoading(true);
-        const data = await AppointmentService.getAll();
-        const converted = data.map(convertToAtendimentoUI);
-        setAtendimentos(converted);
-      } catch (error: any) {
-        console.error('Error fetching atendimentos:', error);
-        toast.error('Erro ao carregar atendimentos');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchAtendimentos = async () => {
+    try {
+      setLoading(true);
+      const data = await AppointmentService.getAll();
+      const converted = data.map(convertToAtendimentoUI);
+      setAtendimentos(converted);
+    } catch (error: any) {
+      console.error('Error fetching atendimentos:', error);
+      toast.error('Erro ao carregar atendimentos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchAtendimentos();
   }, []);
 
@@ -105,9 +99,9 @@ export default function PaginaAtendimentosMedico() {
     }
   };
 
-  const handleCreateSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push('/medico/agenda');
+  const handleAgendamentoSuccess = () => {
+    // Recarregar lista de atendimentos após criar novo agendamento
+    fetchAtendimentos();
   };
 
   const filteredAtendimentos = atendimentos.filter(item => 
@@ -147,7 +141,6 @@ export default function PaginaAtendimentosMedico() {
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
         <div className="relative w-full lg:flex-1 group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={18} />
-          {/* CORREÇÃO VISUAL: Borda cinza e anel cinza suave */}
           <input 
             type="text" 
             placeholder="Buscar paciente pelo nome..."
@@ -186,12 +179,23 @@ export default function PaginaAtendimentosMedico() {
         )}
       </div>
 
-      <CadastroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateSave} title="Novo Agendamento" saveText="Agendar">
-         <FormInput label="Nome do Animal *" name="animal" value={formData.animalId} onChange={() => {}} required />
-      </CadastroModal>
+      <ModalNovoAgendamentoMedico 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onSuccess={handleAgendamentoSuccess}
+      />
 
-      <HistoricoProntuarioModal isOpen={isProntuarioOpen} onClose={() => setIsProntuarioOpen(false)} patientName={selectedPatientName} animalId={selectedAnimalId} />
-      <FichaClinicaModal isOpen={isFichaOpen} onClose={() => setIsFichaOpen(false)} patientName={selectedPatientName} ownerName={selectedOwnerName} animalId={selectedAnimalId} />
+      <HistoricoProntuarioModal 
+        isOpen={isProntuarioOpen} 
+        onClose={() => setIsProntuarioOpen(false)} 
+        patientName={selectedPatientName} 
+        animalId={selectedAnimalId} 
+      />
+      
+      <FichaClinicaModal 
+        isOpen={isFichaOpen} 
+        onClose={() => setIsFichaOpen(false)} 
+      />
 
     </div>
   );

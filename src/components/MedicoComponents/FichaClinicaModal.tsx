@@ -1,383 +1,666 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Printer, FileText, Loader2 } from 'lucide-react';
+import { X, Save, FileText, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { ClinicalRecordService, ClinicalRecordType, CreateClinicalRecordData } from '@/services/medical-record.service';
+import ClinicalRecordService, { 
+  ClinicalRecordType, 
+  SurgeryType, 
+  CreateClinicalRecordData
+} from '@/services/clinical-record.service';
 import { MedicalRecordService } from '@/services/medical-record.service';
-import { AnimalService } from '@/services/animal.service';
+import { AnimalService, SPECIES_LABELS } from '@/services/animal.service';
+import { VeterinarianService } from '@/services/veterinarian.service';
 
-type Props = {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  patientName: string;
+  onSuccess?: () => void;
+}
+
+interface AnimalSearchItem {
+  id: number;
+  name: string;
+  species: string;
+  ownerName: string;
+  fullData: any;
+}
+
+// Interface do formulário - inclui 'species' apenas para display (NÃO enviado ao backend)
+interface ClinicalRecordFormData {
+  // Campos do backend
+  type: ClinicalRecordType;
+  treatmentDate: string;
+  fitForSurgery?: boolean;
+  surgeryType?: SurgeryType;
+  
+  // Snapshot Animal
+  animalName?: string;
+  breed?: string;
+  age?: string;
+  coat?: string;
+  weight?: string;
+  size?: string;
+  
+  // Snapshot Tutor
   ownerName?: string;
-  animalId: number | null;
-};
+  ownerPhone?: string;
+  ownerAddress?: string;
+  ownerNumber?: string;
+  ownerNeighborhood?: string;
+  ownerCity?: string;
+  ownerReference?: string;
+  
+  // Serviços
+  clinicalGuidance?: boolean;
+  returnVisit?: boolean;
+  consultation?: boolean;
+  treatmentChange?: boolean;
+  
+  // Anamnese
+  anamnesis?: string;
+  vaccinations?: string;
+  vaccinationDate?: string;
+  deworming?: string;
+  
+  // Sinais Vitais
+  rectalTemp?: string;
+  heartRate?: string;
+  respiratoryRate?: string;
+  pulse?: string;
+  
+  // Exame Físico
+  ectoscopy?: string;
+  abdominalCavity?: string;
+  headAndNeck?: string;
+  nervousSystem?: string;
+  thoracicCavity?: string;
+  locomotorSystem?: string;
+  
+  // Diagnóstico
+  provisionalDiagnosis?: string;
+  complementaryExams?: string;
+  definitiveDiagnosis?: string;
+  prognosis?: string;
+  
+  // Observações
+  observations?: string;
+  instructions?: string;
+  additionalNotes?: string;
+  
+  // Campo APENAS para display (NÃO enviado ao backend)
+  species?: string;
+}
 
-// Componentes de Layout de Papel (Underline Inputs)
-const PaperLine = ({ label, value, placeholder, width = "w-full", className="", onChange, name }: any) => (
-  <div className={`flex items-end gap-1 ${className}`}>
-    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">{label}:</span>
-    <input 
-      type="text" 
-      name={name}
-      className={`border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none placeholder:text-gray-300 ${width}`}
-      defaultValue={value}
-      placeholder={placeholder}
-      onChange={onChange}
-    />
-  </div>
-);
-
-// Área de texto pautada (Caderno)
-const LinedTextArea = ({ label, rows = 5, name, onChange }: any) => (
-  <div className="border border-gray-400 rounded-sm overflow-hidden flex flex-col h-full mb-4">
-    <div className="bg-gray-100 border-b border-gray-400 px-2 py-1">
-      <span className="text-[10px] font-bold text-gray-800 uppercase block leading-tight">{label}</span>
-    </div>
-    <div 
-      className="flex-1 bg-white w-full"
-      style={{
-        backgroundImage: 'linear-gradient(transparent 23px, #e5e7eb 24px)',
-        backgroundSize: '100% 24px',
-        lineHeight: '24px'
-      }}
-    >
-      <textarea 
-        name={name}
-        className="w-full h-full bg-transparent border-none focus:ring-0 text-sm leading-6 px-2 text-blue-900 resize-none outline-none overflow-hidden font-medium"
-        rows={rows}
-        onChange={onChange}
-      />
-    </div>
-  </div>
-);
-
-// Input de Parâmetros (TR, FC...)
-const ParamInput = ({ label, unit, name, onChange }: any) => (
-  <div className="flex flex-col items-center mx-2">
-     <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">{label}</span>
-     <div className="flex items-baseline gap-1 border-b border-gray-400">
-       <input type="text" name={name} className="w-12 text-center font-medium focus:outline-none bg-transparent text-sm" onChange={onChange} />
-       <span className="text-[10px] text-gray-400 mb-0.5">{unit}</span>
-     </div>
-  </div>
-);
-
-export default function FichaClinicaModal({ isOpen, onClose, patientName, ownerName, animalId }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [medicalRecordId, setMedicalRecordId] = useState<number | null>(null);
-  const [animalData, setAnimalData] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    observations: '',
-  });
+export default function FichaClinicaModal({ isOpen, onClose, onSuccess }: Props) {
   const [isMounted, setIsMounted] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Estados de Busca/Seleção
+  const [animalsList, setAnimalsList] = useState<AnimalSearchItem[]>([]);
+  const [loadingAnimals, setLoadingAnimals] = useState(false);
+  const [showAnimalSearch, setShowAnimalSearch] = useState(false);
+  const [selectedAnimal, setSelectedAnimal] = useState<any>(null);
+  
+  // IDs de relacionamento
+  const [medicalRecordId, setMedicalRecordId] = useState<number>(0);
+  const [veterinarianId, setVeterinarianId] = useState<number>(0);
 
-  // Handle client-side mounting for portal
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  // Estado inicial do formulário
+  const getInitialFormData = (): ClinicalRecordFormData => ({
+    type: ClinicalRecordType.triage,
+    treatmentDate: new Date().toISOString().split('T')[0],
+    fitForSurgery: false,
+    clinicalGuidance: false,
+    returnVisit: false,
+    consultation: false,
+    treatmentChange: false,
+    animalName: '',
+    breed: '',
+    age: '',
+    coat: '',
+    weight: '',
+    size: '',
+    ownerName: '',
+    ownerPhone: '',
+    ownerAddress: '',
+    ownerNumber: '',
+    ownerNeighborhood: '',
+    ownerCity: '',
+    ownerReference: '',
+    anamnesis: '',
+    vaccinations: '',
+    vaccinationDate: '',
+    deworming: '',
+    rectalTemp: '',
+    heartRate: '',
+    respiratoryRate: '',
+    pulse: '',
+    ectoscopy: '',
+    abdominalCavity: '',
+    headAndNeck: '',
+    nervousSystem: '',
+    thoracicCavity: '',
+    locomotorSystem: '',
+    provisionalDiagnosis: '',
+    complementaryExams: '',
+    definitiveDiagnosis: '',
+    prognosis: '',
+    observations: '',
+    instructions: '',
+    additionalNotes: '',
+    species: ''
+  });
 
-  // Save and restore focus when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      previousActiveElement.current = document.activeElement as HTMLElement;
-      modalRef.current?.focus();
-    } else {
-      previousActiveElement.current?.focus();
-    }
-  }, [isOpen]);
+  const [formData, setFormData] = useState<ClinicalRecordFormData>(getInitialFormData());
 
-  // Handle ESC key to close modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  useEffect(() => { setIsMounted(true); }, []);
 
-  // Prevent body scroll when modal is open
+  // Carregar dados iniciais ao abrir e limpar ao fechar
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      loadInitialData();
     } else {
       document.body.style.overflow = '';
+      resetForm();
     }
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
 
-  const handleBackdropClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
+  const resetForm = () => {
+    setFormData(getInitialFormData());
+    setSelectedAnimal(null);
+    setMedicalRecordId(0);
+    setShowAnimalSearch(false);
+  };
 
-  useEffect(() => {
-    if (isOpen && animalId) {
-      const fetchData = async () => {
-        try {
-          setLoading(true);
-          
-          // Try to fetch animal data - handle 403 permission error
-          try {
-            const animal = await AnimalService.getById(animalId);
-            setAnimalData(animal);
-          } catch (animalError: any) {
-            if (animalError.message.includes('Acesso negado') || animalError.message.includes('403')) {
-              console.warn('Permission denied for animal details, using basic data');
-              // Set minimal data from props
-              setAnimalData({
-                id: animalId,
-                name: patientName,
-                species: 'canine',
-                gender: 'male',
-                estimatedAge: 'Não informado',
-                sizeWeight: 'Não informado',
-                breed: 'Não informado'
-              });
-            } else {
-              throw animalError;
-            }
-          }
+  const loadInitialData = async () => {
+    try {
+      setLoadingAnimals(true);
+      
+      // 1. Identificar Veterinário Logado
+      const vet = await VeterinarianService.getMe();
+      setVeterinarianId(vet.id);
 
-          // Fetch or create medical record
-          try {
-            const medRecord = await MedicalRecordService.getByAnimalId(animalId);
-            setMedicalRecordId(medRecord.id);
-          } catch (error: any) {
-            // Medical record doesn't exist, create one
-            if (error.message.includes('not found') || error.message.includes('404')) {
-              try {
-                const newRecord = await MedicalRecordService.create({ animalId });
-                setMedicalRecordId(newRecord.id);
-              } catch (createError: any) {
-                console.error('Error creating medical record:', createError);
-                toast.error('Não foi possível criar o prontuário médico');
-              }
-            } else {
-              console.error('Error fetching medical record:', error);
-            }
-          }
-        } catch (error: any) {
-          console.error('Error fetching data:', error);
-          toast.error('Erro ao carregar dados do paciente');
-        } finally {
-          setLoading(false);
-        }
-      };
+      // 2. Carregar Animais com seus tutores
+      const animals = await AnimalService.getAll();
+      const formatted = animals.map((a: any) => ({
+        id: a.id,
+        name: a.name || 'Sem Nome',
+        species: a.species,
+        ownerName: a.petOwner?.user?.completeName || 'Tutor Desconhecido',
+        fullData: a
+      }));
+      setAnimalsList(formatted);
 
-      fetchData();
+    } catch (error) {
+      console.error('Erro ao carregar dados iniciais:', error);
+      toast.error("Erro ao carregar dados. Verifique se você é um veterinário.");
+      onClose();
+    } finally {
+      setLoadingAnimals(false);
     }
-  }, [isOpen, animalId, patientName]);
+  };
 
-  if (!isOpen || !isMounted) return null;
+  const handleSelectAnimal = async (animalItem: AnimalSearchItem) => {
+    const animal = animalItem.fullData;
+    setSelectedAnimal(animal);
+    setShowAnimalSearch(false);
 
-  const handleSave = async () => {
-    if (!medicalRecordId || !animalId) {
-      toast.error('Dados do paciente não carregados');
+    // 1. Preencher Snapshot (Dados Históricos) - Todos os campos do Schema
+    setFormData(prev => ({
+      ...prev,
+      species: animal.species, // Espécie do animal
+      animalName: animal.name || 'Sem nome',
+      breed: animal.breed || 'SRD',
+      age: animal.estimatedAge || '',
+      coat: '', // Campo não está no Animal, pode ser preenchido manualmente
+      weight: animal.sizeWeight || '',
+      size: animal.sizeWeight || '',
+      ownerName: animal.petOwner?.user?.completeName || '',
+      ownerPhone: animal.petOwner?.user?.phone || '',
+      ownerAddress: animal.petOwner?.fullAddress || '',
+      ownerNumber: '', // Precisa ser extraído ou preenchido manualmente
+      ownerNeighborhood: '', // Precisa ser extraído ou preenchido manualmente
+      ownerCity: '', // Precisa ser extraído ou preenchido manualmente
+      ownerReference: '', // Precisa ser preenchido manualmente
+    }));
+
+    // 2. Resolver MedicalRecord (Get or Create) - LÓGICA CORRIGIDA
+    try {
+      const loadingToast = toast.loading("Verificando prontuário médico...");
+      
+      try {
+        // Tenta buscar o prontuário existente
+        const record = await MedicalRecordService.findByAnimal(animal.id);
+        setMedicalRecordId(record.id);
+        toast.dismiss(loadingToast);
+        toast.success("Prontuário médico encontrado!", { duration: 2000 });
+      } catch (e: any) {
+        // Se não encontrar (404), cria automaticamente
+        if (e.message?.includes('not found') || e.message?.includes('Medical record not found')) {
+          console.log('Prontuário não encontrado. Criando novo...');
+          const newRecord = await MedicalRecordService.create({ animalId: animal.id });
+          setMedicalRecordId(newRecord.id);
+          toast.dismiss(loadingToast);
+          toast.success("Prontuário médico criado automaticamente!", { duration: 2000 });
+        } else {
+          throw e;
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao vincular prontuário:', error);
+      toast.error("Erro crítico ao vincular prontuário médico.");
+      setMedicalRecordId(0);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    
+    setFormData(prev => ({ ...prev, [name]: val }));
+  };
+
+  const handleSubmit = async () => {
+    // Validação de IDs necessários
+    if (!medicalRecordId) {
+      toast.warning("Selecione um animal primeiro.");
+      return;
+    }
+    if (!veterinarianId) {
+      toast.error("Veterinário não identificado.");
+      return;
+    }
+
+    // Validação de campos obrigatórios do snapshot
+    if (!formData.animalName?.trim()) {
+      toast.warning("Nome do animal é obrigatório.");
+      return;
+    }
+
+    // Validações específicas por tipo de registro
+    if (formData.type === ClinicalRecordType.triage && formData.fitForSurgery === undefined) {
+      toast.warning("Marque se o animal está apto para cirurgia.");
+      return;
+    }
+
+    if (formData.type === ClinicalRecordType.surgery && !formData.surgeryType) {
+      toast.warning("Selecione o tipo de cirurgia.");
       return;
     }
 
     try {
-      setLoading(true);
+      setSaving(true);
 
-      // Get user data from localStorage
-      const userDataStr = localStorage.getItem('user');
-      if (!userDataStr) {
-        toast.error('Sessão expirada. Faça login novamente.');
-        return;
-      }
+      // Helper: converte string vazia para undefined
+      const emptyToUndefined = (value?: string) => value?.trim() ? value.trim() : undefined;
 
-      const userData = JSON.parse(userDataStr);
-      const userId = parseInt(userData.sub); // JWT sub is the userId
-
-      if (!userId) {
-        toast.error('Usuário não identificado');
-        return;
-      }
-
-      // Get veterinarian by userId
-      let veterinarianId: number;
-      try {
-        const { VeterinarianService } = await import('@/services/veterinarian.service');
-        const veterinarian = await VeterinarianService.getById(userId);
-        veterinarianId = veterinarian.id;
-      } catch (vetError: any) {
-        console.error('Error getting veterinarian:', vetError);
-        toast.error('Não foi possível identificar o veterinário. Verifique suas permissões.');
-        return;
-      }
-
-      const clinicalData: CreateClinicalRecordData = {
+      // Payload CORRETO - sem campo 'species'
+      const payload: CreateClinicalRecordData = {
         medicalRecordId,
         veterinarianId,
-        type: ClinicalRecordType.triage, // Default to triage for clinical records
-        observations: formData.observations || 'Ficha clínica preenchida',
-        treatmentDate: new Date().toISOString(),
+        type: formData.type,
+        treatmentDate: new Date(formData.treatmentDate).toISOString(),
+        
+        // Campos condicionais por tipo
+        ...(formData.type === ClinicalRecordType.triage && {
+          fitForSurgery: formData.fitForSurgery
+        }),
+        ...(formData.type === ClinicalRecordType.surgery && {
+          surgeryType: formData.surgeryType
+        }),
+        
+        // Snapshot do Animal (convertendo strings vazias para undefined)
+        animalName: emptyToUndefined(formData.animalName),
+        breed: emptyToUndefined(formData.breed),
+        age: emptyToUndefined(formData.age),
+        coat: emptyToUndefined(formData.coat),
+        weight: emptyToUndefined(formData.weight),
+        size: emptyToUndefined(formData.size),
+        
+        // Snapshot do Tutor
+        ownerName: emptyToUndefined(formData.ownerName),
+        ownerPhone: emptyToUndefined(formData.ownerPhone),
+        ownerAddress: emptyToUndefined(formData.ownerAddress),
+        ownerNumber: emptyToUndefined(formData.ownerNumber),
+        ownerNeighborhood: emptyToUndefined(formData.ownerNeighborhood),
+        ownerCity: emptyToUndefined(formData.ownerCity),
+        ownerReference: emptyToUndefined(formData.ownerReference),
+        
+        // Checkboxes de Serviço
+        clinicalGuidance: formData.clinicalGuidance || undefined,
+        returnVisit: formData.returnVisit || undefined,
+        consultation: formData.consultation || undefined,
+        treatmentChange: formData.treatmentChange || undefined,
+        
+        // Anamnese
+        anamnesis: emptyToUndefined(formData.anamnesis),
+        vaccinations: emptyToUndefined(formData.vaccinations),
+        vaccinationDate: emptyToUndefined(formData.vaccinationDate),
+        deworming: emptyToUndefined(formData.deworming),
+        
+        // Sinais Vitais
+        rectalTemp: emptyToUndefined(formData.rectalTemp),
+        heartRate: emptyToUndefined(formData.heartRate),
+        respiratoryRate: emptyToUndefined(formData.respiratoryRate),
+        pulse: emptyToUndefined(formData.pulse),
+        
+        // Exame Físico
+        ectoscopy: emptyToUndefined(formData.ectoscopy),
+        abdominalCavity: emptyToUndefined(formData.abdominalCavity),
+        headAndNeck: emptyToUndefined(formData.headAndNeck),
+        nervousSystem: emptyToUndefined(formData.nervousSystem),
+        thoracicCavity: emptyToUndefined(formData.thoracicCavity),
+        locomotorSystem: emptyToUndefined(formData.locomotorSystem),
+        
+        // Diagnóstico
+        provisionalDiagnosis: emptyToUndefined(formData.provisionalDiagnosis),
+        complementaryExams: emptyToUndefined(formData.complementaryExams),
+        definitiveDiagnosis: emptyToUndefined(formData.definitiveDiagnosis),
+        prognosis: emptyToUndefined(formData.prognosis),
+        
+        // Observações
+        observations: emptyToUndefined(formData.observations),
+        instructions: emptyToUndefined(formData.instructions),
+        additionalNotes: emptyToUndefined(formData.additionalNotes),
       };
 
-      await ClinicalRecordService.create(clinicalData);
-      toast.success("Ficha clínica salva com sucesso!");
+      await ClinicalRecordService.create(payload);
+      
+      toast.success("Ficha Clínica salva com sucesso!");
+      if (onSuccess) onSuccess();
       onClose();
+
     } catch (error: any) {
-      console.error('Error saving clinical record:', error);
-      toast.error(error.message || 'Erro ao salvar ficha clínica');
+      console.error('Erro ao salvar:', error);
+      const errorMsg = error.response?.data?.message || error.message || "Erro ao salvar ficha.";
+      
+      if (Array.isArray(errorMsg)) {
+        toast.error(errorMsg[0]);
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const modalContent = (
-    <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in duration-200"
-      onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      ref={modalRef}
-      tabIndex={-1}
-    >
-      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+  if (!isOpen || !isMounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-in fade-in">
+      <div className="bg-gray-100 w-full max-w-6xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
         
-        {/* Header Modal */}
-        <div className="px-6 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-3">
             <FileText className="text-green-700" size={24} />
-            <h2 className="text-lg font-bold text-gray-900">Nova Ficha Clínica</h2>
+            <h2 className="text-xl font-bold text-gray-900">Nova Ficha Clínica</h2>
           </div>
-          <div className="flex gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Printer size={20}/></button>
-            <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-600 rounded text-gray-500"><X size={20}/></button>
-          </div>
+          <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
+            <X size={24}/>
+          </button>
         </div>
 
-        {/* Corpo Scrollável (Papel Digital) */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-200">
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto" />
-                <p className="text-gray-500">Carregando dados do paciente...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white shadow-lg border border-gray-300 p-10 mx-auto max-w-[900px] min-h-[1400px] text-gray-900 relative">
+        {/* Conteúdo com Scroll */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="bg-white shadow-sm border border-gray-300 p-8 mx-auto max-w-4xl rounded-sm">
             
-            {/* --- PARTE 1: IDENTIFICAÇÃO (Baseado na Imagem 1) --- */}
-            
-            {/* Cabeçalho da Folha */}
-            <div className="flex justify-between items-end border-b-2 border-gray-900 pb-2 mb-6">
-              <h1 className="text-xl font-bold">Ficha Clínica: <span className="text-red-600">27.233</span></h1>
-              <div className="text-right text-[10px] font-bold text-gray-600 uppercase leading-tight">
+            {/* Cabeçalho do Documento */}
+            <div className="flex justify-between items-end border-b-2 border-gray-800 pb-4 mb-8">
+              <h1 className="text-2xl font-bold text-gray-800 uppercase">Ficha Clínica</h1>
+              <div className="text-right text-[10px] font-bold text-gray-500 uppercase leading-tight">
+                <p>Hospital Veterinário</p>
                 <p>Departamento de Medicina Veterinária</p>
-                <p>Hospital Veterinário - UFRPE</p>
               </div>
             </div>
 
-            <div className="space-y-3 text-sm mb-8 border-b-2 border-dashed border-gray-300 pb-8">
-              <div className="flex justify-end"><PaperLine label="Data" width="w-32" placeholder="__/__/____"/></div>
-              
-              <div className="flex gap-4"><PaperLine label="Nome do animal" value={patientName} className="flex-1" /><PaperLine label="Espécie" className="w-32" /><PaperLine label="Raça" className="w-40" /></div>
-              <div className="flex gap-4"><PaperLine label="Idade" className="w-24" /><PaperLine label="Sexo" className="w-24" /><PaperLine label="Pelagem" className="flex-1" /><PaperLine label="Peso" className="w-24" /><PaperLine label="Porte" className="w-24" /></div>
-              <div className="flex gap-4"><PaperLine label="Tutor" value={ownerName} className="flex-1" /><PaperLine label="Fone" className="w-40" /></div>
-              <div className="flex gap-4"><PaperLine label="Endereço" className="flex-1" /><PaperLine label="Nº" className="w-20" /></div>
-              <div className="flex gap-4"><PaperLine label="Bairro" className="flex-1" /><PaperLine label="Cidade" className="flex-1" /></div>
-              <PaperLine label="Ponto de Referência" />
-              
-              <div className="flex justify-around py-3 border-y border-gray-100 my-4 text-[11px] font-bold uppercase text-gray-600 bg-gray-50">
-                <label className="flex gap-1 cursor-pointer"><input type="checkbox"/> Orientação Clínica</label>
-                <label className="flex gap-1 cursor-pointer"><input type="checkbox"/> Retorno</label>
-                <label className="flex gap-1 cursor-pointer"><input type="checkbox"/> Consulta</label>
-                <label className="flex gap-1 cursor-pointer"><input type="checkbox"/> Alteração Tratamento</label>
-              </div>
+            {/* SELEÇÃO DO ANIMAL (Custom Dropdown) */}
+            <div className="mb-8 relative">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Paciente</label>
+              <button 
+                onClick={() => setShowAnimalSearch(!showAnimalSearch)}
+                className="w-full flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded text-left hover:border-blue-400 transition-colors"
+              >
+                <span className="font-bold text-blue-900 flex items-center gap-2">
+                  <Search size={16}/>
+                  {formData.animalName ? `${formData.animalName} ${formData.species ? `(${SPECIES_LABELS[formData.species as keyof typeof SPECIES_LABELS]})` : ''} - Tutor: ${formData.ownerName}` : "Selecionar Paciente..."}
+                </span>
+                <span className="text-xs text-blue-500">▼</span>
+              </button>
 
-              {/* Anamnese */}
-              <div className="mt-4">
-                <label className="block text-[10px] font-bold text-gray-800 uppercase mb-1">ANAMNESE (História atual, tratamento prévio, antecedentes)</label>
-                <div className="w-full h-40 border border-gray-300 bg-[linear-gradient(transparent_23px,#e5e7eb_24px)] bg-size-[100%_24px]">
-                   <textarea className="w-full h-full bg-transparent border-none outline-none resize-none text-sm leading-6 px-2 text-blue-900"></textarea>
+              {showAnimalSearch && (
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-300 shadow-xl max-h-60 overflow-y-auto z-10 rounded">
+                  {loadingAnimals ? (
+                    <div className="p-4 text-center text-sm text-gray-500">Carregando...</div>
+                  ) : (
+                    animalsList.map(item => (
+                      <div 
+                        key={item.id} 
+                        onClick={() => handleSelectAnimal(item)}
+                        className="p-3 border-b hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
+                        <p className="font-bold text-gray-800">{item.name} <span className="text-xs text-blue-600">({SPECIES_LABELS[item.species as keyof typeof SPECIES_LABELS] || item.species})</span></p>
+                        <p className="text-xs text-gray-500">Tutor: {item.ownerName}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
+              )}
+            </div>
+
+            {/* TIPO E DATA */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 p-4 bg-gray-50 rounded border border-gray-200">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">Tipo de Registro</label>
+                <select 
+                  name="type" 
+                  value={formData.type} 
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none"
+                >
+                  <option value={ClinicalRecordType.triage}>Triagem</option>
+                  <option value={ClinicalRecordType.surgery}>Cirurgia</option>
+                  <option value={ClinicalRecordType.followUp}>Retorno</option>
+                </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-6 mt-4">
-                 <PaperLine label="Vacinações (Quais)" />
-                 <PaperLine label="Quando" />
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">Data</label>
+                <input 
+                  type="date" 
+                  name="treatmentDate" 
+                  value={formData.treatmentDate} 
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none"
+                />
               </div>
-              <PaperLine label="Vermifugações" className="mt-2" />
+              
+              {/* Campos Condicionais */}
+              <div className="flex items-end pb-2">
+                {formData.type === ClinicalRecordType.triage && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="fitForSurgery" 
+                      checked={!!formData.fitForSurgery} 
+                      onChange={handleChange}
+                      className="w-5 h-5 text-green-600 rounded"
+                    />
+                    <span className="font-bold text-green-700">Apto para Cirurgia?</span>
+                  </label>
+                )}
+                {formData.type === ClinicalRecordType.surgery && (
+                  <select 
+                    name="surgeryType" 
+                    value={formData.surgeryType || ''} 
+                    onChange={handleChange}
+                    className="w-full p-2 border border-green-300 bg-green-50 rounded focus:ring-2 focus:ring-green-500 outline-none"
+                  >
+                    <option value="">Selecione a Cirurgia...</option>
+                    <option value={SurgeryType.orchiectomy}>Orquiectomia (Macho)</option>
+                    <option value={SurgeryType.ovariohysterectomy}>Ovariohisterectomia (Fêmea)</option>
+                  </select>
+                )}
+              </div>
             </div>
 
-            {/* --- PARTE 2: EXAME CLÍNICO (Baseado na Imagem 2) --- */}
-            <div>
-               <div className="text-center mb-6 relative">
-                 <span className="bg-white px-4 relative z-10 text-lg font-bold uppercase text-gray-900">Exame Clínico</span>
-                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-900 z-0"></div>
-               </div>
-               
-               {/* Parâmetros */}
-               <div className="flex flex-wrap justify-center gap-6 mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                 <ParamInput label="TR" unit="°C" />
-                 <ParamInput label="Bat. Card." unit="/min" />
-                 <ParamInput label="Mov. Resp." unit="/min" />
-                 <ParamInput label="Pulso" unit="/min" />
-               </div>
-
-               {/* Grid de Sistemas (Fiel à Img 2 - Esquerda/Direita) */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  {/* Coluna Esquerda */}
-                  <div className="flex flex-col gap-4">
-                    <LinedTextArea label="ECTOSCOPIA (Estado geral, mucosas, pele, linfonodos)" rows={6} />
-                    <LinedTextArea label="CABEÇA E PESCOÇO (Ouvidos, olhos, nariz, boca)" rows={6} />
-                    <LinedTextArea label="CAVIDADE TORÁCICA (Palpação, percussão, auscultação)" rows={6} />
-                  </div>
-
-                  {/* Coluna Direita */}
-                  <div className="flex flex-col gap-4">
-                    <LinedTextArea label="CAVIDADE ABDOMINAL (Forma, conteúdo, estômago, fígado)" rows={6} />
-                    <LinedTextArea label="SISTEMA NERVOSO (Comportamento, reflexos, paralisias)" rows={6} />
-                    <LinedTextArea label="SISTEMA LOCOMOTOR (Ossos e articulações)" rows={6} />
-                  </div>
-               </div>
-
-               {/* Diagnóstico e Prognóstico */}
-               <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <LinedTextArea label="DIAGNÓSTICO PROVÁVEL / EXAMES COMPLEMENTARES" rows={4} />
-                  <LinedTextArea label="DIAGNÓSTICO DEFINITIVO / PROGNÓSTICO" rows={4} />
-               </div>
-
-               {/* --- CAMPO EXTRA SOLICITADO --- */}
-               <div className="mt-8 pt-6 border-t-4 border-double border-gray-300">
-                  <LinedTextArea label="OBSERVAÇÕES ADICIONAIS / DESCRIÇÃO LIVRE (Extra)" rows={5} />
-               </div>
-
+            {/* SEÇÕES DO FORMULÁRIO */}
+            
+            {/* 1. Identificação (Preenchida autom., mas editável) */}
+            <SectionTitle title="Identificação do Paciente" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Input label="Espécie" name="species" value={formData.species || ''} onChange={handleChange} readOnly />
+              <Input label="Raça" name="breed" value={formData.breed || ''} onChange={handleChange} />
+              <Input label="Idade" name="age" value={formData.age || ''} onChange={handleChange} />
+              <Input label="Peso" name="weight" value={formData.weight || ''} onChange={handleChange} />
+              <Input label="Pelagem" name="coat" value={formData.coat || ''} onChange={handleChange} />
+              <Input label="Porte" name="size" value={formData.size || ''} onChange={handleChange} />
             </div>
 
+            <SectionTitle title="Dados do Tutor" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="md:col-span-2">
+                <Input label="Nome Completo" name="ownerName" value={formData.ownerName || ''} onChange={handleChange} />
+              </div>
+              <Input label="Telefone" name="ownerPhone" value={formData.ownerPhone || ''} onChange={handleChange} />
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
+                  <Input label="Endereço" name="ownerAddress" value={formData.ownerAddress || ''} onChange={handleChange} />
+                </div>
+                <Input label="Número" name="ownerNumber" value={formData.ownerNumber || ''} onChange={handleChange} />
+                <Input label="Bairro" name="ownerNeighborhood" value={formData.ownerNeighborhood || ''} onChange={handleChange} />
+                <Input label="Cidade" name="ownerCity" value={formData.ownerCity || ''} onChange={handleChange} />
+              </div>
+              <div className="md:col-span-3">
+                <Input label="Ponto de Referência" name="ownerReference" value={formData.ownerReference || ''} onChange={handleChange} />
+              </div>
             </div>
-          )}
+
+            {/* 2. Tipo de Atendimento (Checkboxes) */}
+            <SectionTitle title="Tipo de Atendimento" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-green-50 rounded">
+                <input type="checkbox" name="clinicalGuidance" checked={formData.clinicalGuidance} onChange={handleChange} className="w-4 h-4 text-green-600 rounded" />
+                <span className="text-sm text-gray-700">Orientação Clínica</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-green-50 rounded">
+                <input type="checkbox" name="returnVisit" checked={formData.returnVisit} onChange={handleChange} className="w-4 h-4 text-green-600 rounded" />
+                <span className="text-sm text-gray-700">Retorno</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-green-50 rounded">
+                <input type="checkbox" name="consultation" checked={formData.consultation} onChange={handleChange} className="w-4 h-4 text-green-600 rounded" />
+                <span className="text-sm text-gray-700">Consulta</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-green-50 rounded">
+                <input type="checkbox" name="treatmentChange" checked={formData.treatmentChange} onChange={handleChange} className="w-4 h-4 text-green-600 rounded" />
+                <span className="text-sm text-gray-700">Mudança de Tratamento</span>
+              </label>
+            </div>
+
+            {/* 3. Anamnese */}
+            <SectionTitle title="Anamnese" />
+            <div className="space-y-4 mb-6">
+              <TextArea label="Histórico / Queixa Principal" name="anamnesis" value={formData.anamnesis || ''} onChange={handleChange} rows={3} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Input label="Vacinas" name="vaccinations" value={formData.vaccinations || ''} onChange={handleChange} />
+                <Input label="Data da Vacinação" type="date" name="vaccinationDate" value={formData.vaccinationDate || ''} onChange={handleChange} />
+                <Input label="Vermifugação" name="deworming" value={formData.deworming || ''} onChange={handleChange} />
+              </div>
+            </div>
+
+            {/* 4. Sinais Vitais */}
+            <SectionTitle title="Sinais Vitais" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <Input label="Temp. Retal (°C)" name="rectalTemp" value={formData.rectalTemp || ''} onChange={handleChange} />
+              <Input label="Freq. Cardíaca" name="heartRate" value={formData.heartRate || ''} onChange={handleChange} />
+              <Input label="Freq. Respiratória" name="respiratoryRate" value={formData.respiratoryRate || ''} onChange={handleChange} />
+              <Input label="TPC / Pulso" name="pulse" value={formData.pulse || ''} onChange={handleChange} />
+            </div>
+
+            {/* 5. Exame Físico por Sistemas */}
+            <SectionTitle title="Exame Físico por Sistemas" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <TextArea label="Ectoscopia (Pele/Mucosas)" name="ectoscopy" value={formData.ectoscopy || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Cabeça e Pescoço" name="headAndNeck" value={formData.headAndNeck || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Cavidade Torácica (Coração/Pulmão)" name="thoracicCavity" value={formData.thoracicCavity || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Cavidade Abdominal" name="abdominalCavity" value={formData.abdominalCavity || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Sistema Nervoso" name="nervousSystem" value={formData.nervousSystem || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Sistema Locomotor" name="locomotorSystem" value={formData.locomotorSystem || ''} onChange={handleChange} rows={2} />
+            </div>
+
+            {/* 6. Diagnóstico */}
+            <SectionTitle title="Diagnóstico" />
+            <div className="space-y-4 mb-6">
+              <TextArea label="Diagnóstico Provisório" name="provisionalDiagnosis" value={formData.provisionalDiagnosis || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Exames Complementares Solicitados" name="complementaryExams" value={formData.complementaryExams || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Diagnóstico Definitivo" name="definitiveDiagnosis" value={formData.definitiveDiagnosis || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Prognóstico" name="prognosis" value={formData.prognosis || ''} onChange={handleChange} rows={2} />
+            </div>
+
+            {/* 7. Prescrições e Observações */}
+            <SectionTitle title="Prescrições e Observações" />
+            <div className="space-y-4">
+              <TextArea label="Instruções ao Tutor / Prescrição" name="instructions" value={formData.instructions || ''} onChange={handleChange} rows={4} />
+              <TextArea label="Observações Gerais" name="observations" value={formData.observations || ''} onChange={handleChange} rows={3} />
+              <TextArea label="Notas Adicionais" name="additionalNotes" value={formData.additionalNotes || ''} onChange={handleChange} rows={2} />
+            </div>
+
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200" disabled={loading}>
+        <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3 shrink-0">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+            disabled={saving}
+          >
             Cancelar
           </button>
           <button 
-            onClick={handleSave} 
-            className="px-8 py-2 rounded-lg text-sm font-bold text-white bg-green-700 hover:bg-green-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            disabled={loading}
+            onClick={handleSubmit}
+            disabled={saving || !medicalRecordId}
+            className="px-8 py-2.5 rounded-lg text-sm font-bold text-white bg-green-700 hover:bg-green-800 shadow-lg disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save size={16} />}
-            {loading ? 'Salvando...' : 'Salvar Ficha'}
+            {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            {saving ? "Salvando..." : "Salvar Ficha"}
           </button>
         </div>
-      </div>
-    </div>
-  );
 
-  return createPortal(modalContent, document.body);
+      </div>
+    </div>,
+    document.body
+  );
 }
+
+// Componentes UI Auxiliares
+const SectionTitle = ({ title }: { title: string }) => (
+  <div className="border-b border-gray-200 pb-1 mb-4 mt-6">
+    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{title}</h3>
+  </div>
+);
+
+const Input = ({ label, ...props }: any) => (
+  <div>
+    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">{label}</label>
+    <input 
+      {...props}
+      className="w-full border-b border-gray-300 bg-transparent px-1 py-1 text-sm text-gray-900 focus:border-green-600 focus:outline-none placeholder:text-gray-300 transition-colors"
+    />
+  </div>
+);
+
+const TextArea = ({ label, ...props }: any) => (
+  <div>
+    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">{label}</label>
+    <textarea 
+      {...props}
+      className="w-full border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm text-gray-800 rounded focus:border-green-600 focus:ring-1 focus:ring-green-600 focus:outline-none transition-all resize-none"
+    />
+  </div>
+);

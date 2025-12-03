@@ -6,54 +6,18 @@ import { toast } from 'sonner';
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import AgendamentoCard, { Agendamento } from '@/components/AtendenteComponents/AgendamentoCard';
 import AgendamentoFilter from '@/components/AtendenteComponents/FiltroAgendamento';
-import CadastroModal from '@/components/modals/CadastroModal';
+import ModalNovoAgendamentoAtendente from '@/components/AtendenteComponents/ModalNovoAgendamentoAtendente';
 import ModalDetalhesAgendamento from '@/components/modals/ModalDetalhesAgendamento';
 import { AppointmentService, AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
 import { AnimalService, Species, Gender, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
-
-// --- TIPOS ---
-type AgendamentoForm = {
-  animalId: string;
-  startTime: string;
-  endTime: string;
-  serviceType: ServiceType;
-  status: AppointmentStatus;
-  notes: string;
-};
-
-const emptyForm: AgendamentoForm = {
-  animalId: '',
-  startTime: '',
-  endTime: '',
-  serviceType: ServiceType.triage,
-  status: AppointmentStatus.scheduled,
-  notes: '',
-};
-
-type AnimalOption = { id: number; name: string; petOwnerId: number; ownerName: string; species: string; };
-
-// --- FUNÇÃO AUXILIAR (A que estava faltando) ---
-const formatIsoToInput = (isoString: string) => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  // Ajusta o fuso horário para exibir corretamente no input datetime-local
-  const offset = date.getTimezoneOffset() * 60000;
-  const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
-  return localISOTime;
-};
 
 export default function PaginaAgendamentos() {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
-  const [animaisDisponiveis, setAnimaisDisponiveis] = useState<AnimalOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<AgendamentoForm>(emptyForm);
   const [isModalDetalhesOpen, setIsModalDetalhesOpen] = useState(false);
   const [selectedAgendamento, setSelectedAgendamento] = useState<Agendamento | null>(null);
 
@@ -88,20 +52,7 @@ export default function PaginaAgendamentos() {
     }
   };
 
-  const fetchAnimais = async () => {
-    try {
-      const animais = await AnimalService.getAll();
-      const opcoes: AnimalOption[] = animais.map(a => ({
-        id: a.id, name: a.name || 'Sem nome', petOwnerId: a.petOwnerId,
-        ownerName: a.petOwner?.user?.completeName || 'Tutor Desconhecido', species: a.species
-      }));
-      setAnimaisDisponiveis(opcoes);
-    } catch (error) {
-      console.error('Erro ao carregar animais:', error);
-    }
-  };
-
-  useEffect(() => { fetchAgendamentos(); fetchAnimais(); }, []);
+  useEffect(() => { fetchAgendamentos(); }, []);
 
   const agendamentosFiltrados = useMemo(() => {
     return agendamentos.filter(ag => {
@@ -117,6 +68,10 @@ export default function PaginaAgendamentos() {
   }, [agendamentos, busca, statusFiltro]);
 
   // Handlers
+  const handleAgendamentoSuccess = () => {
+    fetchAgendamentos();
+  };
+
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setSelectedAgendamento(agendamento);
     setIsModalDetalhesOpen(true);
@@ -167,84 +122,11 @@ export default function PaginaAgendamentos() {
   };
 
   const handleNovoAgendamento = () => {
-    setFormData(emptyForm);
-    setIsEditing(false);
-    setEditingId(null);
     setIsModalCadastroOpen(true);
   };
   
-  const handleCloseCadastro = () => { setIsModalCadastroOpen(false); setFormData(emptyForm); };
-  
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCreateSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoadingSubmit(true);
-    try {
-      if (!formData.animalId || !formData.startTime || !formData.endTime) {
-        toast.warning('Preencha todos os campos obrigatórios.');
-        setLoadingSubmit(false);
-        return;
-      }
-      const startDate = new Date(formData.startTime);
-      const endDate = new Date(formData.endTime);
-      if (endDate <= startDate) {
-        toast.warning('A data de término deve ser posterior à data de início.');
-        setLoadingSubmit(false);
-        return;
-      }
-      const animalSelecionado = animaisDisponiveis.find(a => a.id === parseInt(formData.animalId));
-      if (!animalSelecionado) throw new Error("Animal inválido");
-      if (isEditing && editingId) {
-        await AppointmentService.update(editingId, {
-          startTime: startDate.toISOString(), endTime: endDate.toISOString(),
-          serviceType: formData.serviceType, status: formData.status, notes: formData.notes,
-        });
-        toast.success('Agendamento atualizado!');
-      } else {
-        await AppointmentService.create({
-          animalId: parseInt(formData.animalId), petOwnerId: animalSelecionado.petOwnerId,
-          startTime: startDate.toISOString(), endTime: endDate.toISOString(),
-          serviceType: formData.serviceType, status: formData.status, notes: formData.notes,
-        });
-        toast.success('Agendamento criado!');
-      }
-      await fetchAgendamentos();
-      setIsModalCadastroOpen(false);
-      setFormData(emptyForm);
-    } catch (error: any) {
-      if (error.response?.status === 409) {
-        toast.error('Conflito de horário!');
-      } else {
-        const msg = error.response?.data?.message || 'Erro ao salvar.';
-        toast.error(msg);
-      }
-    } finally {
-      setLoadingSubmit(false);
-    }
-  };
-
-  const handleOpenEdit = (agendamento: Agendamento) => {
-    const safeServiceType = (agendamento.backendServiceType as unknown as ServiceType) || ServiceType.triage;
-    const safeStatus = (agendamento.backendStatus as unknown as AppointmentStatus) || AppointmentStatus.scheduled;
-
-    // Agora a função existe neste escopo!
-    setFormData({
-      animalId: agendamento.pet.id.toString(),
-      startTime: formatIsoToInput(agendamento.startTime || ''),
-      endTime: formatIsoToInput(agendamento.endTime || ''),
-      serviceType: safeServiceType,
-      status: safeStatus,
-      notes: agendamento.observacoes || '',
-    });
-    
-    setIsEditing(true);
-    setEditingId(agendamento.backendId || null);
-    setIsModalCadastroOpen(true);
-    handleCloseDetalhes();
+  const handleCloseCadastro = () => { 
+    setIsModalCadastroOpen(false); 
   };
 
   return (
@@ -305,101 +187,12 @@ export default function PaginaAgendamentos() {
         )}
       </div>
 
-      <CadastroModal
+      {/* Modal Novo Agendamento */}
+      <ModalNovoAgendamentoAtendente
         isOpen={isModalCadastroOpen}
         onClose={handleCloseCadastro}
-        onSubmit={handleCreateSave}
-        title={isEditing ? "Editar Agendamento" : "Novo Agendamento"}
-        saveText={loadingSubmit ? "Salvando..." : (isEditing ? "Atualizar" : "Criar Agendamento")}
-      >
-        <div>
-          <label htmlFor="animalId" className="block text-sm font-medium text-gray-700 mb-1">Animal*</label>
-          <select
-            id="animalId"
-            name="animalId"
-            value={formData.animalId}
-            onChange={handleFormChange}
-            required
-            disabled={isEditing}
-            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEditing ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-          >
-            <option value="">Selecione o animal</option>
-            {animaisDisponiveis.map(a => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.species === 'canine' ? 'Cão' : 'Gato'}) - {a.ownerName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="serviceType" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Serviço</label>
-            <select
-              id="serviceType"
-              name="serviceType"
-              value={formData.serviceType}
-              onChange={handleFormChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              id="status"
-              name="status"
-              value={formData.status}
-              onChange={handleFormChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">Início*</label>
-            <input
-              id="startTime"
-              name="startTime"
-              type="datetime-local"
-              value={formData.startTime}
-              onChange={handleFormChange}
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">Término*</label>
-            <input
-              id="endTime"
-              name="endTime"
-              type="datetime-local"
-              value={formData.endTime}
-              onChange={handleFormChange}
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Observações:</label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes}
-            onChange={handleFormChange}
-            rows={4}
-            placeholder="Adicione informações sobre o agendamento"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
-          />
-        </div>
-      </CadastroModal>
+        onSuccess={handleAgendamentoSuccess}
+      />
 
       <ModalDetalhesAgendamento
         isOpen={isModalDetalhesOpen}
@@ -407,20 +200,7 @@ export default function PaginaAgendamentos() {
         agendamento={selectedAgendamento}
         onCheckIn={handleCheckIn}
         onCancelAgendamento={handleCancelAgendamento}
-      >
-        {selectedAgendamento && (
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end w-full">
-               {/* BOTÃO CINZA + HOVER VERDE */}
-               <button 
-                 onClick={() => handleOpenEdit(selectedAgendamento)}
-                 className="px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-sm font-bold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-all w-full flex items-center justify-center gap-2 shadow-sm"
-               >
-                 <Edit3 size={16} />
-                 Editar Agendamento
-               </button>
-            </div>
-         )}
-      </ModalDetalhesAgendamento>
+      />
     </div>
   );
 }

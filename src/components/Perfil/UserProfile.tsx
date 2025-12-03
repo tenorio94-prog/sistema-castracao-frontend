@@ -42,9 +42,10 @@ type Props = {
   initialData: ProfileData;
   onSave: (data: ProfileData) => void;
   onPasswordChange?: (data: any) => void;
+  isSaving?: boolean;
 };
 
-export default function UserProfile({ initialData, onSave, onPasswordChange }: Props) {
+export default function UserProfile({ initialData, onSave, onPasswordChange, isSaving = false }: Props) {
   const [formData, setFormData] = useState<ProfileData>(initialData);
   
   const [passwordData, setPasswordData] = useState({
@@ -54,6 +55,11 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
   });
   
   const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  React.useEffect(() => {
+    setFormData(initialData);
+  }, [initialData]);
 
   // Helpers de renderização condicional
   const hasAddress = formData.address !== undefined;
@@ -61,6 +67,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
   };
 
   const handleAddressChange = (field: string, value: string) => {
@@ -76,12 +83,17 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSavePassword = () => {
+  const handleSavePassword = async () => {
     if (onPasswordChange) {
-      onPasswordChange(passwordData);
+      await onPasswordChange(passwordData);
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+      setIsEditingPassword(false);
     }
-    setIsEditingPassword(false);
-    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+  };
+
+  const handleSaveProfile = async () => {
+    await onSave(formData);
+    setHasChanges(false);
   };
 
   return (
@@ -92,7 +104,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
         
         {/* Card Principal */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-100 to-gray-200"></div>
+          <div className="absolute top-0 left-0 w-full h-24 bg-linear-to-r from-gray-100 to-gray-200"></div>
           
           <div className="relative mt-8 mb-4 group">
             <div className="w-28 h-28 rounded-full border-4 border-white bg-gray-50 flex items-center justify-center shadow-md overflow-hidden">
@@ -102,9 +114,6 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                  <User size={48} className="text-gray-300" />
                )}
             </div>
-            <button className="absolute bottom-0 right-0 p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-colors shadow-lg">
-              <Camera size={16} />
-            </button>
           </div>
 
           <h2 className="text-xl font-bold text-gray-900">{formData.name}</h2>
@@ -113,12 +122,6 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
           </span>
 
           <div className="w-full mt-6 pt-6 border-t border-gray-100 space-y-3 text-sm text-gray-500 text-left">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar size={14} /> <span>Membro desde</span>
-              </div>
-              <span className="font-medium text-gray-900">{formData.memberSince}</span>
-            </div>
             {formData.lastAccess && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -198,11 +201,21 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
           
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
              <button 
-               onClick={() => onSave(formData)}
-               className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-medium transition-all"
+               onClick={handleSaveProfile}
+               disabled={isSaving || !hasChanges}
+               className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               <Save size={16} />
-               Salvar Dados Pessoais
+               {isSaving ? (
+                 <>
+                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                   Salvando...
+                 </>
+               ) : (
+                 <>
+                   <Save size={16} />
+                   {hasChanges ? 'Salvar Alterações' : 'Dados Salvos'}
+                 </>
+               )}
              </button>
           </div>
         </section>
@@ -269,6 +282,8 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                   name="current_password" 
                   value={passwordData.current_password}
                   onChange={handlePasswordInput}
+                  hidePasswordGenerators
+                  placeholder="Digite sua senha atual"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <FormInput 
@@ -277,6 +292,7 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                     name="new_password"
                     value={passwordData.new_password}
                     onChange={handlePasswordInput}
+                    placeholder="Mínimo 6 caracteres"
                   />
                   <FormInput 
                     label="Confirmar Nova Senha" 
@@ -284,20 +300,34 @@ export default function UserProfile({ initialData, onSave, onPasswordChange }: P
                     name="confirm_password"
                     value={passwordData.confirm_password}
                     onChange={handlePasswordInput}
+                    hidePasswordGenerators
+                    placeholder="Digite a senha novamente"
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                    <button 
-                     onClick={() => setIsEditingPassword(false)}
-                     className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700"
+                     onClick={() => {
+                       setIsEditingPassword(false);
+                       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+                     }}
+                     disabled={isSaving}
+                     className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
                    >
                      Cancelar
                    </button>
                    <button 
                      onClick={handleSavePassword}
-                     className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
+                     disabled={isSaving || !passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password}
+                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     Atualizar Senha
+                     {isSaving ? (
+                       <>
+                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                         Atualizando...
+                       </>
+                     ) : (
+                       'Atualizar Senha'
+                     )}
                    </button>
                 </div>
               </div>

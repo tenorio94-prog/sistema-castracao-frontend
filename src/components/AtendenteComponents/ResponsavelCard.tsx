@@ -11,6 +11,7 @@ export type Responsavel = {
   cnpj?: string;
   telefone?: string; 
   animais: string[]; 
+  quantidadeAnimais?: number;
   senha: string;     
   email?: string;     
   endereco?: string;  

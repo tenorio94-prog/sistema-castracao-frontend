@@ -15,6 +15,37 @@ export enum Role {
 }
 
 /**
+ * Enum de Tipos de Responsável (Pet Owner)
+ */
+export enum PetOwnerType {
+  individual = 'individual', // Pessoa Física
+  ngo = 'ngo'               // ONG
+}
+
+/**
+ * Enum de Especialidades Médicas Veterinárias
+ * Valores padronizados para seleção de especialidade de veterinários
+ */
+export enum VeterinarySpecialty {
+  GENERAL = 'Clínico Geral',
+  ANESTHETIST = 'Anestesista',
+  CLINICAL_PATHOLOGIST = 'Patologista Clínico',
+  DIAGNOSTIC_IMAGING = 'Diagnóstico por Imagem',
+  SURGEON = 'Cirurgião'
+}
+
+/**
+ * Array com todas as especialidades disponíveis para uso em selects
+ */
+export const VETERINARY_SPECIALTIES = [
+  { value: VeterinarySpecialty.GENERAL, label: 'Clínico Geral' },
+  { value: VeterinarySpecialty.ANESTHETIST, label: 'Anestesista' },
+  { value: VeterinarySpecialty.CLINICAL_PATHOLOGIST, label: 'Patologista Clínico' },
+  { value: VeterinarySpecialty.DIAGNOSTIC_IMAGING, label: 'Diagnóstico por Imagem' },
+  { value: VeterinarySpecialty.SURGEON, label: 'Cirurgião' }
+] as const;
+
+/**
  * Interface para os dados de login
  */
 export interface LoginDto {
@@ -48,7 +79,8 @@ export interface AuthUser {
 export interface CreateUserDto {
   email: string;
   password: string;
-  cpf: string;
+  cpf?: string;
+  cnpj?: string;
   phone: string;
   completeName: string;
   role: Role;
@@ -61,9 +93,10 @@ export interface CreateUserDto {
   enrollment?: string; // Required for student (matrícula)
   
   // Campos específicos para petOwner
-  address?: string;       // Required for petOwner (backend converte para fullAddress)
-  nis?: string;           // Optional for petOwner
-  documentUrl?: string;   // Optional for petOwner
+  address?: string;         // Required for petOwner (backend converte para fullAddress)
+  nis?: string;             // Optional for petOwner
+  documentUrl?: string;     // Optional for petOwner
+  petOwnerType?: PetOwnerType; // Tipo de responsável (individual ou ONG)
 }
 
 /**

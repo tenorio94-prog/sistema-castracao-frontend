@@ -1,24 +1,79 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, CalendarDays, Search, Filter, ChevronDown } from 'lucide-react';
+import { CalendarDays, Search, Filter, ChevronDown, Clock, PawPrint, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import ConsultaCard, { ConsultaResponsavelUI } from '@/components/ResponsavelComponents/CardConsulta';
-import NovaConsultaModal from '@/components/ResponsavelComponents/NovaConsulta';
 import DetalhesConsultaModal, { DetalhesData } from '@/components/ResponsavelComponents/DetalhesConsulta';
+import { ConsultaResponsavelUI } from '@/components/ResponsavelComponents/CardConsulta';
 import { PetOwnerService } from '@/services/petowner.service';
-import { AppointmentService, AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
+import { AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/services/appointment.service';
 import { SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
+
+// Card de consulta inline
+const ConsultaListItem = ({ 
+  consulta, 
+  onDetalhes 
+}: { 
+  consulta: ConsultaResponsavelUI; 
+  onDetalhes: (c: ConsultaResponsavelUI) => void;
+}) => {
+  const statusColors: Record<string, string> = {
+    'Agendado': 'bg-blue-50 text-blue-700 border-blue-200',
+    'Em Andamento': 'bg-amber-50 text-amber-700 border-amber-200',
+    'Concluído': 'bg-green-50 text-green-700 border-green-200',
+    'Cancelado': 'bg-red-50 text-red-700 border-red-200',
+  };
+
+  const [dia, mes, ano] = consulta.date.split('/');
+
+  return (
+    <div 
+      onClick={() => onDetalhes(consulta)}
+      className="group bg-white border border-gray-100 rounded-xl p-4 hover:border-green-200 hover:shadow-md transition-all cursor-pointer"
+    >
+      <div className="flex items-center gap-4">
+        {/* Data */}
+        <div className="shrink-0 text-center bg-gray-50 group-hover:bg-green-50 rounded-xl px-3 py-2 transition-colors min-w-[60px]">
+          <span className="block text-2xl font-bold text-gray-900 group-hover:text-green-700">{dia}</span>
+          <span className="block text-xs font-medium text-gray-500 uppercase">
+            {new Date(parseInt(ano), parseInt(mes) - 1).toLocaleString('pt-BR', { month: 'short' })}
+          </span>
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h4 className="font-semibold text-gray-900">{consulta.title}</h4>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusColors[consulta.status] || 'bg-gray-100 text-gray-600'}`}>
+              {consulta.status}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <PawPrint size={14} className="text-gray-400" />
+              {consulta.petName}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock size={14} className="text-gray-400" />
+              {consulta.time}
+            </span>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <ChevronRight size={20} className="text-gray-300 group-hover:text-green-500 transition-colors shrink-0" />
+      </div>
+    </div>
+  );
+};
 
 export default function ConsultasPage() {
   const [consultas, setConsultas] = useState<ConsultaResponsavelUI[]>([]);
-  const [animals, setAnimals] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'Todos' | 'Triagem' | 'Castração' | 'Pós-Operatório'>('Todos');
+  const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [loading, setLoading] = useState(true);
 
-  const [isNewConsultModalOpen, setIsNewConsultModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<DetalhesData | null>(null);
 
@@ -29,14 +84,12 @@ export default function ConsultasPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [profileData, animalsData, appointmentsData] = await Promise.all([
+      const [profileData, appointmentsData] = await Promise.all([
         PetOwnerService.getMe(),
-        PetOwnerService.getMyPets(),
         PetOwnerService.getMyAppointments()
       ]);
 
       setProfile(profileData);
-      setAnimals(animalsData);
       
       const consultasUI: ConsultaResponsavelUI[] = appointmentsData.map((apt: any) => {
         const dataObj = new Date(apt.startTime);
@@ -52,11 +105,18 @@ export default function ConsultasPage() {
           petName: apt.animal?.name || 'Animal',
           date: dataObj.toLocaleDateString('pt-BR'),
           time: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          veterinarian: 'Veterinário a definir',
-          clinic: 'Clínica Veterinária',
+          veterinarian: apt.veterinarian?.user?.completeName || 'A definir',
+          clinic: 'Clínica Veterinária Municipal',
           status: statusLabel as 'Agendado' | 'Concluído' | 'Cancelado' | 'Em Andamento',
           backendData: apt
         };
+      });
+
+      // Ordenar: próximas primeiro, depois passadas
+      consultasUI.sort((a, b) => {
+        const dateA = new Date(a.backendData.startTime);
+        const dateB = new Date(b.backendData.startTime);
+        return dateA.getTime() - dateB.getTime();
       });
       
       setConsultas(consultasUI);
@@ -107,146 +167,142 @@ export default function ConsultasPage() {
     setIsDetailsModalOpen(true);
   };
 
-  const handleSaveConsulta = async (data: any) => {
-    // Validações
-    const animal = animals.find(a => a.id === parseInt(data.animal));
-    if (!animal) {
-      toast.error('Animal não selecionado', { description: 'Selecione um animal para continuar.' });
-      return;
-    }
-
-    if (!data.tipo) {
-      toast.error('Tipo obrigatório', { description: 'Selecione o tipo de consulta.' });
-      return;
-    }
-
-    if (!data.data || !data.horario) {
-      toast.error('Data e horário obrigatórios', { description: 'Preencha todos os campos.' });
-      return;
-    }
-
-    if (!profile?.id) {
-      toast.error('Sessão inválida', { description: 'Faça login novamente.' });
-      return;
-    }
-
-    const startDate = new Date(data.data + 'T' + data.horario);
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-
-    if (isNaN(startDate.getTime())) {
-      toast.error('Data inválida', { description: 'Verifique a data informada.' });
-      return;
-    }
-
-    if (startDate < new Date()) {
-      toast.error('Data no passado', { description: 'Selecione uma data futura.' });
-      return;
-    }
-
-    // Mapear tipo para ServiceType do backend
-    let serviceType: ServiceType;
-    
-    switch (data.tipo) {
-      case 'Castração':
-        serviceType = ServiceType.castrationSurgery;
-        break;
-      case 'Consulta de Retorno':
-      case 'Pós-Operatório':
-        serviceType = ServiceType.postOperative;
-        break;
-      default:
-        serviceType = ServiceType.triage;
-        break;
-    }
-
-    toast.promise(
-      AppointmentService.create({
-        animalId: animal.id,
-        petOwnerId: profile.id,
-        startTime: startDate.toISOString(),
-        endTime: endDate.toISOString(),
-        serviceType: serviceType,
-        status: AppointmentStatus.scheduled,
-        notes: data.observacoes || ''
-      }),
-      {
-        loading: 'Criando agendamento...',
-        success: () => {
-          setIsNewConsultModalOpen(false);
-          fetchData();
-          return `Consulta para ${animal.name} agendada com sucesso!`;
-        },
-        error: (err) => {
-          console.error('Erro ao criar agendamento:', err);
-          const apiError = err.response?.data;
-          if (Array.isArray(apiError?.message)) {
-            return apiError.message[0];
-          }
-          return apiError?.message || 'Erro ao agendar consulta';
-        }
-      }
-    );
-  };
-
+  // Filtros
   const filteredConsultas = consultas.filter(c => {
-    const matchesSearch = c.petName.toLowerCase().includes(searchTerm.toLowerCase()) || c.title.toLowerCase().includes(searchTerm.toLowerCase());
-    let matchesType = true;
-    if (filterType !== 'Todos') {
-      matchesType = c.title.toLowerCase().includes(filterType.toLowerCase());
-    }
-    return matchesSearch && matchesType;
+    const matchesSearch = c.petName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         c.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'Todos' || c.status === filterStatus;
+    return matchesSearch && matchesStatus;
   });
 
+  // Separar agendadas e histórico
+  const upcomingConsultas = filteredConsultas.filter(c => c.status === 'Agendado' || c.status === 'Em Andamento');
+  const pastConsultas = filteredConsultas.filter(c => c.status === 'Concluído' || c.status === 'Cancelado');
+
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center py-20 gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <CalendarDays size={24} className="text-green-600/50" />
+          </div>
+        </div>
+        <p className="text-gray-500 font-medium animate-pulse">Carregando consultas...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
+          <p className="text-sm font-medium text-green-600 mb-1">Área do Tutor</p>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Minhas Consultas</h1>
           <p className="text-gray-500 mt-1">Acompanhe seu histórico e próximos agendamentos.</p>
         </div>
-        <button onClick={() => setIsNewConsultModalOpen(true)} className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-gray-200 transition-all active:scale-95">
-          <Plus size={18} /><span>Novo Agendamento</span>
-        </button>
-      </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-full">
+          <CalendarDays size={18} className="text-green-600" />
+          <span className="text-sm font-medium text-green-700">{consultas.length} {consultas.length === 1 ? 'consulta' : 'consultas'}</span>
+        </div>
+      </header>
 
+      {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative grow sm:max-w-md">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input type="text" placeholder="Buscar por animal ou procedimento..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all placeholder-gray-400" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <input 
+            type="text" 
+            placeholder="Buscar por animal ou procedimento..." 
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all placeholder-gray-400 shadow-sm" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
 
-        <div className="relative min-w-[180px]">
+        <div className="relative min-w-40">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={16} />
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} className="w-full pl-10 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 appearance-none cursor-pointer hover:bg-gray-50 transition-colors">
-            <option value="Todos">Todos os Tipos</option>
-            <option value="Triagem">Triagem</option>
-            <option value="Castração">Castração</option>
-            <option value="Pós-Operatório">Pós-Operatório</option>
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)} 
+            className="w-full pl-10 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <option value="Todos">Todos os Status</option>
+            <option value="Agendado">Agendado</option>
+            <option value="Em Andamento">Em Andamento</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Cancelado">Cancelado</option>
           </select>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><ChevronDown size={16} /></div>
+          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
         </div>
       </div>
 
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          </div>
-        ) : filteredConsultas.length > 0 ? (
-          filteredConsultas.map((consulta) => (
-            <ConsultaCard key={consulta.id} consulta={consulta} onDetalhes={handleDetalhes} />
-          ))
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed border-gray-200 rounded-2xl">
-            <div className="p-4 bg-gray-50 rounded-full mb-3"><CalendarDays className="text-gray-400" size={32} /></div>
-            <p className="text-gray-900 font-medium">Nenhuma consulta encontrada.</p>
-            <p className="text-gray-500 text-sm mt-1">{filterType !== 'Todos' ? `Nenhum resultado para "${filterType}".` : 'Agende uma nova consulta para começar.'}</p>
-          </div>
-        )}
-      </div>
+      {/* Lista de Consultas */}
+      {filteredConsultas.length > 0 ? (
+        <div className="space-y-6">
+          {/* Próximas Consultas */}
+          {upcomingConsultas.length > 0 && (
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-green-50/50">
+                <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                  <CalendarDays size={18} className="text-green-600" />
+                  Próximas Consultas
+                  <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                    {upcomingConsultas.length}
+                  </span>
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                {upcomingConsultas.map((consulta) => (
+                  <ConsultaListItem key={consulta.id} consulta={consulta} onDetalhes={handleDetalhes} />
+                ))}
+              </div>
+            </section>
+          )}
 
-      <NovaConsultaModal isOpen={isNewConsultModalOpen} onClose={() => setIsNewConsultModalOpen(false)} onSave={handleSaveConsulta} animais={animals} />
-      <DetalhesConsultaModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} data={selectedDetails} onCancel={() => setIsDetailsModalOpen(false)} onConfirm={() => setIsDetailsModalOpen(false)} />
+          {/* Histórico */}
+          {pastConsultas.length > 0 && (
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                  <Clock size={18} className="text-gray-500" />
+                  Histórico
+                  <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                    {pastConsultas.length}
+                  </span>
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                {pastConsultas.map((consulta) => (
+                  <ConsultaListItem key={consulta.id} consulta={consulta} onDetalhes={handleDetalhes} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 bg-white border border-dashed border-gray-200 rounded-2xl">
+          <div className="p-4 bg-gray-50 rounded-full mb-3">
+            <CalendarDays className="text-gray-400" size={32} />
+          </div>
+          <p className="text-gray-900 font-medium">Nenhuma consulta encontrada</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {searchTerm || filterStatus !== 'Todos' 
+              ? 'Tente ajustar os filtros de busca.' 
+              : 'Suas consultas aparecerão aqui quando agendadas.'}
+          </p>
+        </div>
+      )}
+
+      {/* Modal de Detalhes */}
+      <DetalhesConsultaModal 
+        isOpen={isDetailsModalOpen} 
+        onClose={() => setIsDetailsModalOpen(false)} 
+        data={selectedDetails} 
+        onCancel={() => setIsDetailsModalOpen(false)} 
+        onConfirm={() => setIsDetailsModalOpen(false)} 
+      />
     </div>
   );
 }

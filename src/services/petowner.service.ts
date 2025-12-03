@@ -10,6 +10,7 @@ export interface PetOwner {
   userId: number;          // ID do user relacionado
   fullAddress: string;
   nis: string | null;
+  type?: 'individual' | 'ngo'; // Tipo de responsável
   documentUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -17,7 +18,8 @@ export interface PetOwner {
     id?: number;
     completeName: string;
     email: string;
-    cpf: string;
+    cpf?: string;
+    cnpj?: string;
     phone: string;
     role?: string;
     createdAt?: string;

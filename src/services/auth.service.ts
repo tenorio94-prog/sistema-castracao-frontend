@@ -119,16 +119,15 @@ export class AuthService {
 
   /**
    * Realiza o logout do usuário
+   * Como o backend não possui rota de logout, apenas limpa os tokens localmente
    */
   static async logout(): Promise<void> {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    } finally {
-      // Limpar tokens independentemente do resultado
-      this.clearTokens();
-    }
+    // Limpar tokens do localStorage (logout no lado do cliente)
+    this.clearTokens();
+    
+    // Nota: O backend não possui endpoint /auth/logout
+    // O logout é feito apenas removendo os tokens do cliente
+    // Se necessário invalidar o token no servidor, adicione o endpoint no backend
   }
 
   /**

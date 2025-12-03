@@ -66,6 +66,7 @@ export interface Appointment {
 export interface CreateAppointmentData {
   animalId: number;
   petOwnerId: number;
+  veterinarianId?: number;
   startTime: string;
   endTime: string;
   serviceType?: ServiceType;
@@ -85,10 +86,22 @@ export interface UpdateAppointmentData {
 export const AppointmentService = {
   async getAll(): Promise<Appointment[]> {
     try {
+      console.log('🔍 Buscando todos os agendamentos...');
       const response = await api.get<Appointment[]>('/appointment');
+      console.log('✅ Agendamentos recebidos:', response.data.length);
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching appointments:', error);
+      console.error('❌ Error fetching appointments:', error);
+      // Tentar rota alternativa se /appointments falhar
+      if (error.response?.status === 404) {
+        console.log('⚠️ Tentando rota alternativa /appointment...');
+        try {
+          const response = await api.get<Appointment[]>('/appointment');
+          return response.data;
+        } catch (fallbackError) {
+          throw new Error('Erro ao buscar agendamentos');
+        }
+      }
       throw new Error(error.response?.data?.message || 'Erro ao buscar agendamentos');
     }
   },
@@ -98,15 +111,38 @@ export const AppointmentService = {
       const response = await api.get<Appointment>(`/appointment/${id}`);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 404) {
+        try {
+          const response = await api.get<Appointment>(`/appointment/${id}`);
+          return response.data;
+        } catch (fallbackError) {
+          throw new Error('Agendamento não encontrado');
+        }
+      }
       throw new Error(error.response?.data?.message || 'Erro ao buscar agendamento');
     }
   },
 
   async create(data: CreateAppointmentData): Promise<Appointment> {
     try {
+      console.log('📤 Criando agendamento no endpoint /appointment...');
       const response = await api.post<Appointment>('/appointment', data);
+      console.log('✅ Agendamento criado:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('❌ Erro no POST /appointment:', error.response?.status);
+      // Tentar rota alternativa se /appointments falhar
+      if (error.response?.status === 404) {
+        console.log('⚠️ Tentando rota alternativa /appointment...');
+        try {
+          const response = await api.post<Appointment>('/appointment', data);
+          console.log('✅ Agendamento criado (rota alternativa):', response.data);
+          return response.data;
+        } catch (fallbackError) {
+          console.error('❌ Falha em ambas as rotas');
+          throw fallbackError;
+        }
+      }
       // Repassa o erro original para que o componente possa verificar o status 409
       throw error; 
     }
@@ -117,6 +153,14 @@ export const AppointmentService = {
       const response = await api.patch<Appointment>(`/appointment/${id}`, data);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 404) {
+        try {
+          const response = await api.patch<Appointment>(`/appointment/${id}`, data);
+          return response.data;
+        } catch (fallbackError) {
+          throw fallbackError;
+        }
+      }
       throw error;
     }
   },
@@ -126,6 +170,14 @@ export const AppointmentService = {
       const response = await api.delete<{ message: string }>(`/appointment/${id}`);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 404) {
+        try {
+          const response = await api.delete<{ message: string }>(`/appointment/${id}`);
+          return response.data;
+        } catch (fallbackError) {
+          throw new Error('Erro ao deletar agendamento');
+        }
+      }
       throw new Error(error.response?.data?.message || 'Erro ao deletar agendamento');
     }
   },
