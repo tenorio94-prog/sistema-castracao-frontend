@@ -14,7 +14,8 @@ import { AuthService, Role } from '@/services/auth.service';
 import { maskCPF, maskPhone, maskCNPJ, validateCPF, validatePhone, unmask } from '@/lib/masks';
 
 // --- TIPOS ---
-export enum PetOwnerType {
+// Enum local (não exportado) - corresponde ao PetOwnerType do Prisma
+enum PetOwnerTypeEnum {
   individual = 'individual',
   ngo = 'ngo'
 }
@@ -76,7 +77,7 @@ export default function PaginaResponsaveis() {
       const data = await PetOwnerService.getAll();
       
       const responsaveisUI: Responsavel[] = data.map(owner => {
-        const isONG = owner.type === PetOwnerType.ngo;
+        const isONG = owner.type === 'ngo'; // Comparar com string diretamente
         
         return {
           id: owner.id.toString(),
@@ -231,7 +232,7 @@ export default function PaginaResponsaveis() {
         password: createFormData.senha,
         role: Role.petOwner,
         address: createFormData.endereco.trim(),
-        petOwnerType: createFormData.tipo === 'ONG' ? PetOwnerType.ngo : PetOwnerType.individual,
+        petOwnerType: createFormData.tipo === 'ONG' ? 'ngo' : 'individual', // String literal
       };
 
       if (createFormData.tipo === 'PF') {

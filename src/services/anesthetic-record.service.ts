@@ -27,6 +27,33 @@ export enum MedicationPhase {
   INDUCTION = "INDUCTION",
 }
 
+// Labels para exibição
+export const ASA_CLASSIFICATION_LABELS: Record<AsaClassification, string> = {
+  [AsaClassification.ASA_I]: 'ASA I - Paciente Saudável',
+  [AsaClassification.ASA_II]: 'ASA II - Doença Sistêmica Leve',
+  [AsaClassification.ASA_III]: 'ASA III - Doença Sistêmica Grave',
+  [AsaClassification.ASA_IV]: 'ASA IV - Doença Sistêmica Grave com Risco de Vida',
+  [AsaClassification.ASA_V]: 'ASA V - Moribundo'
+};
+
+export const ANESTHETIC_RISK_LABELS: Record<AnestheticRisk, string> = {
+  [AnestheticRisk.MILD]: 'Leve',
+  [AnestheticRisk.MODERATE]: 'Moderado',
+  [AnestheticRisk.HIGH]: 'Alto'
+};
+
+export const RECOVERY_QUALITY_LABELS: Record<RecoveryQuality, string> = {
+  [RecoveryQuality.RAPID_SMOOTH]: 'Rápida/Suave',
+  [RecoveryQuality.SLOW]: 'Lenta',
+  [RecoveryQuality.AGITATED_EXCITEMENT]: 'Agitada/Excitação',
+  [RecoveryQuality.VOCALIZATION_PAIN]: 'Vocalização/Dor'
+};
+
+export const MEDICATION_PHASE_LABELS: Record<MedicationPhase, string> = {
+  [MedicationPhase.MPA]: 'MPA - Medicação Pré-Anestésica',
+  [MedicationPhase.INDUCTION]: 'Indução Anestésica'
+};
+
 // Nested DTOs
 export interface AnestheticMedication {
   id?: number;

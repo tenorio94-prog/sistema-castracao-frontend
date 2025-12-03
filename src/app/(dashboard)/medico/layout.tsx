@@ -19,7 +19,7 @@ import { Role } from "@/types/auth.types";
 export default function MedicoLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[Role.veterinarian, Role.student]}>
-      <SidebarProvider className="!h-screen !max-h-screen !overflow-hidden bg-sidebar">
+      <SidebarProvider className="h-screen max-h-screen overflow-hidden bg-sidebar">
         <Sidebar variant="inset" collapsible="icon">
           
           {/* Header da Sidebar: Identidade Visual Azul para Médico */}

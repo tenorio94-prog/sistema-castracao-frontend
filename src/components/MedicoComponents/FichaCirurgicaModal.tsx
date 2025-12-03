@@ -1,226 +1,182 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Printer, Scissors, Search } from 'lucide-react';
+import { X, Save, Printer, Scissors, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SurgicalRecordService, CreateSurgicalRecordData } from '@/services/surgical-record.service';
 import { MedicalRecordService } from '@/services/medical-record.service';
-import { AnimalService } from '@/services/animal.service';
+import { AnimalService, SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  surgicalRecordId?: number;
 };
 
-interface AnimalSearchResult {
+// Tipo auxiliar para a busca
+interface AnimalSearchUI {
   id: number;
   name: string;
-  medicalRecordId: number;
-  species: string;
+  speciesLabel: string;
   breed: string;
-  gender: string;
-  age: string;
-  weight: string;
-  coat: string;
-  size: string;
   ownerName: string;
-  ownerPhone: string;
-  ownerAddress: string;
+  rawAnimal: any; // Guarda o objeto completo para preencher o form
 }
 
-export default function FichaCirurgicaModal({ isOpen, onClose, onSuccess, surgicalRecordId }: Props) {
+export default function FichaCirurgicaModal({ isOpen, onClose, onSuccess }: Props) {
   const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [searchingAnimal, setSearchingAnimal] = useState(false);
-  const [animals, setAnimals] = useState<AnimalSearchResult[]>([]);
-  const [showAnimalSearch, setShowAnimalSearch] = useState(false);
   
-  const modalRef = useRef<HTMLDivElement>(null);
-  const previousActiveElement = useRef<HTMLElement | null>(null);
+  // Busca de Animais
+  const [showAnimalSearch, setShowAnimalSearch] = useState(false);
+  const [animalList, setAnimalList] = useState<AnimalSearchUI[]>([]);
+  const [loadingAnimals, setLoadingAnimals] = useState(false);
 
-  // Form state
+  // Estado do Formulário
   const [formData, setFormData] = useState<CreateSurgicalRecordData>({
     medicalRecordId: 0,
     recordNumber: '',
     recordDate: new Date().toISOString().split('T')[0],
-    animalName: '',
-    species: '',
-    breed: '',
-    coat: '',
-    size: '',
-    gender: '',
-    age: '',
-    weight: '',
-    ownerName: '',
-    ownerPhone: '',
-    ownerAddress: '',
-    surgeon: '',
-    firstAssistant: '',
-    secondAssistant: '',
-    instrumentator: '',
-    anesthetist: '',
-    duration: '',
-    surgeryStart: '',
-    surgeryEnd: '',
-    preoperativeDiagnosis: '',
-    postoperativeDiagnosis: '',
-    proposedOperation: '',
-    performedOperation: '',
-    materialsUsed: '',
-    postoperativeControl: '',
-    operationDescription: '',
-    additionalObservations: '',
+    
+    // Snapshot
+    animalName: '', species: '', breed: '', coat: '', size: '', gender: '', 
+    age: '', weight: '', ownerName: '', ownerPhone: '', ownerAddress: '',
+    
+    // Equipe
+    surgeon: '', firstAssistant: '', secondAssistant: '', instrumentator: '', anesthetist: '',
+    
+    // Tempos e Procedimentos
+    duration: '', surgeryStart: '', surgeryEnd: '',
+    preoperativeDiagnosis: '', postoperativeDiagnosis: '',
+    proposedOperation: '', performedOperation: '',
+    
+    // Descritivos
+    materialsUsed: '', postoperativeControl: '', operationDescription: '', additionalObservations: '',
   });
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  // Renderização no cliente (Portal)
+  useEffect(() => { setIsMounted(true); }, []);
 
+  // Carregar animais ao abrir
   useEffect(() => {
     if (isOpen) {
-      previousActiveElement.current = document.activeElement as HTMLElement;
-      modalRef.current?.focus();
       loadAnimals();
-    } else {
-      previousActiveElement.current?.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   const loadAnimals = async () => {
     try {
-      setSearchingAnimal(true);
-      const animalsData = await AnimalService.getAll();
+      setLoadingAnimals(true);
+      const data = await AnimalService.getAll();
       
-      const animalsListWithNulls = await Promise.all(
-        animalsData.map(async (animal) => {
-          try {
-            const medicalRecord = await MedicalRecordService.findByAnimal(animal.id);
-            
-            // Mapear espécie
-            const speciesMap: Record<string, string> = {
-              'canine': 'Canino',
-              'feline': 'Felino'
-            };
-            
-            // Mapear gênero
-            const genderMap: Record<string, string> = {
-              'male': 'Macho',
-              'female': 'Fêmea'
-            };
-            
-            return {
-              id: animal.id,
-              name: animal.name || 'Sem nome',
-              medicalRecordId: medicalRecord.id,
-              species: speciesMap[animal.species] || animal.species,
-              breed: animal.breed || 'SRD',
-              gender: genderMap[animal.gender] || animal.gender,
-              age: animal.estimatedAge,
-              weight: animal.sizeWeight,
-              coat: '',
-              size: '',
-              ownerName: animal.petOwner?.user?.completeName || '',
-              ownerPhone: animal.petOwner?.user?.phone || '',
-              ownerAddress: animal.petOwner?.fullAddress || '',
-            };
-          } catch (error) {
-            console.error('Erro ao buscar prontuário do animal:', animal.id, error);
-            return null;
-          }
-        })
-      );
+      const mapped = data.map((a: any) => ({
+        id: a.id,
+        name: a.name || 'Sem nome',
+        speciesLabel: SPECIES_LABELS[a.species as keyof typeof SPECIES_LABELS] || a.species,
+        breed: a.breed || 'SRD',
+        ownerName: a.petOwner?.user?.completeName || 'Tutor não identificado',
+        rawAnimal: a
+      }));
       
-      const animalsList = animalsListWithNulls.filter((a): a is AnimalSearchResult => a !== null);
-      setAnimals(animalsList);
-      console.log('✅ Animais carregados:', animalsList.length);
+      setAnimalList(mapped);
     } catch (error) {
-      console.error('Erro ao carregar animais:', error);
-      toast.error('Erro ao carregar lista de animais');
+      toast.error("Erro ao carregar lista de animais.");
     } finally {
-      setSearchingAnimal(false);
+      setLoadingAnimals(false);
     }
   };
 
-  const handleSelectAnimal = (animal: AnimalSearchResult) => {
-    console.log('🐾 Animal selecionado:', animal);
+  const handleSelectAnimal = async (item: AnimalSearchUI) => {
+    const animal = item.rawAnimal;
+    setShowAnimalSearch(false);
+
+    // 1. Preencher dados de snapshot (visual)
     setFormData(prev => ({
       ...prev,
-      medicalRecordId: animal.medicalRecordId,
       animalName: animal.name,
-      species: animal.species,
-      breed: animal.breed,
-      gender: animal.gender,
-      age: animal.age,
-      weight: animal.weight,
-      coat: animal.coat,
-      size: animal.size,
-      ownerName: animal.ownerName,
-      ownerPhone: animal.ownerPhone,
-      ownerAddress: animal.ownerAddress,
+      species: item.speciesLabel,
+      breed: animal.breed || 'SRD',
+      gender: GENDER_LABELS[animal.gender as keyof typeof GENDER_LABELS] || animal.gender,
+      age: animal.estimatedAge || '',
+      weight: animal.sizeWeight || '', // Assumindo que sizeWeight guarda o peso ou porte
+      size: animal.sizeWeight || '',   
+      coat: '', // Campo não vem no getAll padrão, deixar editável
+      ownerName: item.ownerName,
+      ownerPhone: animal.petOwner?.user?.phone || '',
+      ownerAddress: animal.petOwner?.fullAddress || '',
     }));
-    setShowAnimalSearch(false);
-    toast.success(`Animal ${animal.name} selecionado!`);
-  };
 
-  const handleBackdropClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  const handleSave = async () => {
+    // 2. Resolver medicalRecordId (Crucial para o Backend)
     try {
-      if (!formData.medicalRecordId || formData.medicalRecordId === 0) {
-        toast.error('Selecione um animal antes de salvar');
-        return;
+      const loadingToast = toast.loading("Verificando prontuário...");
+      let recordId = 0;
+
+      try {
+        // Tenta buscar existente
+        const record = await MedicalRecordService.findByAnimal(animal.id);
+        recordId = record.id;
+      } catch (err: any) {
+        // Se der 404, cria um novo
+        if (err.message?.includes('not found') || err.response?.status === 404) {
+          const newRecord = await MedicalRecordService.create({ animalId: animal.id });
+          recordId = newRecord.id;
+          toast.success("Prontuário inicializado automaticamente.");
+        } else {
+          throw err;
+        }
       }
 
+      setFormData(prev => ({ ...prev, medicalRecordId: recordId }));
+      toast.dismiss(loadingToast);
+      toast.success(`Animal selecionado: ${animal.name}`);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao vincular prontuário médico. Tente novamente.");
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!formData.medicalRecordId) {
+      toast.warning("Selecione um animal antes de salvar.");
+      return;
+    }
+    if (!formData.performedOperation) {
+      toast.warning("Informe a operação realizada.");
+      return;
+    }
+
+    try {
       setSaving(true);
-      
-      console.log('💾 Salvando ficha cirúrgica...', {
-        medicalRecordId: formData.medicalRecordId,
-        animalName: formData.animalName,
-        surgeon: formData.surgeon
-      });
-      
-      const dataToSend: CreateSurgicalRecordData = {
+
+      // Converter datas vazias para undefined para o backend não reclamar
+      const payload = {
         ...formData,
-        recordDate: formData.recordDate || new Date().toISOString(),
-        surgeryStart: formData.surgeryStart || undefined,
-        surgeryEnd: formData.surgeryEnd || undefined,
+        surgeryStart: formData.surgeryStart ? new Date(formData.surgeryStart).toISOString() : undefined,
+        surgeryEnd: formData.surgeryEnd ? new Date(formData.surgeryEnd).toISOString() : undefined,
+        // Record Date já está em string YYYY-MM-DD do input, backend aceita se usar IsDateString corretamente ou new Date()
+        recordDate: new Date(formData.recordDate || new Date()).toISOString(),
       };
 
-      const result = await SurgicalRecordService.create(dataToSend);
+      await SurgicalRecordService.create(payload);
       
-      console.log('✅ Ficha cirúrgica salva:', result.id);
-      toast.success('Ficha cirúrgica salva com sucesso!');
-      onSuccess?.();
+      toast.success("Ficha cirúrgica salva com sucesso!");
+      if (onSuccess) onSuccess();
       onClose();
+      
     } catch (error: any) {
-      console.error('❌ Erro ao salvar ficha:', error);
-      toast.error(error.message || 'Erro ao salvar ficha cirúrgica');
+      console.error(error);
+      const msg = error.response?.data?.message || "Erro ao salvar ficha.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -228,71 +184,66 @@ export default function FichaCirurgicaModal({ isOpen, onClose, onSuccess, surgic
 
   if (!isOpen || !isMounted) return null;
 
-  const modalContent = (
-    <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-9999 p-4 animate-in fade-in duration-200"
-      onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      ref={modalRef}
-      tabIndex={-1}
-    >
-      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-gray-100 w-full max-w-5xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
         
-        <div className="px-6 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
+        {/* Header */}
+        <div className="px-6 py-3 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-3">
             <Scissors className="text-blue-700" size={24} />
-            <h2 className="text-lg font-bold text-gray-900">Ficha Cirúrgica</h2>
+            <h2 className="text-lg font-bold text-gray-900">Nova Ficha Cirúrgica</h2>
           </div>
           <div className="flex gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Printer size={20}/></button>
-            <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-600 rounded text-gray-500"><X size={20}/></button>
+            <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-500 transition-colors">
+              <X size={20}/>
+            </button>
           </div>
         </div>
 
+        {/* Body Scrollável */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-200">
-          <div className="bg-white shadow-lg border border-gray-300 p-10 mx-auto max-w-[900px] min-h-[1300px] text-gray-900 relative">
+          <div className="bg-white shadow-lg border border-gray-300 p-8 md:p-10 mx-auto max-w-[900px] text-gray-900 relative">
             
-            <div className="text-center border-b-2 border-gray-900 pb-2 mb-6">
-               <h1 className="text-xl font-bold uppercase">Ficha de Cirurgia</h1>
-               <div className="flex justify-between text-[10px] font-bold text-gray-600 uppercase mt-1">
+            {/* Cabeçalho do Documento */}
+            <div className="text-center border-b-2 border-gray-900 pb-4 mb-8">
+               <h1 className="text-2xl font-bold uppercase tracking-wide">Relatório Cirúrgico</h1>
+               <div className="flex justify-between text-[10px] font-bold text-gray-600 uppercase mt-2">
                   <span>Universidade Federal Rural de Pernambuco</span>
                   <span>Hospital Veterinário</span>
                </div>
             </div>
 
-            {/* Seleção de Animal */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            {/* Seletor de Animal */}
+            <div className="mb-8 relative z-20">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Paciente</label>
               <button
                 type="button"
                 onClick={() => setShowAnimalSearch(!showAnimalSearch)}
-                className="w-full flex items-center justify-between gap-2 text-blue-700 font-bold hover:text-blue-900"
+                className="w-full flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg hover:border-blue-400 transition-all text-left"
               >
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2 font-bold text-blue-900">
                   <Search size={16} />
-                  {formData.animalName ? `Animal: ${formData.animalName}` : 'Selecionar Animal'}
+                  {formData.animalName ? `${formData.animalName} (Tutor: ${formData.ownerName})` : 'Selecionar Paciente...'}
                 </span>
-                <span className="text-xs">{showAnimalSearch ? '▲' : '▼'}</span>
+                <span className="text-xs text-blue-400">{showAnimalSearch ? 'Fechar ▲' : 'Buscar ▼'}</span>
               </button>
               
               {showAnimalSearch && (
-                <div className="mt-4 max-h-60 overflow-y-auto space-y-2">
-                  {searchingAnimal ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Carregando animais...</p>
-                  ) : animals.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Nenhum animal cadastrado</p>
+                <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-30">
+                  {loadingAnimals ? (
+                    <div className="p-4 text-center text-gray-500 text-sm"><Loader2 className="animate-spin mx-auto mb-2"/>Carregando...</div>
+                  ) : animalList.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">Nenhum animal encontrado.</div>
                   ) : (
-                    animals.map((animal) => (
+                    animalList.map((animal) => (
                       <button
                         key={animal.id}
-                        type="button"
                         onClick={() => handleSelectAnimal(animal)}
-                        className="w-full text-left p-3 bg-white border border-gray-200 rounded hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                        className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-blue-50 transition-colors last:border-0"
                       >
                         <p className="font-bold text-sm text-gray-900">{animal.name}</p>
-                        <p className="text-xs text-gray-600">
-                          {animal.species} • {animal.breed} • Tutor: {animal.ownerName}
-                        </p>
+                        <p className="text-xs text-gray-500">{animal.speciesLabel} • {animal.breed} • {animal.ownerName}</p>
                       </button>
                     ))
                   )}
@@ -300,339 +251,138 @@ export default function FichaCirurgicaModal({ isOpen, onClose, onSuccess, surgic
               )}
             </div>
 
-            <div className="space-y-3 text-sm mb-8">
-               <div className="grid grid-cols-2 gap-10 mb-4">
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Registro nº:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none placeholder:text-gray-300 w-full"
-                      value={formData.recordNumber}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recordNumber: e.target.value }))}
-                    />
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Data:</span>
-                    <input 
-                      type="date" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.recordDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recordDate: e.target.value }))}
-                    />
-                  </div>
+            {/* Formulário - Identificação e Dados Básicos */}
+            <div className="space-y-4 text-sm mb-8">
+               <div className="grid grid-cols-2 gap-8">
+                  <InputLine label="Registro nº" name="recordNumber" value={formData.recordNumber} onChange={handleChange} />
+                  <InputLine label="Data" type="date" name="recordDate" value={formData.recordDate} onChange={handleChange} />
                </div>
 
-               <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-6 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Nome do animal:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.animalName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, animalName: e.target.value }))}
-                      readOnly
-                    />
-                  </div>
-                  <div className="col-span-6 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Espécie:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.species}
-                      onChange={(e) => setFormData(prev => ({ ...prev, species: e.target.value }))}
-                    />
-                  </div>
+               <div className="grid grid-cols-2 gap-8">
+                  <InputLine label="Espécie" name="species" value={formData.species} onChange={handleChange} />
+                  <InputLine label="Raça" name="breed" value={formData.breed} onChange={handleChange} />
                </div>
-               <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Raça:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.breed}
-                      onChange={(e) => setFormData(prev => ({ ...prev, breed: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Pelagem:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.coat}
-                      onChange={(e) => setFormData(prev => ({ ...prev, coat: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Porte:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.size}
-                      onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
-                    />
-                  </div>
+               
+               <div className="grid grid-cols-3 gap-4">
+                  <InputLine label="Sexo" name="gender" value={formData.gender} onChange={handleChange} />
+                  <InputLine label="Idade" name="age" value={formData.age} onChange={handleChange} />
+                  <InputLine label="Peso" name="weight" value={formData.weight} onChange={handleChange} />
                </div>
-               <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Sexo:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.gender}
-                      onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Idade:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.age}
-                      onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Peso:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.weight}
-                      onChange={(e) => setFormData(prev => ({ ...prev, weight: e.target.value }))}
-                    />
-                  </div>
+               
+               <div className="grid grid-cols-2 gap-8">
+                  <InputLine label="Pelagem" name="coat" value={formData.coat} onChange={handleChange} />
+                  <InputLine label="Porte" name="size" value={formData.size} onChange={handleChange} />
                </div>
-               <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-8 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Tutor:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.ownerName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ownerName: e.target.value }))}
-                      readOnly
-                    />
-                  </div>
-                  <div className="col-span-4 flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Fone:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.ownerPhone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ownerPhone: e.target.value }))}
-                    />
-                  </div>
-               </div>
-               <div className="flex items-end gap-1">
-                 <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Endereço:</span>
-                 <input 
-                   type="text" 
-                   className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                   value={formData.ownerAddress}
-                   onChange={(e) => setFormData(prev => ({ ...prev, ownerAddress: e.target.value }))}
-                   readOnly
-                 />
+
+               <div className="pt-4 border-t border-gray-100 mt-4">
+                 <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-2">
+                      <InputLine label="Tutor" name="ownerName" value={formData.ownerName} onChange={handleChange} readOnly />
+                    </div>
+                    <InputLine label="Telefone" name="ownerPhone" value={formData.ownerPhone} onChange={handleChange} />
+                 </div>
+                 <div className="mt-3">
+                   <InputLine label="Endereço" name="ownerAddress" value={formData.ownerAddress} onChange={handleChange} />
+                 </div>
                </div>
             </div>
 
-            <div className="mt-8">
-               <div className="border-b border-gray-400 mb-4">
-                 <h3 className="text-sm font-bold uppercase">Relatório de Operação</h3>
+            {/* Equipe Cirúrgica */}
+            <SectionHeader title="Equipe Cirúrgica" />
+            <div className="space-y-3 mb-8">
+               <InputLine label="Cirurgião" name="surgeon" value={formData.surgeon} onChange={handleChange} />
+               <div className="grid grid-cols-2 gap-8">
+                 <InputLine label="1º Assistente" name="firstAssistant" value={formData.firstAssistant} onChange={handleChange} />
+                 <InputLine label="2º Assistente" name="secondAssistant" value={formData.secondAssistant} onChange={handleChange} />
                </div>
-
-               <div className="space-y-3 text-sm">
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Cirurgião:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.surgeon}
-                      onChange={(e) => setFormData(prev => ({ ...prev, surgeon: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">1º Assistente:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.firstAssistant}
-                         onChange={(e) => setFormData(prev => ({ ...prev, firstAssistant: e.target.value }))}
-                       />
-                     </div>
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">2º Assistente:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.secondAssistant}
-                         onChange={(e) => setFormData(prev => ({ ...prev, secondAssistant: e.target.value }))}
-                       />
-                     </div>
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Instrumentador:</span>
-                    <input 
-                      type="text" 
-                      className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                      value={formData.instrumentator}
-                      onChange={(e) => setFormData(prev => ({ ...prev, instrumentator: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-12 gap-4">
-                     <div className="col-span-8 flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Anestesista:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.anesthetist}
-                         onChange={(e) => setFormData(prev => ({ ...prev, anesthetist: e.target.value }))}
-                       />
-                     </div>
-                     <div className="col-span-4 flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Duração:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.duration}
-                         onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-                         placeholder="Ex: 1h30min"
-                       />
-                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Início:</span>
-                       <input 
-                         type="datetime-local" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.surgeryStart}
-                         onChange={(e) => setFormData(prev => ({ ...prev, surgeryStart: e.target.value }))}
-                       />
-                     </div>
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Fim:</span>
-                       <input 
-                         type="datetime-local" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.surgeryEnd}
-                         onChange={(e) => setFormData(prev => ({ ...prev, surgeryEnd: e.target.value }))}
-                       />
-                     </div>
-                  </div>
-
-                  <div className="mt-6 space-y-4">
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Diagnóstico Pré-operatório:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.preoperativeDiagnosis}
-                         onChange={(e) => setFormData(prev => ({ ...prev, preoperativeDiagnosis: e.target.value }))}
-                       />
-                     </div>
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Diagnóstico Pós-operatório:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.postoperativeDiagnosis}
-                         onChange={(e) => setFormData(prev => ({ ...prev, postoperativeDiagnosis: e.target.value }))}
-                       />
-                     </div>
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Operação Proposta:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.proposedOperation}
-                         onChange={(e) => setFormData(prev => ({ ...prev, proposedOperation: e.target.value }))}
-                       />
-                     </div>
-                     <div className="flex items-end gap-1">
-                       <span className="text-[10px] font-bold text-gray-700 uppercase whitespace-nowrap mb-0.5">Operação Realizada:</span>
-                       <input 
-                         type="text" 
-                         className="border-b border-gray-400 bg-transparent px-1 py-0 text-sm text-gray-900 focus:border-green-800 focus:outline-none w-full"
-                         value={formData.performedOperation}
-                         onChange={(e) => setFormData(prev => ({ ...prev, performedOperation: e.target.value }))}
-                       />
-                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                     <div className="mt-4">
-                       <label className="block text-[10px] font-bold text-gray-800 uppercase mb-0 border-b border-gray-400 pb-1">Materiais Utilizados</label>
-                       <textarea 
-                         className="w-full border border-gray-300 bg-white px-2 py-1 text-sm text-blue-900 resize-none outline-none focus:border-green-800 mt-2 rounded"
-                         rows={4}
-                         value={formData.materialsUsed}
-                         onChange={(e) => setFormData(prev => ({ ...prev, materialsUsed: e.target.value }))}
-                       />
-                     </div>
-                     <div className="mt-4">
-                       <label className="block text-[10px] font-bold text-gray-800 uppercase mb-0 border-b border-gray-400 pb-1">Controle Pós-Cirúrgico / Alta</label>
-                       <textarea 
-                         className="w-full border border-gray-300 bg-white px-2 py-1 text-sm text-blue-900 resize-none outline-none focus:border-green-800 mt-2 rounded"
-                         rows={4}
-                         value={formData.postoperativeControl}
-                         onChange={(e) => setFormData(prev => ({ ...prev, postoperativeControl: e.target.value }))}
-                       />
-                     </div>
-                  </div>
+               <div className="grid grid-cols-2 gap-8">
+                 <InputLine label="Instrumentador" name="instrumentator" value={formData.instrumentator} onChange={handleChange} />
+                 <InputLine label="Anestesista" name="anesthetist" value={formData.anesthetist} onChange={handleChange} />
                </div>
             </div>
 
-            <div className="mt-4">
-               <label className="block text-[10px] font-bold text-gray-800 uppercase mb-0 border-b border-gray-400 pb-1">Descrição do Ato Operatório</label>
-               <textarea 
-                 className="w-full border border-gray-300 bg-white px-2 py-1 text-sm text-blue-900 resize-none outline-none focus:border-green-800 mt-2 rounded"
-                 rows={12}
-                 value={formData.operationDescription}
-                 onChange={(e) => setFormData(prev => ({ ...prev, operationDescription: e.target.value }))}
-               />
+            {/* Tempos e Procedimentos */}
+            <SectionHeader title="Procedimento" />
+            <div className="space-y-4 mb-8">
+               <div className="grid grid-cols-3 gap-4">
+                 <InputLine label="Início" type="datetime-local" name="surgeryStart" value={formData.surgeryStart} onChange={handleChange} />
+                 <InputLine label="Fim" type="datetime-local" name="surgeryEnd" value={formData.surgeryEnd} onChange={handleChange} />
+                 <InputLine label="Duração Total" name="duration" value={formData.duration} onChange={handleChange} placeholder="Ex: 1h 30m" />
+               </div>
+
+               <InputLine label="Diagnóstico Pré-Op" name="preoperativeDiagnosis" value={formData.preoperativeDiagnosis} onChange={handleChange} />
+               <InputLine label="Diagnóstico Pós-Op" name="postoperativeDiagnosis" value={formData.postoperativeDiagnosis} onChange={handleChange} />
+               
+               <div className="grid grid-cols-2 gap-8">
+                 <InputLine label="Operação Proposta" name="proposedOperation" value={formData.proposedOperation} onChange={handleChange} />
+                 <InputLine label="Operação Realizada" name="performedOperation" value={formData.performedOperation} onChange={handleChange} />
+               </div>
+            </div>
+            
+            {/* Descritivos Longos */}
+            <SectionHeader title="Detalhamento" />
+            <div className="space-y-6">
+               <TextArea label="Descrição do Ato Operatório" name="operationDescription" value={formData.operationDescription} onChange={handleChange} rows={8} />
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <TextArea label="Materiais Utilizados" name="materialsUsed" value={formData.materialsUsed} onChange={handleChange} rows={4} />
+                 <TextArea label="Controle Pós-Cirúrgico" name="postoperativeControl" value={formData.postoperativeControl} onChange={handleChange} rows={4} />
+               </div>
+               
+               <TextArea label="Observações Adicionais" name="additionalObservations" value={formData.additionalObservations} onChange={handleChange} rows={3} />
             </div>
 
-            <div className="mt-8 pt-6 border-t-4 border-double border-gray-300">
-               <label className="block text-[10px] font-bold text-gray-800 uppercase mb-0 border-b border-gray-400 pb-1">Observações Adicionais / Intercorrências</label>
-               <textarea 
-                 className="w-full border border-gray-300 bg-white px-2 py-1 text-sm text-blue-900 resize-none outline-none focus:border-green-800 mt-2 rounded"
-                 rows={4}
-                 value={formData.additionalObservations}
-                 onChange={(e) => setFormData(prev => ({ ...prev, additionalObservations: e.target.value }))}
-               />
-            </div>
           </div>
         </div>
 
-        <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3">
+        {/* Footer */}
+        <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3 shrink-0">
           <button 
             onClick={onClose} 
-            className="px-6 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200"
+            className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
             disabled={saving}
           >
             Cancelar
           </button>
           <button 
             onClick={handleSave} 
-            className="px-8 py-2 rounded-lg text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             disabled={saving || !formData.medicalRecordId}
+            className="px-8 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95"
           >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                Salvar Ficha
-              </>
-            )}
+            {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            {saving ? 'Salvando...' : 'Salvar Ficha'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
-
-  return createPortal(modalContent, document.body);
 }
+
+// --- Subcomponentes Visuais ---
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <div className="border-b border-gray-200 pb-2 mb-4 mt-6">
+    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{title}</h3>
+  </div>
+);
+
+const InputLine = ({ label, ...props }: any) => (
+  <div className="flex items-end gap-2 w-full">
+    <span className="text-[10px] font-bold text-gray-600 uppercase whitespace-nowrap mb-1">{label}:</span>
+    <input 
+      {...props}
+      className="flex-1 border-b border-gray-300 bg-transparent px-1 py-0.5 text-sm text-gray-900 focus:border-blue-600 focus:outline-none placeholder:text-gray-300 transition-colors"
+    />
+  </div>
+);
+
+const TextArea = ({ label, ...props }: any) => (
+  <div>
+    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">{label}</label>
+    <textarea 
+      {...props}
+      className="w-full border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm text-gray-800 rounded-lg focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition-all resize-none"
+    />
+  </div>
+);

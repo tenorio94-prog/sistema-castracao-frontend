@@ -70,12 +70,12 @@ export default function MedicoSidebarButtons() {
       label: "Fichas Anestésicas",
       active: normalizedPath.startsWith("/medico/fichas-anestesicas")
     },
-    { 
-      href: "/medico/fichas-de-exames", 
-      icon: FlaskConical, 
-      label: "Exames",
-      active: normalizedPath.startsWith("/medico/exames")
-    },
+    // { 
+    //   href: "/medico/fichas-de-exames", 
+    //   icon: FlaskConical, 
+    //   label: "Exames",
+    //   active: normalizedPath.startsWith("/medico/exames")
+    // },
   ];
 
   return (

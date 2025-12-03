@@ -1,140 +1,153 @@
 import api from "@/lib/axios";
+import { AxiosError } from "axios";
 
-// Enums do backend
+// --- ENUMS IGUAIS AO PRISMA ---
 export enum ClinicalRecordType {
-  TRIAGE = "triage",
-  SURGERY = "surgery",
-  FOLLOW_UP = "followUp",
+  triage = "triage",
+  surgery = "surgery",
+  followUp = "followUp",
 }
 
 export enum SurgeryType {
-  ORCHIECTOMY = "orchiectomy",
-  OVARIOHYSTERECTOMY = "ovariohysterectomy",
+  orchiectomy = "orchiectomy",
+  ovariohysterectomy = "ovariohysterectomy",
 }
 
-// Interface completa da ficha clínica (todos os 40+ campos)
+// --- LABELS PARA EXIBIÇÃO ---
+export const CLINICAL_RECORD_TYPE_LABELS: Record<ClinicalRecordType, string> = {
+  [ClinicalRecordType.triage]: 'Triagem',
+  [ClinicalRecordType.surgery]: 'Cirurgia',
+  [ClinicalRecordType.followUp]: 'Retorno',
+};
+
+export const SURGERY_TYPE_LABELS: Record<SurgeryType, string> = {
+  [SurgeryType.orchiectomy]: 'Orquiectomia (Macho)',
+  [SurgeryType.ovariohysterectomy]: 'Ovariohisterectomia (Fêmea)',
+};
+
+// --- INTERFACE DE VISUALIZAÇÃO (RESPOSTA DO BACKEND) ---
 export interface ClinicalRecord {
   id: number;
   medicalRecordId: number;
-  appointmentId?: number;
+  appointmentId?: number | null;
   veterinarianId: number;
   type: ClinicalRecordType;
   treatmentDate: string;
   
-  // Triage
-  fitForSurgery?: boolean;
+  // Triage / Cirurgia
+  fitForSurgery?: boolean | null;
+  surgeryType?: SurgeryType | null;
   
-  // Surgery
-  surgeryType?: SurgeryType;
+  // Snapshot Data (Cópia histórica do Animal)
+  animalName?: string | null;
+  breed?: string | null;
+  age?: string | null;
+  coat?: string | null;
+  weight?: string | null;
+  size?: string | null;
   
-  // === ANIMAL DATA ===
-  animalName?: string;
-  breed?: string;
-  age?: string;
-  coat?: string;
-  weight?: string;
-  size?: string;
+  // Snapshot Data (Cópia histórica do Tutor)
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  ownerAddress?: string | null;
+  ownerNumber?: string | null;
+  ownerNeighborhood?: string | null;
+  ownerCity?: string | null;
+  ownerReference?: string | null;
   
-  // === OWNER DATA ===
-  ownerName?: string;
-  ownerPhone?: string;
-  ownerAddress?: string;
-  ownerNumber?: string;
-  ownerNeighborhood?: string;
-  ownerCity?: string;
-  ownerReference?: string;
+  // Checkboxes de Serviço
+  clinicalGuidance?: boolean | null;
+  returnVisit?: boolean | null;
+  consultation?: boolean | null;
+  treatmentChange?: boolean | null;
   
-  // === SERVICE TYPE ===
-  clinicalGuidance?: boolean;
-  returnVisit?: boolean;
-  consultation?: boolean;
-  treatmentChange?: boolean;
+  // Anamnese e Histórico
+  anamnesis?: string | null;
+  vaccinations?: string | null;
+  vaccinationDate?: string | null;
+  deworming?: string | null;
   
-  // === HISTORY (ANAMNESIS) ===
-  anamnesis?: string;
-  vaccinations?: string;
-  vaccinationDate?: string;
-  deworming?: string;
+  // Sinais Vitais
+  rectalTemp?: string | null;
+  heartRate?: string | null;
+  respiratoryRate?: string | null;
+  pulse?: string | null;
   
-  // === CLINICAL EXAMINATION - VITAL SIGNS ===
-  rectalTemp?: string;
-  heartRate?: string;
-  respiratoryRate?: string;
-  pulse?: string;
+  // Exame Físico por Sistemas
+  ectoscopy?: string | null;
+  abdominalCavity?: string | null;
+  headAndNeck?: string | null;
+  nervousSystem?: string | null;
+  thoracicCavity?: string | null;
+  locomotorSystem?: string | null;
   
-  // === CLINICAL EXAMINATION - SPECIFIC SYSTEMS ===
-  ectoscopy?: string;
-  abdominalCavity?: string;
-  headAndNeck?: string;
-  nervousSystem?: string;
-  thoracicCavity?: string;
-  locomotorSystem?: string;
+  // Diagnóstico e Prognóstico
+  provisionalDiagnosis?: string | null;
+  complementaryExams?: string | null;
+  definitiveDiagnosis?: string | null;
+  prognosis?: string | null;
   
-  // === DIAGNOSIS AND PROGNOSIS ===
-  provisionalDiagnosis?: string;
-  complementaryExams?: string;
-  definitiveDiagnosis?: string;
-  prognosis?: string;
+  // Observações e Instruções
+  observations?: string | null;
+  instructions?: string | null;
+  additionalNotes?: string | null;
   
-  observations?: string;
-  instructions?: string;
-  additionalNotes?: string;
-  
-  // Relations
+  // Relações
   medicalRecord?: {
     id: number;
     animalId: number;
     animal: {
       id: number;
-      name: string;
+      name: string | null;
       species: string;
-      breed?: string;
+      gender: string;
+      breed: string | null;
+      estimatedAge: string;
+      sizeWeight: string;
       petOwner: {
         id: number;
-        user: {
-          id: number;
+        fullAddress: string;
+        user: { 
           completeName: string;
           phone: string;
+          cpf: string | null;
         };
       };
     };
+  };
+  veterinarian?: {
+    id: number;
+    crmv: string | null;
+    user: { completeName: string };
   };
   appointment?: {
     id: number;
     startTime: string;
     serviceType: string;
   };
-  veterinarian?: {
-    id: number;
-    user: {
-      id: number;
-      completeName: string;
-    };
-  };
 }
 
+// --- DTO DE CRIAÇÃO (PAYLOAD) ---
 export interface CreateClinicalRecordData {
   medicalRecordId: number;
-  appointmentId?: number;
   veterinarianId: number;
+  appointmentId?: number;
   type: ClinicalRecordType;
-  treatmentDate?: string;
-  
-  // Triage
+  treatmentDate?: string; // ISO Date String
+
+  // Triage & Cirurgia
   fitForSurgery?: boolean;
-  
-  // Surgery
   surgeryType?: SurgeryType;
-  
-  // === ANIMAL DATA ===
+
+  // Snapshot Animal
   animalName?: string;
   breed?: string;
   age?: string;
   coat?: string;
   weight?: string;
   size?: string;
-  
-  // === OWNER DATA ===
+
+  // Snapshot Tutor
   ownerName?: string;
   ownerPhone?: string;
   ownerAddress?: string;
@@ -142,26 +155,26 @@ export interface CreateClinicalRecordData {
   ownerNeighborhood?: string;
   ownerCity?: string;
   ownerReference?: string;
-  
-  // === SERVICE TYPE ===
+
+  // Serviços
   clinicalGuidance?: boolean;
   returnVisit?: boolean;
   consultation?: boolean;
   treatmentChange?: boolean;
-  
-  // === HISTORY (ANAMNESIS) ===
+
+  // Campos de Texto - Anamnese
   anamnesis?: string;
   vaccinations?: string;
   vaccinationDate?: string;
   deworming?: string;
   
-  // === CLINICAL EXAMINATION - VITAL SIGNS ===
+  // Campos de Texto - Sinais Vitais
   rectalTemp?: string;
   heartRate?: string;
   respiratoryRate?: string;
   pulse?: string;
   
-  // === CLINICAL EXAMINATION - SPECIFIC SYSTEMS ===
+  // Campos de Texto - Exame Físico
   ectoscopy?: string;
   abdominalCavity?: string;
   headAndNeck?: string;
@@ -169,206 +182,60 @@ export interface CreateClinicalRecordData {
   thoracicCavity?: string;
   locomotorSystem?: string;
   
-  // === DIAGNOSIS AND PROGNOSIS ===
+  // Campos de Texto - Diagnóstico
   provisionalDiagnosis?: string;
   complementaryExams?: string;
   definitiveDiagnosis?: string;
   prognosis?: string;
   
+  // Campos de Texto - Observações
   observations?: string;
   instructions?: string;
   additionalNotes?: string;
 }
 
-export type UpdateClinicalRecordData = Partial<CreateClinicalRecordData>;
-
-class ClinicalRecordService {
+export class ClinicalRecordService {
   private static readonly BASE_PATH = "/clinical-record";
 
-  /**
-   * Busca todas as fichas clínicas
-   */
   static async getAll(): Promise<ClinicalRecord[]> {
     try {
       const response = await api.get<ClinicalRecord[]>(this.BASE_PATH);
       return response.data;
-    } catch (error: any) {
-      console.error("Error fetching clinical records:", error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      } else if (status === 403) {
-        throw new Error("Você não tem permissão para visualizar fichas clínicas.");
-      } else if (status === 500) {
-        throw new Error("Erro no servidor ao buscar fichas clínicas.");
-      }
-      throw new Error(message || "Erro ao buscar fichas clínicas");
+    } catch (error) {
+      throw this.handleError(error);
     }
   }
 
-  /**
-   * Busca uma ficha clínica por ID
-   */
   static async getById(id: number): Promise<ClinicalRecord> {
     try {
       const response = await api.get<ClinicalRecord>(`${this.BASE_PATH}/${id}`);
       return response.data;
-    } catch (error: any) {
-      console.error(`Error fetching clinical record ${id}:`, error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 404) {
-        throw new Error("Ficha clínica não encontrada.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      } else if (status === 403) {
-        throw new Error("Você não tem permissão para visualizar esta ficha clínica.");
-      }
-      throw new Error(message || "Erro ao buscar ficha clínica");
+    } catch (error) {
+      throw this.handleError(error);
     }
   }
 
-  /**
-   * Busca fichas clínicas por prontuário médico
-   */
-  static async getByMedicalRecord(medicalRecordId: number): Promise<ClinicalRecord[]> {
-    try {
-      const response = await api.get<ClinicalRecord[]>(
-        `${this.BASE_PATH}/medical-record/${medicalRecordId}`
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error(`Error fetching clinical records for medical record ${medicalRecordId}:`, error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 404) {
-        throw new Error("Prontuário não encontrado.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      }
-      throw new Error(message || "Erro ao buscar fichas clínicas do prontuário");
-    }
-  }
-
-  /**
-   * Busca fichas clínicas por animal
-   */
-  static async getByAnimal(animalId: number): Promise<ClinicalRecord[]> {
-    try {
-      const response = await api.get<ClinicalRecord[]>(
-        `${this.BASE_PATH}/animal/${animalId}`
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error(`Error fetching clinical records for animal ${animalId}:`, error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 404) {
-        throw new Error("Prontuário do animal não encontrado.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      }
-      throw new Error(message || "Erro ao buscar fichas clínicas do animal");
-    }
-  }
-
-  /**
-   * Cria uma nova ficha clínica
-   */
   static async create(data: CreateClinicalRecordData): Promise<ClinicalRecord> {
     try {
-      console.log('📤 Enviando ficha clínica para o backend:', data);
       const response = await api.post<ClinicalRecord>(this.BASE_PATH, data);
-      console.log('✅ Resposta do backend:', response.data);
       return response.data;
-    } catch (error: any) {
-      console.error("❌ Erro ao criar ficha clínica:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Tratamento de erro centralizado
+  private static handleError(error: unknown): Error {
+    if (error instanceof AxiosError) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message;
       
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-      const backendError = error.response?.data;
-
-      // Log completo do erro para debug
-      if (status === 500) {
-        console.error("🔴 Erro 500 detalhado:", backendError);
-      }
-
-      if (status === 400) {
-        throw new Error(message || "Dados inválidos para criar ficha clínica.");
-      } else if (status === 404) {
-        throw new Error("Prontuário, veterinário ou agendamento não encontrado.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      } else if (status === 403) {
-        throw new Error("Você não tem permissão para criar fichas clínicas.");
-      } else if (status === 500) {
-        throw new Error(`Erro interno do servidor: ${message}`);
-      }
-      throw new Error(message || "Erro ao criar ficha clínica");
+      if (status === 403) return new Error("Acesso negado. Apenas veterinários podem realizar esta ação.");
+      if (status === 404) return new Error("Registro ou dependência não encontrada.");
+      
+      return new Error(Array.isArray(message) ? message[0] : message);
     }
-  }
-
-  /**
-   * Atualiza uma ficha clínica existente
-   */
-  static async update(id: number, data: UpdateClinicalRecordData): Promise<ClinicalRecord> {
-    try {
-      const response = await api.patch<ClinicalRecord>(`${this.BASE_PATH}/${id}`, data);
-      return response.data;
-    } catch (error: any) {
-      console.error(`Error updating clinical record ${id}:`, error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 400) {
-        throw new Error(message || "Dados inválidos para atualizar ficha clínica.");
-      } else if (status === 404) {
-        throw new Error("Ficha clínica não encontrada.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      } else if (status === 403) {
-        throw new Error("Você não tem permissão para atualizar fichas clínicas.");
-      }
-      throw new Error(message || "Erro ao atualizar ficha clínica");
-    }
-  }
-
-  /**
-   * Deleta uma ficha clínica
-   */
-  static async delete(id: number): Promise<void> {
-    try {
-      await api.delete(`${this.BASE_PATH}/${id}`);
-    } catch (error: any) {
-      console.error(`Error deleting clinical record ${id}:`, error);
-      const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
-
-      if (status === 404) {
-        throw new Error("Ficha clínica não encontrada.");
-      } else if (status === 401) {
-        throw new Error("Não autorizado. Faça login novamente.");
-      } else if (status === 403) {
-        throw new Error("Você não tem permissão para deletar fichas clínicas.");
-      }
-      throw new Error(message || "Erro ao deletar ficha clínica");
-    }
-  }
-
-  /**
-   * Alias para getByAnimal (compatibilidade)
-   */
-  static async findByAnimal(animalId: number): Promise<ClinicalRecord[]> {
-    return this.getByAnimal(animalId);
+    return new Error("Erro desconhecido ao processar ficha clínica.");
   }
 }
 

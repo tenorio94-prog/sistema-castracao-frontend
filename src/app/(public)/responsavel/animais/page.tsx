@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Dog } from 'lucide-react';
+import { Search, Dog, PawPrint } from 'lucide-react';
 import { toast } from 'sonner';
 import MyPetCard, { PetResponsavelUI } from '@/components/ResponsavelComponents/MeuPetCard';
 import ProntuarioModal from '@/components/ResponsavelComponents/ProntuarioAnimal';
@@ -94,7 +94,6 @@ export default function MeusAnimaisPage() {
         error: (err) => {
           console.error('Erro ao atualizar animal:', err);
           
-          // Backend pode retornar 403 se o PetOwner não tiver permissão
           if (err.response?.status === 403) {
             return 'Sem permissão para editar este animal';
           }
@@ -108,38 +107,52 @@ export default function MeusAnimaisPage() {
 
   const filteredPets = pets.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center py-20 gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <PawPrint size={24} className="text-green-600/50" />
+          </div>
+        </div>
+        <p className="text-gray-500 font-medium animate-pulse">Carregando seus pets...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      
-      {/* Cabeçalho da Página (Sem botão de Adicionar) */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
+          <p className="text-sm font-medium text-green-600 mb-1">Área do Tutor</p>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Meus Animais</h1>
           <p className="text-gray-500 mt-1">
             Gerencie o histórico e informações dos seus pets.
           </p>
         </div>
-      </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-full">
+          <Dog size={18} className="text-green-600" />
+          <span className="text-sm font-medium text-green-700">{pets.length} {pets.length === 1 ? 'pet cadastrado' : 'pets cadastrados'}</span>
+        </div>
+      </header>
 
-      {/* Barra de Filtro */}
+      {/* Barra de Busca */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
         <input 
           type="text" 
           placeholder="Buscar pelo nome..." 
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all placeholder-gray-400"
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all placeholder-gray-400 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
       {/* Grid de Cards */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        </div>
-      ) : filteredPets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {filteredPets.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredPets.map(pet => (
             <MyPetCard 
               key={pet.id} 
@@ -150,16 +163,20 @@ export default function MeusAnimaisPage() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed border-gray-200 rounded-2xl">
+        <div className="flex flex-col items-center justify-center py-16 bg-white border border-dashed border-gray-200 rounded-2xl">
           <div className="p-4 bg-gray-50 rounded-full mb-3">
             <Dog className="text-gray-400" size={32} />
           </div>
-          <p className="text-gray-900 font-medium">Nenhum animal encontrado.</p>
-          <p className="text-gray-500 text-sm mt-1">Tente buscar por outro nome.</p>
+          <p className="text-gray-900 font-medium">
+            {searchTerm ? 'Nenhum animal encontrado' : 'Nenhum pet cadastrado'}
+          </p>
+          <p className="text-gray-500 text-sm mt-1">
+            {searchTerm ? 'Tente buscar por outro nome.' : 'Seus pets aparecerão aqui quando cadastrados.'}
+          </p>
         </div>
       )}
 
-      {/* --- MODAIS --- */}
+      {/* Modais */}
       <ProntuarioModal 
         isOpen={isProntuarioOpen}
         onClose={() => setIsProntuarioOpen(false)}
@@ -173,7 +190,6 @@ export default function MeusAnimaisPage() {
         pet={selectedPet}
         onSave={handleSaveEdit}
       />
-
     </div>
   );
 }

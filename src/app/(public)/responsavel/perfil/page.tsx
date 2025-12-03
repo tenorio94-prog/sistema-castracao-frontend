@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Dog } from 'lucide-react';
+import { User } from 'lucide-react';
 import UserProfile, { ProfileData } from '@/components/Perfil/UserProfile';
 import { PetOwnerService } from '@/services/petowner.service';
 
@@ -220,11 +220,11 @@ export default function ResponsavelProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-[80vh] gap-4">
+      <div className="flex flex-col justify-center items-center py-20 gap-4">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <Dog size={24} className="text-green-600/50" />
+            <User size={24} className="text-green-600/50" />
           </div>
         </div>
         <p className="text-gray-500 font-medium animate-pulse">Carregando seu perfil...</p>
@@ -233,29 +233,27 @@ export default function ResponsavelProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-24 animate-in fade-in duration-500">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        <header className="flex flex-col gap-2">
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold mb-1 w-fit">
-            Configurações da Conta
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-            Meu Perfil
-          </h1>
-          <p className="text-gray-500 text-base md:text-lg">
-            Gerencie suas informações pessoais e segurança da conta.
-          </p>
-        </header>
-        
-        {profileData && (
-          <UserProfile 
-            initialData={profileData} 
-            onSave={handleSave}
-            onPasswordChange={handlePasswordChange}
-            isSaving={isSaving}
-          />
-        )}
-      </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <header>
+        <p className="text-sm font-medium text-green-600 mb-1">Configurações da Conta</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+          Meu Perfil
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Gerencie suas informações pessoais e segurança da conta.
+        </p>
+      </header>
+      
+      {/* Componente de Perfil */}
+      {profileData && (
+        <UserProfile 
+          initialData={profileData} 
+          onSave={handleSave}
+          onPasswordChange={handlePasswordChange}
+          isSaving={isSaving}
+        />
+      )}
     </div>
   );
 }

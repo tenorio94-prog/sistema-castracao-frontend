@@ -112,15 +112,223 @@ const FichaCirurgicaView = ({ data }: { data: any }) => (
 );
 
 // ... (FichaAnestesicaView, FichaClinicaView, FichaExameView mantidas igual ao anterior) ...
-// Placeholder para compilar
-const FichaAnestesicaView = ({ data }: any) => (
-  <div className="p-4">
-     <h2 className="font-bold uppercase border-b mb-2">Ficha Anestésica</h2>
-     <p><strong>Paciente:</strong> {data.petName}</p>
-     <p><strong>Anestesista:</strong> {data.anesthetist}</p>
-     <div className="mt-2 p-2 bg-gray-100 rounded"><pre className="text-xs">{JSON.stringify(data, null, 2)}</pre></div>
-  </div>
-);
+const FichaAnestesicaView = ({ data }: any) => {
+  const asaLabels: Record<string, string> = {
+    'ASA_I': 'ASA I - Paciente saudável',
+    'ASA_II': 'ASA II - Doença sistêmica leve',
+    'ASA_III': 'ASA III - Doença sistêmica grave',
+    'ASA_IV': 'ASA IV - Risco de vida',
+    'ASA_V': 'ASA V - Moribundo',
+  };
+
+  const riskLabels: Record<string, string> = {
+    'mild': 'Leve',
+    'moderate': 'Moderado',
+    'high': 'Alto',
+  };
+
+  const recoveryLabels: Record<string, string> = {
+    'excellent': 'Excelente',
+    'good': 'Boa',
+    'fair': 'Regular',
+    'poor': 'Ruim',
+  };
+
+  const phaseLabels: Record<string, string> = {
+    'MPA': 'MPA',
+    'INDUCTION': 'Indução',
+  };
+
+  return (
+    <div className="font-sans text-gray-900">
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-end border-b-2 border-gray-900 pb-2 mb-6">
+        <h1 className="text-xl font-bold">Ficha Anestésica</h1>
+        <div className="text-right text-[10px] font-bold text-gray-600 uppercase leading-tight">
+          <p>Departamento de Medicina Veterinária</p>
+          <p>Hospital Veterinário - UFRPE</p>
+        </div>
+      </div>
+
+      {/* Informações do Procedimento */}
+      <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 border border-gray-300 rounded">
+        <HeaderLabel label="Procedimento" value={data.procedure || '-'} />
+        <HeaderLabel label="Anestesista" value={data.anesthetist?.user?.completeName || '-'} />
+        <HeaderLabel label="Cirurgião" value={data.surgeon?.user?.completeName || '-'} />
+      </div>
+
+      {/* IDENTIFICAÇÃO DO ANIMAL */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3 flex items-center gap-2">
+          <FileText size={16} /> Identificação do Animal
+        </h3>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm p-4 border border-gray-300 rounded bg-white">
+          <HeaderLabel label="Nome do Animal" value={data.medicalRecord?.animal?.name || '-'} />
+          <HeaderLabel label="Espécie" value={data.medicalRecord?.animal?.species || '-'} />
+          <HeaderLabel label="Raça" value={data.breed || '-'} />
+          <HeaderLabel label="Peso (kg)" value={data.weight || '-'} />
+          <HeaderLabel label="Idade" value={data.age || '-'} />
+          <HeaderLabel label="Responsável" value={data.medicalRecord?.animal?.petOwner?.user?.completeName || '-'} />
+        </div>
+      </div>
+
+      {/* AVALIAÇÃO DE RISCO */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Avaliação de Risco Anestésico</h3>
+        <div className="grid grid-cols-2 gap-4 p-4 border border-gray-300 rounded bg-yellow-50/30">
+          <HeaderLabel 
+            label="Classificação ASA" 
+            value={data.asaClassification ? asaLabels[data.asaClassification] || data.asaClassification : '-'} 
+          />
+          <HeaderLabel 
+            label="Risco Anestésico" 
+            value={data.anestheticRisk ? riskLabels[data.anestheticRisk] || data.anestheticRisk : '-'} 
+          />
+        </div>
+      </div>
+
+      {/* AVALIAÇÃO PRÉ-ANESTÉSICA */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Avaliação Pré-Anestésica</h3>
+        <div className="grid grid-cols-4 gap-4 p-4 border border-gray-300 rounded bg-blue-50/30">
+          <HeaderLabel label="FC (/min)" value={data.preAnestheticHeartRate || '-'} />
+          <HeaderLabel label="FR (/min)" value={data.preAnestheticRespiratoryRate || '-'} />
+          <HeaderLabel label="Mucosas" value={data.preAnestheticMucosas || '-'} />
+          <HeaderLabel label="TPC (seg)" value={data.preAnestheticTpc || '-'} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 mt-4">
+          <ViewBox label="Temperatura (°C)" content={data.preAnestheticTemperature} minHeight="min-h-[50px]" />
+          <ViewBox label="Comorbidades" content={data.comorbidities} />
+          <ViewBox label="Alergias" content={data.allergies} />
+        </div>
+      </div>
+
+      {/* VIA AÉREA */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Via Aérea</h3>
+        <div className="grid grid-cols-3 gap-4 p-4 border border-gray-300 rounded bg-white">
+          <HeaderLabel 
+            label="Intubação" 
+            value={data.intubation === true ? 'Sim' : data.intubation === false ? 'Não' : '-'} 
+          />
+          <HeaderLabel label="Número da Sonda" value={data.tubeNumber || '-'} />
+          <HeaderLabel label="Circuito" value={data.circuit || '-'} />
+        </div>
+      </div>
+
+      {/* MANUTENÇÃO ANESTÉSICA */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Manutenção Anestésica</h3>
+        <div className="flex gap-4 flex-wrap p-4 border border-gray-300 rounded bg-purple-50/30">
+          {data.inhalation && (
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
+              Inalatória
+            </span>
+          )}
+          {data.tiva && (
+            <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-semibold">
+              TIVA (Total Intravenosa)
+            </span>
+          )}
+          {!data.inhalation && !data.tiva && (
+            <span className="text-gray-500 text-sm">Nenhuma manutenção especificada</span>
+          )}
+        </div>
+      </div>
+
+      {/* MEDICAÇÕES */}
+      {data.medications && data.medications.length > 0 && (
+        <div className="mb-6">
+          <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Medicações Utilizadas</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border border-gray-300">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Fase</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Medicamento</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Dosagem</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Via</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Hora</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.medications.map((med: any, index: number) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-3 py-2">
+                      {med.phase ? phaseLabels[med.phase] || med.phase : '-'}
+                    </td>
+                    <td className="border border-gray-300 px-3 py-2">{med.drug || '-'}</td>
+                    <td className="border border-gray-300 px-3 py-2">{med.dosage || '-'}</td>
+                    <td className="border border-gray-300 px-3 py-2">{med.route || '-'}</td>
+                    <td className="border border-gray-300 px-3 py-2">{med.time || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* MONITORAMENTO */}
+      {data.monitoring && data.monitoring.length > 0 && (
+        <div className="mb-6">
+          <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Monitoramento Trans-Anestésico</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-gray-300">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border border-gray-300 px-2 py-2">Hora</th>
+                  <th className="border border-gray-300 px-2 py-2">FC</th>
+                  <th className="border border-gray-300 px-2 py-2">FR</th>
+                  <th className="border border-gray-300 px-2 py-2">SPO2</th>
+                  <th className="border border-gray-300 px-2 py-2">ETCO2</th>
+                  <th className="border border-gray-300 px-2 py-2">PAS</th>
+                  <th className="border border-gray-300 px-2 py-2">PAD</th>
+                  <th className="border border-gray-300 px-2 py-2">PAM</th>
+                  <th className="border border-gray-300 px-2 py-2">Temp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.monitoring.map((mon: any, index: number) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.time || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.heartRate || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.respiratoryRate || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.spo2 || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.etco2 || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.pas || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.pad || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.pam || '-'}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{mon.temperature || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* RECUPERAÇÃO */}
+      <div className="mb-6">
+        <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Recuperação Anestésica</h3>
+        <div className="grid grid-cols-2 gap-4 p-4 border border-gray-300 rounded bg-green-50/30">
+          <HeaderLabel 
+            label="Hora da Extubação" 
+            value={data.extubationTime ? new Date(data.extubationTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'} 
+          />
+          <HeaderLabel 
+            label="Qualidade da Recuperação" 
+            value={data.recoveryQuality ? recoveryLabels[data.recoveryQuality] || data.recoveryQuality : '-'} 
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-4 mt-4">
+          <ViewBox label="Medicação na Recuperação" content={data.recoveryMedication} />
+          <ViewBox label="Observações" content={data.observations} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const FichaClinicaView = ({ data }: any) => {
   const typeLabels: Record<string, string> = {
