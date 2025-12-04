@@ -18,13 +18,14 @@ import TopBar from '@/components/Sidebars/TopBarDashboard';
 export default function AdmLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[Role.administrator]}>
-      <SidebarProvider className="!h-screen !max-h-screen !overflow-hidden bg-sidebar">
+      <SidebarProvider className="h-screen! max-h-screen! overflow-hidden! bg-sidebar">
         <Sidebar variant="inset" collapsible="icon">
           
           {/* Header com Logo */}
           <SidebarHeader className="group-data-[collapsible=icon]:hidden">
             <div className="flex flex-col items-center justify-center gap-3 px-4 py-6">
               <div className="flex gap-4 items-center justify-center">
+                {/* Logo UNIPET (Mantida Original) */}
                 <div className="relative flex aspect-square size-20 items-center justify-center rounded-full overflow-hidden bg-white shadow-md border-2 border-green-100">
                   <Image
                     src="/unipet.png"
@@ -35,13 +36,15 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                     priority
                   />
                 </div>
-                <div className="flex justify-center">
-                  <div className="relative w-full aspect-square bg-white rounded-full p-3 shadow-sm size-20">
+
+                {/* Logo Hospital (Estilizada: Branca e Sem Fundo) */}
+                <div className="flex justify-center items-center">
+                  <div className="relative size-20">
                     <Image
                       src="/hospital.png"
                       alt="UFRPE - Departamento de Medicina Veterinária"
                       fill
-                      className="object-contain"
+                      className="object-contain brightness-0 invert opacity-90 hover:opacity-100 transition-opacity"
                     />
                   </div>
                 </div>
@@ -57,17 +60,17 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
             <AdmSidebarButtons />
           </SidebarContent>
 
-          {/* Footer com Logos Governamentais */}
-          <SidebarFooter className="border-t border-green-700/30 py-4 px-3 group-data-[collapsible=icon]:hidden">
+          {/* Footer com Logo SEMAS */}
+          <SidebarFooter className="border-t border-green-700/30 py-6 px-4 group-data-[collapsible=icon]:hidden">
             <div className="space-y-4">
-              {/* Logo Governo de Pernambuco */}
+              {/* Logo Governo de Pernambuco (Estilizada: Branca, Maior e Sem Fundo) */}
               <div className="flex justify-center">
-                <div className="relative w-full h-14 bg-white rounded-lg p-2.5 shadow-sm">
+                <div className="relative w-full h-16">
                   <Image
                     src="/semas.png"
                     alt="Governo de Pernambuco"
                     fill
-                    className="object-contain"
+                    className="object-contain brightness-0 invert opacity-80 hover:opacity-100 transition-opacity"
                   />
                 </div>
               </div>

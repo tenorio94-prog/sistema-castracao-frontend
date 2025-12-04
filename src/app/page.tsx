@@ -179,7 +179,7 @@ export default function LandingPage() {
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-6">Nossa Missão</h2>
                 <p className="text-green-100 text-lg leading-relaxed mb-6">
-                  Nosso objetivo é promover o controle ético e sustentável da população de cães e gatos através da esterilização cirúrgica. 
+                  Nosso objetivo é promover o controle ético e sustentável da população de cães e gatos através da esterilização cirúrgica no estado de Pernambuco. 
                   Acreditamos que a castração é um ato de amor e responsabilidade social, prevenindo o abandono e doenças.
                 </p>
                 <ul className="space-y-3">
@@ -200,7 +200,7 @@ export default function LandingPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:bg-white/20 transition-colors">
-                  <span className="block text-4xl font-bold mb-1">+5k</span>
+                  <span className="block text-4xl font-bold mb-1">+2K</span>
                   <span className="text-sm text-green-200">Animais Castrados</span>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/10 mt-8 hover:bg-white/20 transition-colors">
@@ -212,8 +212,8 @@ export default function LandingPage() {
                   <span className="text-sm text-green-200">Suporte Online</span>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/10 mt-8 hover:bg-white/20 transition-colors">
-                  <span className="block text-4xl font-bold mb-1">Top</span>
-                  <span className="text-sm text-green-200">Equipe Médica</span>
+                  <span className="block text-3xl font-bold mb-1">A Melhor</span>
+                  <span className="text-sm text-green-200">Equipe de PE</span>
                 </div>
               </div>
             </div>

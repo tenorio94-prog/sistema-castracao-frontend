@@ -15,7 +15,6 @@ import {
   Plus,
   ArrowRight,
   Phone,
-  Mail,
   Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,42 +28,6 @@ import { AppointmentStatus, ServiceType, STATUS_LABELS, SERVICE_TYPE_LABELS } fr
 import { SPECIES_LABELS, GENDER_LABELS } from '@/services/animal.service';
 
 // --- Componentes Auxiliares ---
-
-const QuickAction = ({ 
-  icon: Icon, 
-  label, 
-  desc, 
-  onClick, 
-  color = "green" 
-}: { 
-  icon: any, 
-  label: string, 
-  desc: string, 
-  onClick: () => void, 
-  color?: "green" | "blue" | "purple" 
-}) => {
-  const colorClasses = {
-    green: "bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white border-green-200",
-    blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white border-blue-200",
-    purple: "bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white border-purple-200"
-  };
-
-  return (
-    <button 
-      onClick={onClick}
-      className="group flex items-center gap-4 p-5 bg-white border-2 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 text-left w-full transform hover:scale-[1.02]"
-    >
-      <div className={`p-3.5 rounded-xl transition-all duration-300 border-2 ${colorClasses[color]}`}>
-        <Icon size={24} strokeWidth={2.5} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h3 className="font-bold text-gray-900 group-hover:text-green-700 transition-colors">{label}</h3>
-        <p className="text-sm text-gray-500 mt-0.5 truncate">{desc}</p>
-      </div>
-      <ChevronRight className="ml-auto text-gray-300 group-hover:text-green-600 transition-all group-hover:translate-x-1 shrink-0" size={20} />
-    </button>
-  );
-};
 
 const ConsultaCardCompact = ({ 
   consulta, 
@@ -296,7 +259,8 @@ export default function ResponsavelDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen w-full space-y-6 md:space-y-8 animate-in fade-in duration-700 overflow-auto">
+    // CORREÇÃO: Removido 'min-h-screen' e 'overflow-auto' para evitar conflito com o Layout
+    <div className="w-full space-y-6 md:space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       <header className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4">
