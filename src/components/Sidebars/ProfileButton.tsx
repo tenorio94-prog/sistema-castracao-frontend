@@ -16,13 +16,24 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Settings, ChevronUp } from "lucide-react";
 import Link from "next/link";
 
-// TODO: Substitua por dados reais do usuário (da sua sessão)
-const user = {
-  name: "Admin", 
-  email: "admin@example.com",
-};
-
 export function ProfileButton() {
+  const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  const user = userData ? (() => {
+    try {
+      const u = JSON.parse(userData);
+      return { name: u.email?.split('@')[0] || 'Usuário', email: u.email || '' };
+    } catch {
+      return { name: 'Usuário', email: '' };
+    }
+  })() : { name: 'Usuário', email: '' };
+
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -65,7 +76,7 @@ export function ProfileButton() {
 
             {/* Item "Log out" */}
             <DropdownMenuItem asChild>
-              <Link href="/login"> {/* TODO: Ajuste o link de Logout */}
+              <Link href="/login" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </Link>

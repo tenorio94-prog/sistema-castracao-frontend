@@ -44,7 +44,7 @@ const ConsultaCardCompact = ({
   };
 
   const [dia, mes] = consulta.date.split('/');
-  const mesExtenso = new Date(2025, parseInt(mes) - 1).toLocaleString('pt-BR', { month: 'short' });
+  const mesExtenso = new Date(new Date().getFullYear(), parseInt(mes) - 1).toLocaleString('pt-BR', { month: 'short' });
 
   return (
     <div 
