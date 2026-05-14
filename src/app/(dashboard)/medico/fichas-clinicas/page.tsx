@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, FileText, CheckCircle, Clock, Eye, Search, Loader2 } from "lucide-react";
+import { Plus, FileText, CheckCircle, Clock, Eye, Search, Loader2, Edit2 } from "lucide-react";
 import PageHeader from '@/components/AtendenteComponents/PageHeader';
 import FichaClinicaModal from '@/components/MedicoComponents/FichaClinicaModal';
 import VisualizarProntuarioModal from '@/components/MedicoComponents/VisualizarProntuarioModal';
@@ -19,7 +19,7 @@ interface FichaDisplay {
   originalData: ClinicalRecord;
 }
 
-const FichaClinicaItem = ({ data, onView }: { data: FichaDisplay, onView: (d: FichaDisplay) => void }) => {
+const FichaClinicaItem = ({ data, onView, onEdit }: { data: FichaDisplay, onView: (d: FichaDisplay) => void, onEdit: (d: FichaDisplay) => void }) => {
   const typeColors: Record<string, string> = {
     'triage': 'bg-blue-50 text-blue-700 border-blue-100',
     'surgery': 'bg-purple-50 text-purple-700 border-purple-100',
@@ -58,13 +58,22 @@ const FichaClinicaItem = ({ data, onView }: { data: FichaDisplay, onView: (d: Fi
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${colorClass} flex items-center gap-1.5`}>
           {typeLabel}
         </span>
-        <button 
-          onClick={() => onView(data)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-        >
-          <Eye size={16} />
-          Ver Detalhes
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => onView(data)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <Eye size={16} />
+            Ver Detalhes
+          </button>
+          <button 
+            onClick={() => onEdit(data)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+          >
+            <Edit2 size={16} />
+            Editar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -75,6 +84,7 @@ export default function FichasClinicasPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<FichaDisplay | null>(null);
+  const [editFicha, setEditFicha] = useState<ClinicalRecord | null>(null);
   const [fichas, setFichas] = useState<FichaDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -120,6 +130,16 @@ export default function FichasClinicasPage() {
       setIsViewOpen(true);
       toast.error('Alguns detalhes podem não estar disponíveis');
     }
+  };
+
+  const handleEdit = (ficha: FichaDisplay) => {
+    setEditFicha(ficha.originalData);
+  };
+
+  const handleEditSuccess = () => {
+    loadFichas();
+    setEditFicha(null);
+    toast.success('Ficha clínica atualizada com sucesso!');
   };
 
   const handleCreateSuccess = () => {
@@ -176,7 +196,7 @@ export default function FichasClinicasPage() {
       ) : (
         <div className="space-y-4">
           {filteredFichas.map((ficha) => (
-            <FichaClinicaItem key={ficha.id} data={ficha} onView={handleView} />
+            <FichaClinicaItem key={ficha.id} data={ficha} onView={handleView} onEdit={handleEdit} />
           ))}
         </div>
       )}
@@ -185,6 +205,12 @@ export default function FichasClinicasPage() {
         isOpen={isCreateOpen} 
         onClose={() => setIsCreateOpen(false)}
         onSuccess={handleCreateSuccess}
+      />
+      <FichaClinicaModal 
+        isOpen={!!editFicha} 
+        onClose={() => setEditFicha(null)}
+        onSuccess={handleEditSuccess}
+        editData={editFicha || undefined}
       />
       <VisualizarProntuarioModal 
         isOpen={isViewOpen} 

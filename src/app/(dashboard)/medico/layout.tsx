@@ -18,7 +18,7 @@ import { Role } from "@/types/auth.types";
 
 export default function MedicoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={[Role.veterinarian, Role.student]}>
+    <ProtectedRoute allowedRoles={[Role.veterinarian, Role.student, Role.administrator]}>
       <SidebarProvider className="h-screen max-h-screen overflow-hidden bg-sidebar">
         <Sidebar variant="inset" collapsible="icon">
           
@@ -27,12 +27,12 @@ export default function MedicoLayout({ children }: { children: React.ReactNode }
             <div className="flex flex-col items-center justify-center gap-3 px-4 py-6">
               <div className="flex gap-4 items-center justify-center">
                 {/* Logo UNIPET (Mantida Original) */}
-                <div className="relative flex aspect-square size-20 items-center justify-center rounded-full overflow-hidden bg-white shadow-md border-2 border-green-100">
+                <div className="relative flex aspect-square size-28 items-center justify-center rounded-full overflow-hidden bg-white shadow-md border-2 border-green-100">
                   <Image
                     src="/unipet.png"
                     alt="Logo UNIPET"
-                    width={80}
-                    height={80}
+                    width={112}
+                    height={112}
                     className="object-contain p-2"
                     priority
                   />
@@ -40,7 +40,7 @@ export default function MedicoLayout({ children }: { children: React.ReactNode }
 
                 {/* Logo Hospital (Estilizada: Branca e Sem Fundo) */}
                 <div className="flex justify-center items-center">
-                  <div className="relative size-20">
+                  <div className="relative size-28">
                     <Image
                       src="/hospital.png"
                       alt="UFRPE - Departamento de Medicina Veterinária"

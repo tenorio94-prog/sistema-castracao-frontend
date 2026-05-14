@@ -13,6 +13,7 @@ export enum ServiceType {
   triage = 'triage',
   castrationSurgery = 'castrationSurgery',
   postOperative = 'postOperative',
+  publicHealth = 'publicHealth',
 }
 
 // --- LABELS UI ---
@@ -28,6 +29,7 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   [ServiceType.triage]: 'Triagem',
   [ServiceType.castrationSurgery]: 'Cirurgia de Castração',
   [ServiceType.postOperative]: 'Pós-Operatório',
+  [ServiceType.publicHealth]: 'Saúde Pública',
 };
 
 // --- INTERFACES ---

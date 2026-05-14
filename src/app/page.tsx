@@ -75,7 +75,7 @@ export default function LandingPage() {
           
           <div className="flex items-center gap-4 md:gap-6">
            
-            <div className="relative h-12 w-12 rounded-full border-2 border-green-50 p-1 bg-white shadow-sm shrink-0">
+            <div className="relative h-16 w-16 rounded-full border-2 border-green-50 p-1 bg-white shadow-sm shrink-0">
               <Image 
                 src="/unipet.png" 
                 alt="Logo UniPet" 
@@ -88,10 +88,10 @@ export default function LandingPage() {
 
             {/* Logos Secundários */}
             <div className="flex items-center gap-3 md:gap-4">
-               <div className="relative h-8 w-14 md:h-10 md:w-20 opacity-90 hover:opacity-100 transition-opacity">
+               <div className="relative h-10 w-20 md:h-12 md:w-24 opacity-90 hover:opacity-100 transition-opacity">
                   <Image src="/hospital.png" alt="UFRPE Hospital" fill className="object-contain" />
                </div>
-               <div className="relative h-8 w-12 md:h-10 md:w-16 opacity-90 hover:opacity-100 transition-opacity">
+               <div className="relative h-10 w-16 md:h-12 md:w-20 opacity-90 hover:opacity-100 transition-opacity">
                   <Image src="/semas.png" alt="Semas" fill className="object-contain" />
                </div>
             </div>
@@ -338,7 +338,7 @@ export default function LandingPage() {
             {/* Coluna 1: Logo e Sobre */}
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-3 mb-6">
-                <div className="relative h-10 w-10 bg-white rounded-full p-1 border border-gray-700">
+                <div className="relative h-14 w-14 bg-white rounded-full p-1 border border-gray-700">
                   <Image src="/unipet.png" alt="UniPet" fill className="object-contain p-1"/>
                 </div>
                 <span className="font-bold text-xl tracking-tight">Sistema Castração</span>
@@ -362,11 +362,14 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold text-lg mb-6 text-white">Parceiros</h4>
               <div className="flex gap-4">
-                <div className="bg-white p-2 rounded-lg h-12 w-24 relative opacity-80 hover:opacity-100 transition-opacity">
+                <div className="bg-white p-2 rounded-lg h-14 w-28 relative opacity-80 hover:opacity-100 transition-opacity">
                    <Image src="/hospital.png" alt="UFRPE" fill className="object-contain p-1" />
                 </div>
-                <div className="bg-white p-2 rounded-lg h-12 w-24 relative opacity-80 hover:opacity-100 transition-opacity">
+                <div className="bg-white p-2 rounded-lg h-14 w-28 relative opacity-80 hover:opacity-100 transition-opacity">
                    <Image src="/semas.png" alt="Semas" fill className="object-contain p-1" />
+                </div>
+                <div className="bg-white p-2 rounded-lg h-14 w-28 relative opacity-80 hover:opacity-100 transition-opacity">
+                   <Image src="/ufrpe.png" alt="UFRPE" fill className="object-contain p-1" />
                 </div>
               </div>
             </div>

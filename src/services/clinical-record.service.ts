@@ -81,7 +81,7 @@ export interface ClinicalRecord {
   thoracicCavity?: string | null;
   locomotorSystem?: string | null;
   
-  // Diagnóstico e Prognóstico
+  // Suspeita Clínica e Prognóstico
   provisionalDiagnosis?: string | null;
   complementaryExams?: string | null;
   definitiveDiagnosis?: string | null;
@@ -182,7 +182,7 @@ export interface CreateClinicalRecordData {
   thoracicCavity?: string;
   locomotorSystem?: string;
   
-  // Campos de Texto - Diagnóstico
+  // Campos de Texto - Suspeita Clínica
   provisionalDiagnosis?: string;
   complementaryExams?: string;
   definitiveDiagnosis?: string;
@@ -218,6 +218,15 @@ export class ClinicalRecordService {
   static async create(data: CreateClinicalRecordData): Promise<ClinicalRecord> {
     try {
       const response = await api.post<ClinicalRecord>(this.BASE_PATH, data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  static async update(id: number, data: Partial<CreateClinicalRecordData>): Promise<ClinicalRecord> {
+    try {
+      const response = await api.patch<ClinicalRecord>(`${this.BASE_PATH}/${id}`, data);
       return response.data;
     } catch (error) {
       throw this.handleError(error);

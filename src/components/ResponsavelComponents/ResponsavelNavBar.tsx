@@ -45,7 +45,8 @@ export default function ResponsibleNavBar() {
         label: 'Sair',
         onClick: () => {
           // Limpar autenticação
-          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
           
           // Redirecionar para login

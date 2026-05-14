@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Save, FileText, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import ClinicalRecordService, { 
+  ClinicalRecord, 
   ClinicalRecordType, 
   SurgeryType, 
   CreateClinicalRecordData
@@ -17,6 +18,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  editData?: ClinicalRecord;
 }
 
 interface AnimalSearchItem {
@@ -93,7 +95,7 @@ interface ClinicalRecordFormData {
   species?: string;
 }
 
-export default function FichaClinicaModal({ isOpen, onClose, onSuccess }: Props) {
+export default function FichaClinicaModal({ isOpen, onClose, onSuccess, editData }: Props) {
   const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   
@@ -596,7 +598,7 @@ export default function FichaClinicaModal({ isOpen, onClose, onSuccess }: Props)
             {/* 6. Diagnóstico */}
             <SectionTitle title="Diagnóstico" />
             <div className="space-y-4 mb-6">
-              <TextArea label="Diagnóstico Provisório" name="provisionalDiagnosis" value={formData.provisionalDiagnosis || ''} onChange={handleChange} rows={2} />
+              <TextArea label="Suspeita Clínica" name="provisionalDiagnosis" value={formData.provisionalDiagnosis || ''} onChange={handleChange} rows={2} />
               <TextArea label="Exames Complementares Solicitados" name="complementaryExams" value={formData.complementaryExams || ''} onChange={handleChange} rows={2} />
               <TextArea label="Diagnóstico Definitivo" name="definitiveDiagnosis" value={formData.definitiveDiagnosis || ''} onChange={handleChange} rows={2} />
               <TextArea label="Prognóstico" name="prognosis" value={formData.prognosis || ''} onChange={handleChange} rows={2} />

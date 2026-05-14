@@ -40,7 +40,8 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
           return;
         }
 
-        const hasPermission = allowedRoles.includes(user.role);
+        const isAdmin = user.role === 'administrator';
+        const hasPermission = isAdmin || allowedRoles.includes(user.role);
         
         if (!hasPermission) {
           console.log(`❌ Usuário não tem permissão. Role: ${user.role}, Permitidos: ${allowedRoles.join(', ')}`);

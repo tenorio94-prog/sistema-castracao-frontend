@@ -4,7 +4,7 @@ import axios from 'axios';
  * Instância configurada do Axios para comunicação com o backend
  */
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://sistema-castracao-backend.onrender.com/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://lucast.app/api',
   timeout: 60000, // 60 segundos de timeout (Render pode demorar ao acordar)
   headers: {
     'Content-Type': 'application/json',
@@ -59,8 +59,9 @@ api.interceptors.response.use(
               { refreshToken }
             );
 
-            const { accessToken } = response.data;
+            const { accessToken, refreshToken: newRefreshToken } = response.data;
             localStorage.setItem('accessToken', accessToken);
+            if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
 
             // Atualizar o header da requisição original
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;

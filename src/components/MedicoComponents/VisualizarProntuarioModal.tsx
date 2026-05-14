@@ -454,7 +454,7 @@ const FichaClinicaView = ({ data }: any) => {
       <div className="mb-6">
         <h3 className="font-bold uppercase text-sm border-b border-gray-300 mb-3">Diagnóstico e Prognóstico</h3>
         <div className="grid grid-cols-1 gap-4">
-          <ViewBox label="Diagnóstico Provisório" content={data.provisionalDiagnosis} />
+          <ViewBox label="Suspeita Clínica" content={data.provisionalDiagnosis} />
           <ViewBox label="Exames Complementares" content={data.complementaryExams} />
           <ViewBox label="Diagnóstico Definitivo" content={data.definitiveDiagnosis} />
           <ViewBox label="Prognóstico" content={data.prognosis} />

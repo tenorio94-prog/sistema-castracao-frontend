@@ -191,7 +191,7 @@ export default function AdminPage() {
           ).length;
           
           // Extrair primeiro e segundo nome
-          const nomes = vet.user?.completeName.split(' ') || ['Veterinário'];
+          const nomes = (vet.user?.completeName?.split(' ')) || ['Veterinário'];
           const nomeExibicao = nomes.length > 1 
             ? `${nomes[0]} ${nomes[1].charAt(0)}.` 
             : nomes[0];
